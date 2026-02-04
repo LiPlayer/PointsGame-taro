@@ -32,13 +32,10 @@ export default function Earn() {
 
     // Random logic: 30% Instant Win, 70% Game Encounter
     const handleStart = () => {
-        console.log('Starting challenge matching...');
         const random = Math.random()
         if (random < 0.3) {
-            console.log('Result: Instant Win');
             setViewState(STATE.INSTANT_WIN)
         } else {
-            console.log('Result: Game Encounter');
             setViewState(STATE.GAME_ENCOUNTER)
         }
     }
@@ -48,16 +45,9 @@ export default function Earn() {
     }
 
     const handleViewResult = () => {
-        console.log('User clicked View Result. Navigating...');
         Taro.redirectTo({
-            url: '/pages/result/instant/index',
-            success: () => console.log('Navigation success'),
-            fail: (err) => {
-                console.error('Navigation failed', err);
-                // Fallback to navigateTo if redirectTo fails
-                Taro.navigateTo({ url: '/pages/result/instant/index' });
-            }
-        })
+            url: '/pages/result/index?instant=true'
+        });
     }
 
     return (
