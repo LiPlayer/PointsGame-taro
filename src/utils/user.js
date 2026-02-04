@@ -38,13 +38,21 @@ export async function saveUserData() {
     }
 }
 
-export function refreshPoints() {
-    if (!userData) return;
+/**
+ * Calculate current points and update in-memory data
+ * @param {boolean} forceSave - Whether to persist to DB immediately
+ * @returns {number} Calculated points
+ */
+export function refreshPoints(forceSave = false) {
+    if (!userData) return 0;
     const currentPoints = calculateCurrentPoints(userData.points, userData.lastUpdatedAt);
+
     if (currentPoints !== userData.points) {
         userData.points = currentPoints;
         userData.lastUpdatedAt = Date.now();
-        saveUserData(); // Note: This is fire-and-forget in this context
+        if (forceSave) {
+            saveUserData();
+        }
     }
     return userData.points;
 }
@@ -52,7 +60,7 @@ export function refreshPoints() {
 export async function updatePoints(delta) {
     if (!userData) await initUserData();
 
-    refreshPoints();
+    refreshPoints(true);
 
     userData.points += delta;
     userData.lastUpdatedAt = Date.now();

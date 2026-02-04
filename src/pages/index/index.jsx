@@ -1,27 +1,37 @@
 import { View, Text, Image, Button } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getUserData, refreshPoints } from '../../utils/user'
+import { calculateCurrentPoints } from '../../utils/economy'
 
 export default function Index() {
-  const [points, setPoints] = useState(0)
+  const [displayPoints, setDisplayPoints] = useState(0)
   const [playCount, setPlayCount] = useState(0)
+
+  // Update loop for real-time evaporation
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const data = getUserData()
+      if (data) {
+        // Calculate points based on current time without modifying userData object every second
+        const current = calculateCurrentPoints(data.points, data.lastUpdatedAt)
+        setDisplayPoints(current)
+      }
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   useDidShow(() => {
     const data = getUserData()
     if (data) {
-      setPoints(data.points)
+      setDisplayPoints(calculateCurrentPoints(data.points, data.lastUpdatedAt))
       setPlayCount(data.dailyPlayCount)
-    } else {
-      // In case login hasn't finished, wait a bit or just retry
-      setTimeout(() => {
-        const retryData = getUserData()
-        if (retryData) {
-          setPoints(retryData.points)
-          setPlayCount(retryData.dailyPlayCount)
-        }
-      }, 500)
     }
+  })
+
+  // Lazy update: Save to storage when page is hidden
+  Taro.useDidHide(() => {
+    refreshPoints(true) // Force save actual state to DB
   })
 
   // Testing: Simulate time passing (e.g. 24 hours)
@@ -30,8 +40,8 @@ export default function Index() {
     if (data) {
       // Set update time to 24 hours ago
       data.lastUpdatedAt -= 24 * 60 * 60 * 1000
-      const newPoints = refreshPoints()
-      setPoints(newPoints)
+      // We don't call refreshPoints(true) here, 
+      // let the timer pick it up instantly in the next tick
       Taro.showToast({ title: '已模拟24小时蒸发', icon: 'success' })
     }
   }
@@ -59,7 +69,7 @@ export default function Index() {
 
         <Text className="text-sm font-extrabold tracking-widest uppercase text-slate-400 block mb-2">当前可用积分</Text>
         <View className="text-6xl font-black text-brand-dark tracking-tighter mb-4">
-          {points.toLocaleString()}
+          {displayPoints.toLocaleString()}
         </View>
 
         <View className="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold">

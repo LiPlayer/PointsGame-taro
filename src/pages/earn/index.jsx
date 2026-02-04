@@ -88,7 +88,7 @@ export default function Earn() {
 
             {viewState === STATE.INSTANT_WIN && (
                 <View className="page-padding text-center flex flex-col h-screen box-border p-6 pt-10 items-center bg-amber-50">
-                    <View className="absolute top-6 left-6 w-10 h-10 rounded-full bg-white/50 text-slate-600 flex items-center justify-center active:bg-white/80" onClick={goHome}>
+                    <View className="absolute top-6 left-6 w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center active:bg-slate-200" onClick={goHome}>
                         <Image src={SVG_CLOSE} className="w-5 h-5 text-slate-600" />
                     </View>
 
@@ -115,7 +115,7 @@ export default function Earn() {
 
             {viewState === STATE.GAME_ENCOUNTER && (
                 <View className="page-padding text-center flex flex-col h-screen box-border p-6 pt-10 items-center bg-rose-50">
-                    <View className="absolute top-6 left-6 w-10 h-10 rounded-full bg-white/50 text-slate-600 flex items-center justify-center active:bg-white/80" onClick={goHome}>
+                    <View className="absolute top-6 left-6 w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center active:bg-slate-200" onClick={goHome}>
                         <Image src={SVG_CLOSE} className="w-5 h-5 text-slate-600" />
                     </View>
 
