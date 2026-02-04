@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>婷姐贵州炒鸡 - V3.2 全量高保真原型</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', '"Noto Sans SC"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            red: '#e11d48', // rose-600
+                            dark: '#0f172a', // slate-900
+                            bg: '#f1f5f9',   // slate-100
+                        }
+                    },
+                    boxShadow: {
+                        'glow': '0 0 20px -5px rgba(225, 29, 72, 0.5)',
+                        'card': '0 20px 40px -10px rgba(15, 23, 42, 0.05)',
+                    }
+                }
+            }
+        }
+    </script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&family=Noto+Sans+SC:wght@400;700;900&display=swap"
+        rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #f8fafc;
+            padding: 40px;
+            color: #0f172a;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(375px, 1fr));
+            gap: 60px;
+            justify-items: center;
+        }
+
+        /* Phone Shell */
+        .phone {
+            width: 375px;
+            height: 812px;
+            background: #fff;
+            border: 12px solid #1e293b;
+            border-radius: 50px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Utilities */
+        .page-padding {
+            padding: 24px;
+            padding-top: 50px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+            color: white;
+            box-shadow: 0 10px 20px -5px rgba(225, 29, 72, 0.4);
+            transition: transform 0.1s;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .label-caps {
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+
+        /* Nav Close Button */
+        .nav-close {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            padding: 8px;
+            border-radius: 99px;
+            background-color: #f8fafc;
+            color: #94a3b8;
+            cursor: pointer;
+            z-index: 50;
+        }
+
+        /* Animations */
+        @keyframes float {
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        .animate-float {
+            animation: float 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0% {
+                box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 15px rgba(225, 29, 72, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(225, 29, 72, 0);
+            }
+        }
+
+        .animate-pulse-glow {
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes scan-line {
+            0% {
+                top: 0%;
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                top: 100%;
+                opacity: 0;
+            }
+        }
+
+        .scan-anim {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e11d48;
+            box-shadow: 0 0 10px #e11d48;
+            animation: scan-line 2s linear infinite;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="text-center mb-16">
+        <h1 class="text-4xl font-black text-slate-900 mb-4">婷姐贵州炒鸡 · V3.2 全量原型</h1>
+        <p class="text-slate-500 font-medium">包含所有 10 个核心状态页面 (纯中文版)</p>
+    </div>
+
+    <div class="board">
+
+        <!-- 01. Home -->
+        <div class="flex flex-col items-center gap-4">
+            <span class="bg-slate-200 px-4 py-1 rounded-full text-xs font-bold text-slate-600">01. 首页 (入口)</span>
+            <div class="phone">
+                <div class="page-padding">
+                    <div class="flex flex-col items-center mt-8 mb-12">
+                        <div
+                            class="w-16 h-16 bg-rose-600 rounded-2xl shadow-lg flex items-center justify-center text-white text-3xl font-black mb-4">
+                            婷</div>
+                        <h1 class="text-xl font-black text-slate-900">婷姐•贵州炒鸡</h1>
+                    </div>
+                    <div
+                        class="bg-white border border-slate-100 rounded-[32px] p-8 text-center shadow-card mb-auto relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-4 opacity-10"><svg class="w-32 h-32" fill="currentColor"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z">
+                                </path>
+                            </svg></div>
+                        <span class="label-caps block mb-2">当前可用积分</span>
+                        <div class="text-6xl font-black text-slate-900 tracking-tighter">1,240</div>
+                        <div
+                            class="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-[10px] font-bold">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
+                                <path d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            今日已玩 0/3 次
+                        </div>
+                    </div>
+                    <div class="space-y-4 mb-6">
+                        <button
+                            class="w-full py-5 rounded-2xl btn-primary text-lg font-black flex items-center justify-center gap-3">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            赚积分
+                        </button>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button
+                                class="py-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center gap-2 hover:bg-slate-50 transition">
+                                <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24" stroke-width="2">
+                                    <path
+                                        d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z">
+                                    </path>
+                                </svg>
+                                <span class="text-xs font-bold text-slate-600">已收集游戏</span>
+                            </button>
+                            <button
+                                class="py-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center gap-2 hover:bg-slate-50 transition">
+                                <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24" stroke-width="2">
+                                    <path
+                                        d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7">
+                                    </path>
+                                </svg>
+                                <span class="text-xs font-bold text-slate-600">分享积分</span>
+                            </button>
+                        </div>
+                        <button
+                            class="w-full py-5 rounded-2xl bg-slate-900 text-white text-sm font-black flex items-center justify-center gap-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path
+                                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z">
+                                </path>
+                            </svg>
+                            付款抵扣
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 02a. Earn (Entry) -->
+        <div class="flex flex-col items-center gap-4">
+            <span class="bg-rose-100 px-4 py-1 rounded-full text-xs font-bold text-rose-700">02a. 赚积分 (开始页)</span>
+            <div class="phone">
+                <div class="page-padding text-center">
+                    <div class="nav-close"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            stroke-width="2.5">
+                            <path d="M6 18L18 6M6 6l12 12"></path>
+                        </svg></div>
+
+                    <div class="flex-1 flex flex-col items-center justify-center">
+                        <div
+                            class="w-48 h-48 bg-slate-50 rounded-[48px] border-4 border-white shadow-xl flex items-center justify-center mb-8 relative">
+                            <div
+                                class="absolute inset-0 rounded-[44px] bg-gradient-to-tr from-rose-50 to-white opacity-50">
+                            </div>
+                            <!-- Gamepad Icon -->
+                            <svg class="w-24 h-24 text-rose-500 animate-float" fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M17 6H7c-3 0-5.1 2.5-5 5.5C2.1 14.4 4.5 17 7.5 17h9c3 0 5.4-2.6 5.5-5.5.1-3-2-5.5-5-5.5zM7.5 14c-1.4 0-2.5-1.1-2.5-2.5S6.1 9 7.5 9s2.5 1.1 2.5 2.5S8.9 14 7.5 14zm10.5-1c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1zm-2-2c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1zm0 4c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1zm2 0c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1z" />
+                            </svg>
+                        </div>
+                        <h2 class="text-2xl font-black text-slate-900 mb-2">准备好了吗？</h2>
+                        <p class="text-sm text-slate-400 px-8">点击开始，系统将为你随机匹配<br>一个小挑战或惊喜奖励。</p>
+                    </div>
+
+                    <button class="w-full py-5 rounded-2xl btn-primary text-xl font-black mb-6">
+                        开始
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 02b. Instant Win -->
+        <div class="flex flex-col items-center gap-4">
+            <span class="bg-amber-100 px-4 py-1 rounded-full text-xs font-bold text-amber-700">02b. 赚积分 (直接获分)</span>
+            <div class="phone">
+                <div class="page-padding text-center bg-amber-50">
+                    <div class="nav-close bg-white/50"><svg class="w-5 h-5" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24" stroke-width="2.5">
+                            <path d="M6 18L18 6M6 6l12 12"></path>
+                        </svg></div>
+
+                    <div class="flex-1 flex flex-col items-center justify-center">
+                        <div
+                            class="w-40 h-40 bg-white rounded-full flex items-center justify-center shadow-lg mb-8 animate-pulse-glow border-4 border-amber-200">
+                            <svg class="w-20 h-20 text-amber-500" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6-4.8-6 4.8 2.4-7.2-6-4.8h7.6z"></path>
+                            </svg>
+                        </div>
+                        <h2 class="text-3xl font-black text-amber-600 mb-2">惊喜时刻！</h2>
+                        <p class="text-sm text-amber-800 font-bold opacity-70">无需游戏，直接获分</p>
+                    </div>
+
+                    <button class="w-full py-5 rounded-2xl bg-amber-500 text-white shadow-lg text-xl font-black mb-6">
+                        点击查看结果
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 02c. Earn (Game Encounter) -->
+        <div class="flex flex-col items-center gap-4">
+            <span class="bg-rose-100 px-4 py-1 rounded-full text-xs font-bold text-rose-700">02c. 赚积分 (游戏遭遇)</span>
+            <div class="phone">
+                <div class="page-padding text-center bg-rose-50">
+                    <div class="nav-close bg-white/50"><svg class="w-5 h-5" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24" stroke-width="2.5">
+                            <path d="M6 18L18 6M6 6l12 12"></path>
+                        </svg></div>
+
+                    <div class="flex-1 flex flex-col items-center justify-center">
+                        <div
+                            class="w-40 h-40 bg-white rounded-full flex items-center justify-center shadow-lg mb-8 animate-float border-4 border-rose-200 relative">
+                            <div
+                                class="absolute -top-3 px-3 py-1 bg-amber-400 text-amber-900 text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm z-10">
+                                新游戏解锁</div>
+                            <svg class="w-20 h-20 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                stroke-width="2">
+                                <path
+                                    d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                </path>
+                            </svg>
+                        </div>
+                        <h2 class="text-3xl font-black text-rose-600 mb-2">疯狂炒鸡</h2>
+                        <p class="text-sm text-rose-800 font-bold opacity-70">首次挑战 · 难度 ★★★</p>
+                    </div>
+
+                    <button class="w-full py-5 rounded-2xl btn-primary text-xl font-black mb-6 shadow-lg">
+                        开始挑战
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 03. Game Running -->
+        <div class="flex flex-col items-center gap-4">
+            <span class="bg-slate-200 px-4 py-1 rounded-full text-xs font-bold text-slate-600">03. 游戏运行态</span>
+            <div class="phone bg-slate-900">
+                <div class="page-padding relative !p-0">
+                    <!-- Game Canvas Placeholder -->
+                    <div class="absolute inset-0 bg-slate-800 flex items-center justify-center overflow-hidden">
+                        <div class="text-slate-700 text-9xl font-black opacity-10 rotate-12 select-none">游戏中</div>
+                        <!-- Mock Objects -->
+                        <div class="absolute top-1/4 left-1/3 w-12 h-12 bg-rose-500 rounded-full"></div>
+                        <div class="absolute bottom-1/3 right-1/4 w-16 h-4 bg-amber-400 rounded-full rotate-45"></div>
+                    </div>
+
+                    <!-- Overlay UI -->
+                    <div class="absolute top-0 left-0 w-full p-6 flex justify-between items-start z-10">
+                        <div
+                            class="w-10 h-10 rounded-full bg-white/20 backdrop-blur text-white flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                stroke-width="2.5">
+                                <path d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- No Points UI in Game! -->
+                    <div class="absolute bottom-10 width-full text-center w-full z-10">
+                        <p class="text-white/50 text-[10px] uppercase tracking-[0.2em] font-bold">游戏进行中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 04. Result - EARN MODE -->
+        <div class="flex flex-col items-center gap-4">
+            <span class="bg-emerald-100 px-4 py-1 rounded-full text-xs font-bold text-emerald-700">04. 结果页
+                (Earn模式)</span>
+            <div class="phone">
+                <div class="page-padding text-center">
+                    <div class="nav-close"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            stroke-width="2.5">
+                            <path d="M6 18L18 6M6 6l12 12"></path>
+                        </svg></div>
+
+                    <div class="flex-1 flex flex-col items-center justify-center pt-10">
+                        <span class="label-caps mb-2 text-emerald-600">挑战成功</span>
+
+                        <div class="relative mb-10">
+                            <div
+                                class="text-7xl font-black text-emerald-600 tracking-tighter flex items-center justify-center gap-2">
+                                <span>+20</span>
+                                <span class="text-2xl mt-4">积分</span>
+                            </div>
+                            <div
+                                class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full inline-block mt-2">
+                                🎉 新纪录奖励
+                            </div>
+                        </div>
+
+                        <div class="w-full bg-slate-50 border border-slate-100 rounded-3xl p-6 mb-8">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-left">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">本次得分</span>
+                                    <span class="text-3xl font-black text-slate-900">85</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">历史最高</span>
+                                    <span class="text-3xl font-black text-slate-400">70</span>
+                                </div>
+                            </div>
+                            <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden flex">
+                                <div class="h-full bg-slate-400 w-[82%]"></div>
+                                <div class="h-full bg-emerald-500 w-[18%]"></div>
+                            </div>
+                            <div class="flex justify-between mt-1">
+                                <span class="text-[10px] text-slate-400">打破纪录</span>
+                                <span class="text-[10px] text-emerald-600 font-bold">+15 (突破)</span>
+                            </div>
+                        </div>
+
+                        <div
+                            class="bg-rose-50 rounded-2xl p-4 w-full border border-rose-100 mb-4 flex items-center justify-between">
+                            <span class="text-rose-700 font-bold text-sm">当前总积分</span>
+                            <span class="text-rose-700 font-black text-xl tracking-tight">1,260</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto space-y-3 mb-6">
+                        <button
+                            class="w-full py-4 rounded-2xl bg-white border-2 border-slate-100 text-slate-600 font-black text-sm flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                stroke-width="2.5">
+                                <path
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
+                            </svg>
+                            再玩一次
+                        </button>
+                        <button
+                            class="w-full py-5 rounded-2xl btn-primary text-sm font-black shadow-lg flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                stroke-width="2.5">
+                                <path
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
+                            </svg>
+                            换个运气
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 05. Share -->
+        <div class="flex flex-col items-center gap-4">
+            <span class="bg-purple-100 px-4 py-1 rounded-full text-xs font-bold text-purple-700">05. 分享 (收/发)</span>
+            <div class="phone bg-slate-50">
+                <div class="page-padding !pt-0 !px-0">
+                    <div class="absolute top-6 left-6 p-2 rounded-full bg-white/50 text-slate-600 z-10"><svg
+                            class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                            <path d="M6 18L18 6M6 6l12 12"></path>
+                        </svg></div>
+                    <div
+                        class="flex-1 bg-white rounded-b-[40px] shadow-sm flex flex-col items-center justify-center p-8 relative z-0">
+                        <h2 class="text-lg font-black text-slate-900 mb-6">向我转积分</h2>
+                        <div
+                            class="w-48 h-48 bg-slate-900 rounded-3xl flex items-center justify-center text-white mb-4">
+                            <svg class="w-20 h-20 opacity-50" fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm13 0h5v2h-5v-2zm0 3h2v5h-2v-5zm3 0h2v2h-2v-2zm0 3h2v2h-2v-2z">
+                                </path>
+                            </svg>
+                        </div>
+                        <div class="bg-slate-100 px-4 py-1 rounded-full text-[10px] font-mono font-bold text-slate-500">
+                            ID: TJ_88921</div>
+                    </div>
+                    <div class="flex-1 flex flex-col p-8 justify-center">
+                        <h2 class="text-lg font-black text-slate-900 mb-6 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                stroke-width="2.5">
+                                <path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                            </svg>
+                            转给朋友
+                        </h2>
+                        <div class="mb-4">
+                            <label class="label-caps block mb-2">积分数量</label>
+                            <input type="number" value="100"
+                                class="w-full text-3xl font-black bg-white border border-slate-200 rounded-2xl py-4 px-6 text-slate-900 focus:outline-none focus:border-rose-500">
+                        </div>
+                        <button
+                            class="w-full py-5 rounded-2xl bg-slate-900 text-white font-bold flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path
+                                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z">
+                                </path>
+                            </svg>
+                            扫码转出
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 06a. Pay (Scan) -->
+        <div class="flex flex-col items-center gap-4">
+            <span class="bg-slate-200 px-4 py-1 rounded-full text-xs font-bold text-slate-600">06a. 门店支付 (扫码)</span>
+            <div class="phone bg-black">
+                <div class="page-padding relative !p-0">
+                    <div class="absolute top-6 left-6 p-2 rounded-full bg-black/40 text-white z-20"><svg class="w-5 h-5"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                            <path d="M6 18L18 6M6 6l12 12"></path>
+                        </svg></div>
+
+                    <div class="absolute inset-0 bg-slate-800">
+                        <div
+                            class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1550989460-0adf9ea622e2?q=80&w=375&auto=format&fit=crop')] bg-cover bg-center opacity-40">
+                        </div>
+                    </div>
+
+                    <div class="absolute inset-0 flex flex-col items-center justify-center p-12">
+                        <h2 class="text-white font-bold mb-12 drop-shadow-md">请扫描商户收款码</h2>
+                        <div
+                            class="w-64 h-64 border-2 border-white/50 rounded-3xl relative overflow-hidden bg-white/5 backdrop-blur-sm">
+                            <div
+                                class="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-rose-500 rounded-tl-lg">
+                            </div>
+                            <div
+                                class="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-rose-500 rounded-tr-lg">
+                            </div>
+                            <div
+                                class="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-rose-500 rounded-bl-lg">
+                            </div>
+                            <div
+                                class="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-rose-500 rounded-br-lg">
+                            </div>
+                            <div class="scan-anim"></div>
+                        </div>
+                        <p class="text-white/70 text-sm mt-8 text-center">识别成功后<br>积分将自动全额抵扣</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 06b. Pay (Confirm) -->
+        <div class="flex flex-col items-center gap-4">
+            <span class="bg-slate-200 px-4 py-1 rounded-full text-xs font-bold text-slate-600">06b. 门店支付 (确认)</span>
+            <div class="phone bg-slate-50">
+                <div class="page-padding justify-center px-6">
+                    <div class="bg-white rounded-[40px] p-8 shadow-card border border-slate-100">
+                        <div class="flex flex-col items-center mb-8 border-b border-slate-100 pb-8">
+                            <div
+                                class="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600 mb-4">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                    stroke-width="2.5">
+                                    <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-xl font-black text-slate-900">订单确认</h2>
+                            <p class="text-xs text-slate-400 font-bold mt-1">婷姐•贵州炒鸡 (总店)</p>
+                        </div>
+
+                        <div class="space-y-4 mb-8">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-bold text-slate-500">订单总额</span>
+                                <span class="text-lg font-black text-slate-900">¥ 108.00</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-bold text-rose-500 flex items-center gap-1">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                        <path
+                                            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z">
+                                        </path>
+                                    </svg>
+                                    积分抵扣 (1240分)
+                                </span>
+                                <span class="text-lg font-black text-rose-600">- ¥ 12.40</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 rounded-2xl p-6 text-center mb-6">
+                            <span class="label-caps block mb-1">还需要支付</span>
+                            <div class="text-4xl font-black text-slate-900 tracking-tighter">¥ 95.60</div>
+                        </div>
+
+                        <button class="w-full py-5 rounded-2xl btn-primary text-lg font-black mb-3">
+                            确认支付
+                        </button>
+                        <button
+                            class="w-full py-3 text-slate-400 text-xs font-bold uppercase hover:text-slate-600">取消订单</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 07. Collection -->
+        <div class="flex flex-col items-center gap-4">
+            <span class="bg-blue-100 px-4 py-1 rounded-full text-xs font-bold text-blue-700">07. 游戏图鉴</span>
+            <div class="phone">
+                <div class="page-padding">
+                    <div class="flex items-center gap-4 mb-8">
+                        <div class="nav-close !relative !top-0 !left-0"><svg class="w-5 h-5" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                <path d="M6 18L18 6M6 6l12 12"></path>
+                            </svg></div>
+                        <h2 class="text-xl font-black text-slate-900">已收集的游戏</h2>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto space-y-4 pr-1">
+                        <!-- Game 1 -->
+                        <div
+                            class="bg-white p-5 rounded-[28px] border border-slate-100 shadow-sm flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div
+                                    class="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600">
+                                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                        stroke-width="2">
+                                        <path
+                                            d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                        </path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="font-black text-slate-900">疯狂炒鸡</p>
+                                    <p class="text-[10px] font-bold text-slate-400">已玩 12 次</p>
+                                </div>
+                            </div>
+                            <button
+                                class="px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-bold">复玩</button>
+                        </div>
+
+                        <!-- Game 2 -->
+                        <div
+                            class="bg-white p-5 rounded-[28px] border border-slate-100 shadow-sm flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div
+                                    class="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600">
+                                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                        stroke-width="2">
+                                        <path
+                                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                                        </path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="font-black text-slate-900">砂锅围筷子</p>
+                                    <p class="text-[10px] font-bold text-slate-400">已玩 3 次</p>
+                                </div>
+                            </div>
+                            <button
+                                class="px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-bold">复玩</button>
+                        </div>
+
+                        <!-- Game 3 (Locked) -->
+                        <div
+                            class="bg-slate-50 p-5 rounded-[28px] border border-slate-100 flex items-center gap-4 opacity-60 grayscale">
+                            <div
+                                class="w-14 h-14 bg-slate-200 rounded-2xl flex items-center justify-center text-slate-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                    stroke-width="2.5">
+                                    <path
+                                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                                    </path>
+                                </svg>
+                            </div>
+                            <p class="font-bold text-slate-400 text-sm">???</p>
+                        </div>
+                    </div>
+
+                    <div class="py-4 text-center">
+                        <p class="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">复玩不会获得积分</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 07b. Result (Collection Replay) -->
+        <div class="flex flex-col items-center gap-4">
+            <span class="bg-blue-100 px-4 py-1 rounded-full text-xs font-bold text-blue-700">07b. 结果页 (复玩模式)</span>
+            <div class="phone">
+                <div class="page-padding text-center">
+                    <div class="nav-close"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            stroke-width="2.5">
+                            <path d="M6 18L18 6M6 6l12 12"></path>
+                        </svg></div>
+
+                    <div class="flex-1 flex flex-col items-center justify-center pt-10">
+                        <span class="label-caps mb-2 text-slate-400">练习模式</span>
+
+                        <!-- Hero: Raw Score -->
+                        <div class="relative mb-6">
+                            <div class="text-8xl font-black text-slate-900 tracking-tighter">
+                                85
+                            </div>
+                            <div
+                                class="bg-slate-100 text-slate-500 text-xs font-bold px-3 py-1 rounded-full inline-block mt-2">
+                                复玩不计分
+                            </div>
+                        </div>
+
+                        <!-- Sub-Hero: Comparison -->
+                        <div class="w-full bg-slate-50 border border-slate-100 rounded-3xl p-6 mb-8">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-left">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">本次表现</span>
+                                    <span class="text-xl font-black text-slate-700">表现优异</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">历史最佳</span>
+                                    <span class="text-xl font-black text-slate-700">70</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-between mt-1 border-t border-slate-200 pt-2">
+                                <span class="text-[10px] text-slate-400">分差</span>
+                                <span class="text-[10px] text-emerald-600 font-bold">+15 (练习)</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-blue-50 rounded-2xl p-4 w-full border border-blue-100 mb-4">
+                            <p class="text-blue-700 font-bold text-xs">💡 仅作为练习记录，不影响总积分。</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto space-y-3 mb-6">
+                        <button
+                            class="w-full py-4 rounded-2xl bg-white border-2 border-slate-100 text-slate-600 font-black text-sm flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                stroke-width="2.5">
+                                <path
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
+                            </svg>
+                            再玩一次
+                        </button>
+                        <button
+                            class="w-full py-5 rounded-2xl bg-slate-900 text-white text-sm font-black shadow-lg flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                stroke-width="2.5">
+                                <path
+                                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                                </path>
+                            </svg>
+                            返回图鉴
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+
+</html>
