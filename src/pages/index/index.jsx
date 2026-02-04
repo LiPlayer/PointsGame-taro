@@ -3,9 +3,9 @@ import Taro from '@tarojs/taro'
 
 export default function Index() {
   return (
-    <View className="min-h-screen bg-[#f8fafc] p-6 pt-12 text-[#0f172a] box-border">
+    <View className="min-h-screen bg-[#f8fafc] p-6 pt-8 text-[#0f172a] box-border">
       {/* Header / User Info */}
-      <View className="flex flex-col items-center mt-8 mb-12">
+      <View className="flex flex-col items-center mt-4 mb-8">
         <View className="w-16 h-16 bg-brand-red rounded-2xl shadow-lg flex items-center justify-center text-white text-3xl font-black mb-4">
           婷
         </View>
@@ -13,7 +13,7 @@ export default function Index() {
       </View>
 
       {/* Points Card */}
-      <View className="bg-white border border-slate-100 rounded-[32px] p-8 text-center shadow-card mb-auto relative overflow-hidden box-border">
+      <View className="bg-white border border-slate-100 rounded-[32px] p-6 text-center shadow-card mb-auto relative overflow-hidden box-border">
         {/* Background Decorative Icon */}
         <View className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
           {/* Background Star */}
@@ -24,7 +24,7 @@ export default function Index() {
           />
         </View>
 
-        <Text className="text-xs font-extrabold tracking-widest uppercase text-slate-400 block mb-2">当前可用积分</Text>
+        <Text className="text-sm font-extrabold tracking-widest uppercase text-slate-400 block mb-2">当前可用积分</Text>
         <View className="text-6xl font-black text-brand-dark tracking-tighter mb-4">1,240</View>
 
         <View className="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold">
@@ -34,7 +34,7 @@ export default function Index() {
       </View>
 
       {/* Action Buttons */}
-      <View className="space-y-4 mb-6 mt-6">
+      <View className="space-y-4 mb-4 mt-4">
         {/* Earn Points Button */}
         <View
           className="w-full py-5 rounded-2xl bg-gradient-to-br from-[#e11d48] to-[#be123c] shadow-glow active:scale-95 transition-transform flex items-center justify-center gap-3"
@@ -56,10 +56,10 @@ export default function Index() {
           >
             {/* Sparkles Icon */}
             <Image
-              src="data:image/svg+xml;base64,PHN2ZyBmaWxsPSJub25lIiBzdHJva2U9IiM5NGEzYjgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlLXdpZHRoPSIyIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Ik01IDN2NE0zIDVoNE02IDE3djRtLTItMmg0bTUtMTZsMi4yODYgNi44NTdMMjEgMTJsLTUuNzE0IDIuMTQzTDEzIDIxbC0yLjI4Ni02Ljg1N0w1IDEybDUuNzE0LTIuMTQzTDEzIDN6Ij48L3BhdGhpPjwvc3ZnPg=="
+              src="data:image/svg+xml;base64,PHN2ZyBmaWxsPSJub25lIiBzdHJva2U9IiM5NGEzYjgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlLXdpZHRoPSIyIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Ik01IDN2NE0zIDVoNE02IDE3djRtLTItMmg0bTUtMTZsMi4yODYgNi44NTdMMjEgMTJsLTUuNzE0IDIuMTQzTDEzIDIxbC0yLjI4Ni02Ljg1N0w1IDEybDUuNzE0LTIuMTQzTDEzIDN6Ij48L3BhdGg+PC9zdmc+"
               className="w-6 h-6"
             />
-            <Text className="text-xs font-bold text-slate-600">已收集游戏</Text>
+            <Text className="text-sm font-bold text-slate-600">已收集游戏</Text>
           </View>
           <View
             className="py-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center gap-2 active:bg-slate-50 transition-colors"
@@ -70,7 +70,7 @@ export default function Index() {
               src="data:image/svg+xml;base64,PHN2ZyBmaWxsPSJub25lIiBzdHJva2U9IiM5NGEzYjgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlLXdpZHRoPSIyIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Ik0xMiA4djEzbTAtMTNWNmEyIDIgMCAxMTIgMmgtMnptMCAwVjUuNUEyLjUgMi41IDAgMTA5LjUgOEgxMnptLTcgNGgxNE01IDEyYTIgMiAwIDExMC00aDE0YTIgMiAwIDExMCA0TTUgMTJ2N2EyIDIgMCAwMDIgMmgxMGEyIDIgMCAwMDItMnYtNyIvPjwvc3ZnPg=="
               className="w-6 h-6"
             />
-            <Text className="text-xs font-bold text-slate-600">分享积分</Text>
+            <Text className="text-sm font-bold text-slate-600">分享积分</Text>
           </View>
         </View>
 
