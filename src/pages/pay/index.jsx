@@ -16,7 +16,7 @@ export default function Pay() {
     const [pageState, setPageState] = useState(STATE.SCAN)
 
     const goHome = () => {
-        Taro.navigateBack()
+        Taro.reLaunch({ url: '/pages/index/index' })
     }
 
     // Simulate scanning
@@ -31,7 +31,7 @@ export default function Pay() {
     const handlePay = () => {
         Taro.showToast({ title: '支付成功', icon: 'success' })
         setTimeout(() => {
-            Taro.navigateBack()
+            Taro.reLaunch({ url: '/pages/index/index' })
         }, 1500)
     }
 

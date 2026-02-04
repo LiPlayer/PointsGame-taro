@@ -16,8 +16,9 @@ export default function Game() {
     }
 
     const handleGameOver = () => {
+        const score = Math.floor(Math.random() * 50) + 50 // Mock score between 50 and 100
         Taro.reLaunch({
-            url: `/pages/result/index?mode=${isReplay ? 'replay' : 'earn'}`
+            url: `/pages/result/index?mode=${isReplay ? 'replay' : 'earn'}&score=${score}`
         })
     }
 

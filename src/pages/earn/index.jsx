@@ -41,7 +41,7 @@ export default function Earn() {
     }
 
     const goHome = () => {
-        Taro.navigateBack()
+        Taro.reLaunch({ url: '/pages/index/index' })
     }
 
     return (

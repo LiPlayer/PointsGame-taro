@@ -11,7 +11,7 @@ export default function Share() {
     const [amount, setAmount] = useState('100')
 
     const goHome = () => {
-        Taro.navigateBack()
+        Taro.reLaunch({ url: '/pages/index/index' })
     }
 
     const handleScan = () => {
