@@ -4,7 +4,9 @@ export default defineAppConfig({
     'pages/earn/index',
     'pages/collection/index',
     'pages/share/index',
-    'pages/pay/index'
+    'pages/pay/index',
+    'pages/game/index',
+    'pages/result/index'
   ],
   window: {
     backgroundTextStyle: 'light',

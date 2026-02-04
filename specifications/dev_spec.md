@@ -326,11 +326,14 @@ $$ \lambda = \frac{G_{daily}}{24 \cdot P_{max}^3} $$
 
 #### C. Aspect Ratio Strategy (多设备适配策略)
 - **核心原则**: 宽度优先 (Width-First)，高度弹性 (Height-Flexible)。
+- **Game Content (2D & 3D)**:
+  - **Safe Zone (安全区)**: 核心玩法区域必须限制在 **9:16 (约 0.56)** 的比例范围内。
+    - 无论设备屏幕多长 (如 20:9)，必须保证该核心区域完整可见。
+    - 无论设备屏幕多宽 (如 iPad)，必须保证该核心区域不被裁剪 (Letterbox or FOV adjustment)。
 - **2D UI**:
   - 顶部/底部固定元素：使用 `fixed` 定位及 `safe-area-inset-*` 适配刘海屏与 Home Bar。
   - 中间内容区：使用 Flex 弹性布局 (`flex-1`) 自适应剩余高度。
-- **3D Game**:
-  - **Safe Zone (安全区)**: 核心玩法区域必须限制在 9:16 (约 0.56) 的比例范围内，确保在该比例下不被裁剪。
+- **3D Specifics**:
   - **FOV 适配**: 默认为垂直 FOV 固定。针对极宽屏幕 (iPad)，需动态调整 Camera Distance 或 FOV 以保证横向内容不被裁剪。
   - **背景填充**: 3D 场景背景应有一定的冗余 (Over-scan)，以覆盖全面屏手机的超长纵横比 (如 20:9)。
 
