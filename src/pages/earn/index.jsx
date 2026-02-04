@@ -1,4 +1,4 @@
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text, Image, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 
@@ -32,16 +32,32 @@ export default function Earn() {
 
     // Random logic: 30% Instant Win, 70% Game Encounter
     const handleStart = () => {
+        console.log('Starting challenge matching...');
         const random = Math.random()
         if (random < 0.3) {
+            console.log('Result: Instant Win');
             setViewState(STATE.INSTANT_WIN)
         } else {
+            console.log('Result: Game Encounter');
             setViewState(STATE.GAME_ENCOUNTER)
         }
     }
 
     const goHome = () => {
         Taro.reLaunch({ url: '/pages/index/index' })
+    }
+
+    const handleViewResult = () => {
+        console.log('User clicked View Result. Navigating...');
+        Taro.redirectTo({
+            url: '/pages/result/instant/index',
+            success: () => console.log('Navigation success'),
+            fail: (err) => {
+                console.error('Navigation failed', err);
+                // Fallback to navigateTo if redirectTo fails
+                Taro.navigateTo({ url: '/pages/result/instant/index' });
+            }
+        })
     }
 
     return (
@@ -70,13 +86,13 @@ export default function Earn() {
                         <Text className="text-sm text-slate-400 px-8 leading-relaxed">点击开始，系统将为你随机匹配{'\n'}一个小挑战或惊喜奖励。</Text>
                     </View>
 
-                    <View
-                        className="w-full py-5 rounded-2xl bg-gradient-to-br from-[#e11d48] to-[#be123c] shadow-glow active:scale-95 transition-transform flex items-center justify-center mb-6"
+                    <Button
+                        className="w-full py-5 rounded-2xl bg-gradient-to-br from-[#e11d48] to-[#be123c] shadow-glow active:scale-95 transition-transform flex items-center justify-center mb-6 border-none outline-none"
                         onClick={handleStart}
                     >
-                        <Image src={SVG_PLAY} className="w-6 h-6 text-white" />
+                        <Image src={SVG_PLAY} className="w-6 h-6 text-white mr-2" />
                         <Text className="text-white text-xl font-black">开始</Text>
-                    </View>
+                    </Button>
                 </View>
             )}
 
@@ -97,13 +113,13 @@ export default function Earn() {
                         <Text className="text-sm text-amber-800 font-bold opacity-70">无需游戏，直接获分</Text>
                     </View>
 
-                    <View
-                        className="w-full py-5 rounded-2xl bg-amber-500 text-white shadow-lg text-xl font-black mb-6 active:scale-95 transition-transform flex items-center justify-center"
-                        onClick={() => Taro.reLaunch({ url: '/pages/result/index' })}
+                    <Button
+                        className="w-full py-5 rounded-2xl bg-amber-500 text-white shadow-lg text-xl font-black mb-6 active:scale-95 transition-transform flex items-center justify-center border-none outline-none"
+                        onClick={handleViewResult}
                     >
-                        <Image src={SVG_EYE} className="w-6 h-6 text-white" />
+                        <Image src={SVG_EYE} className="w-6 h-6 text-white mr-2" />
                         <Text>查看结果</Text>
-                    </View>
+                    </Button>
                 </View>
             )}
 
@@ -128,13 +144,13 @@ export default function Earn() {
                         <Text className="text-sm text-rose-800 font-bold opacity-70">首次挑战 · 难度 ★★★</Text>
                     </View>
 
-                    <View
-                        className="w-full py-5 rounded-2xl bg-gradient-to-br from-[#e11d48] to-[#be123c] shadow-glow text-white text-xl font-black mb-6 active:scale-95 transition-transform flex items-center justify-center"
+                    <Button
+                        className="w-full py-5 rounded-2xl bg-gradient-to-br from-[#e11d48] to-[#be123c] shadow-glow text-white text-xl font-black mb-6 active:scale-95 transition-transform flex items-center justify-center border-none outline-none"
                         onClick={() => Taro.reLaunch({ url: '/pages/game/index' })}
                     >
-                        <Image src={SVG_THUNDER} className="w-6 h-6 text-white" />
+                        <Image src={SVG_THUNDER} className="w-6 h-6 text-white mr-2" />
                         <Text>开始挑战</Text>
-                    </View>
+                    </Button>
                 </View>
             )}
         </View>

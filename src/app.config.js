@@ -6,7 +6,8 @@ export default defineAppConfig({
     'pages/share/index',
     'pages/pay/index',
     'pages/game/index',
-    'pages/result/index'
+    'pages/result/index',
+    'pages/result/instant/index'
   ],
   window: {
     backgroundTextStyle: 'light',
