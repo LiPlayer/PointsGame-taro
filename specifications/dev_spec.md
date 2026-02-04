@@ -303,6 +303,37 @@ $$ \lambda = \frac{G_{daily}}{24 \cdot P_{max}^3} $$
 └── package.json
 ```
 
+### 7.3 分辨率与坐标系规范 (Resolution & Coordinate System)
+
+#### A. 2D 上下文 (UI & 2D Canvas)
+- **设计稿标准**: 750px 设计稿
+- **单位策略**:
+  - UI 样式: 书写 `px` 或 `rpx` (Taro 默认配置会将 `px` 1:1 编译为 `rpx`)
+  - 2D Canvas: 通常使用逻辑像素 (`windowWidth`)，但需与设计系统对齐。
+
+#### B. 3D 上下文 (WebGL / Three.js)
+- **渲染标准**: 物理像素 (强制使用物理像素以保证清晰度)
+- **DPR 处理**:
+  ```ts
+  const dpr = Taro.getSystemInfoSync().pixelRatio
+  // 内部缓冲区大小 (物理像素)
+  renderer.setSize(width * dpr, height * dpr, false)
+  // CSS 显示尺寸 (逻辑像素)
+  canvas.style.width = `${width}px`
+  canvas.style.height = `${height}px`
+  ```
+- **坐标系**: 右手坐标系 Y轴向上 (Three.js 默认)
+
+#### C. Aspect Ratio Strategy (多设备适配策略)
+- **核心原则**: 宽度优先 (Width-First)，高度弹性 (Height-Flexible)。
+- **2D UI**:
+  - 顶部/底部固定元素：使用 `fixed` 定位及 `safe-area-inset-*` 适配刘海屏与 Home Bar。
+  - 中间内容区：使用 Flex 弹性布局 (`flex-1`) 自适应剩余高度。
+- **3D Game**:
+  - **Safe Zone (安全区)**: 核心玩法区域必须限制在 9:16 (约 0.56) 的比例范围内，确保在该比例下不被裁剪。
+  - **FOV 适配**: 默认为垂直 FOV 固定。针对极宽屏幕 (iPad)，需动态调整 Camera Distance 或 FOV 以保证横向内容不被裁剪。
+  - **背景填充**: 3D 场景背景应有一定的冗余 (Over-scan)，以覆盖全面屏手机的超长纵横比 (如 20:9)。
+
 ---
 
 ## 8. 游戏列表 (Game Registry)
