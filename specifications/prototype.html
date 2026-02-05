@@ -1175,7 +1175,7 @@
                 }
 
                 // --- Loop ---
-                function loop() {
+                function loop(time) {
                     for (let p of particles) p.update();
 
                     // Prune dead particles
@@ -1217,7 +1217,13 @@
                     add: function (count) {
                         currentPoints += count;
                         updateDisplay();
-                        for (let i = 0; i < count; i++) {
+
+                        const MAX_STARS = 3600;
+                        const currentActiveParticles = particles.filter(p => !p.isDying).length;
+                        const spaceLeft = Math.max(0, MAX_STARS - currentActiveParticles);
+                        const starsToAdd = Math.min(count, spaceLeft);
+
+                        for (let i = 0; i < starsToAdd; i++) {
                             const x = Math.random() * width;
                             const y = -20 - Math.random() * 100;
                             const p = new Particle(x, y);
@@ -1250,7 +1256,7 @@
                 };
 
                 resize(); // Start
-                loop();
+                requestAnimationFrame(loop);
 
             })();
     </script>

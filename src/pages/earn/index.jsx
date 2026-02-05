@@ -46,7 +46,7 @@ export default function Earn() {
 
     const handleViewResult = () => {
         Taro.redirectTo({
-            url: '/pages/result/index?instant=true'
+            url: '/pages/result/instant/index'
         });
     }
 
