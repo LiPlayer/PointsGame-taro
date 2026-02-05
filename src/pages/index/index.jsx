@@ -34,17 +34,7 @@ export default function Index() {
     refreshPoints(true) // Force save actual state to DB
   })
 
-  // Testing: Simulate time passing (e.g. 24 hours)
-  const simulateDecay = () => {
-    const data = getUserData()
-    if (data) {
-      // Set update time to 24 hours ago
-      data.lastUpdatedAt -= 24 * 60 * 60 * 1000
-      // We don't call refreshPoints(true) here, 
-      // let the timer pick it up instantly in the next tick
-      Taro.showToast({ title: '已模拟24小时蒸发', icon: 'success' })
-    }
-  }
+
 
   return (
     <View className="min-h-screen bg-[#f8fafc] p-6 pt-8 text-[#0f172a] box-border pb-24">
@@ -133,16 +123,7 @@ export default function Index() {
         </View>
       </View>
 
-      {/* Debug/Test Section */}
-      <View className="mt-8 pt-8 border-t border-slate-100">
-        <Text className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-4">开发者测试工具</Text>
-        <Button
-          className="w-full bg-slate-100 text-slate-600 text-xs font-bold py-2 rounded-xl"
-          onClick={simulateDecay}
-        >
-          模拟 24 小时后积分蒸发
-        </Button>
-      </View>
+
     </View>
   )
 }
