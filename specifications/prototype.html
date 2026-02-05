@@ -926,9 +926,29 @@
                         this.z = Math.floor(Math.random() * 3) / 2; // 0, 0.5, 1.0 (3 Discrete Layers)
                         this.color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
                         this.isSleeping = false;
+                        this.isDying = false;
+                        this.deathTimer = 0; // 0 to 1
+                        this.scale = 1.0;
                     }
 
                     update() {
+                        if (this.isDying) {
+                            this.deathTimer += 0.02; // Roughly 50 frames total
+
+                            if (this.deathTimer < 0.4) {
+                                // Phase 1: Floating
+                                this.y -= 2;
+                                this.angle += 0.1;
+                            } else {
+                                // Phase 2: Disappearing / Exploding
+                                const phase2 = (this.deathTimer - 0.4) / 0.6;
+                                this.scale = 1 - phase2;
+                                this.angle += 0.3;
+                                this.y -= 1; // Cont. float
+                            }
+                            return;
+                        }
+
                         if (this.isSleeping) return;
 
                         const vx = (this.x - this.oldX) * CONFIG.friction;
@@ -1008,6 +1028,7 @@
                     // 1. Spatial Hash
                     grid = {};
                     for (let p of particles) {
+                        if (p.isDying) continue; // Dying particles don't collide
                         const key = `${Math.floor(p.x / cellSize)},${Math.floor(p.y / cellSize)}`;
                         if (!grid[key]) grid[key] = [];
                         grid[key].push(p);
@@ -1015,6 +1036,7 @@
 
                     // 2. Constraints
                     for (let p of particles) {
+                        if (p.isDying) continue;
                         // Mouse Repulsion
                         if (pointer.active) {
                             const dx = p.x - pointer.x;
@@ -1133,7 +1155,7 @@
                         // Scale factor = 24 / 64 = 0.375
                         const baseScale = p.radius * 2 / 64;
                         const zScale = 0.5 + p.z * 0.7; // 0.5, 0.85, 1.2 scale variation
-                        const finalScale = baseScale * zScale;
+                        const finalScale = baseScale * zScale * p.scale;
 
                         ctx.scale(finalScale, finalScale);
 
@@ -1154,9 +1176,15 @@
 
                 // --- Loop ---
                 function loop() {
-                    // For 1280 particles, we can run logic every frame.
-                    // For 20k, we would need to sub-step or simply logic.
                     for (let p of particles) p.update();
+
+                    // Prune dead particles
+                    for (let i = particles.length - 1; i >= 0; i--) {
+                        if (particles[i].isDying && particles[i].deathTimer >= 1.0) {
+                            particles.splice(i, 1);
+                        }
+                    }
+
                     solve();
                     solve(); // Double constraint solve for stability
                     draw();
@@ -1199,10 +1227,14 @@
                     consume: function (count) {
                         currentPoints = Math.max(0, currentPoints - count);
                         updateDisplay();
+
+                        // Pick random non-dying particles to kill
+                        let candidates = particles.filter(p => !p.isDying);
                         for (let i = 0; i < count; i++) {
-                            if (particles.length > 0) {
-                                const idx = Math.floor(Math.random() * particles.length);
-                                particles.splice(idx, 1);
+                            if (candidates.length > 0) {
+                                const idx = Math.floor(Math.random() * candidates.length);
+                                candidates[idx].isDying = true;
+                                candidates.splice(idx, 1);
                             }
                         }
                     },
