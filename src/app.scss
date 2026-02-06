@@ -146,6 +146,7 @@ button {
 .btn-primary {
   background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
   color: white;
+  box-shadow: 0 10px 20px -5px rgba(225, 29, 72, 0.4);
   transition: transform 0.1s;
 
   &:active {

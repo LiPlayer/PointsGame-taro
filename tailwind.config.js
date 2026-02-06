@@ -15,8 +15,8 @@ module.exports = {
                 }
             },
             boxShadow: {
-                'glow': '0 10px 20px -5px rgba(225, 29, 72, 0.4)',
-                'card': '0 50px 100px -20px rgba(0, 0, 0, 0.2)',
+                'glow': '0 0 20px -5px rgba(225, 29, 72, 0.5)',
+                'card': '0 20px 40px -10px rgba(15, 23, 42, 0.05)',
             }
         },
     },
