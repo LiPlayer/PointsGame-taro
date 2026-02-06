@@ -81,7 +81,7 @@ export default function Result() {
 
                     <View className="bg-rose-50 rounded-2xl p-4 w-full border border-rose-100 mb-4 flex items-center justify-between box-border">
                         <Text className="text-rose-700 font-bold text-sm">当前总积分</Text>
-                        <Text className="text-rose-700 font-black text-xl tracking-tight">{(points).toLocaleString()}</Text>
+                        <Text className="text-rose-700 font-black text-xl tracking-tight">{Math.floor(points).toLocaleString()}</Text>
                     </View>
                 </View>
             ) : (
@@ -143,7 +143,7 @@ export default function Result() {
                         <Text className={`font-bold text-xs ${isReplay ? 'text-blue-700' : 'text-rose-700'}`}>
                             {isReplay ? '💡 仅作为练习记录，不影响总积分。' : '当前总积分'}
                         </Text>
-                        {!isReplay && <Text className="float-right text-rose-700 font-black text-xl tracking-tight">{points.toLocaleString()}</Text>}
+                        {!isReplay && <Text className="float-right text-rose-700 font-black text-xl tracking-tight">{Math.floor(points).toLocaleString()}</Text>}
                     </View>
                 </View>
             )}

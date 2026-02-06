@@ -16,9 +16,11 @@ export async function initUserData() {
         const data = await getDBUser();
         if (data) {
             userData = data;
+            console.log(`[User] Data loaded: ${userData.points}pts, lastUpdate: ${new Date(userData.lastUpdatedAt).toLocaleString()}`);
             // Apply evaporation on load
             refreshPoints();
         } else {
+            console.log('[User] No existing user, creating default');
             userData = { ...DEFAULT_USER_DATA, lastUpdatedAt: Date.now() };
             await saveUserData();
         }

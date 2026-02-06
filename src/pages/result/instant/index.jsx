@@ -55,7 +55,7 @@ export default function InstantResult() {
 
                 <View className="bg-rose-50 rounded-2xl p-4 w-full border border-rose-100 mb-4 flex items-center justify-between box-border">
                     <Text className="text-rose-700 font-bold text-sm">当前总积分</Text>
-                    <Text className="text-rose-700 font-black text-xl tracking-tight">{(points + winPoints).toLocaleString()}</Text>
+                    <Text className="text-rose-700 font-black text-xl tracking-tight">{Math.floor(points + winPoints).toLocaleString()}</Text>
                 </View>
             </View>
 

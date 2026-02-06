@@ -167,7 +167,7 @@ export default function Index() {
         <View className="relative z-10 pointer-events-none">
           <Text className="text-[10px] font-extrabold tracking-[0.1em] uppercase text-slate-400 block mb-2">当前可用积分</Text>
           <View className="text-6xl font-black text-brand-dark tracking-tighter mb-4 mix-blend-multiply">
-            {displayPoints.toLocaleString()}
+            {Math.floor(displayPoints).toLocaleString()}
           </View>
 
           <View className="inline-flex items-center gap-2 px-3 py-1 bg-amber-50/80 backdrop-blur-sm text-amber-700 rounded-full text-[10px] font-bold shadow-sm">
