@@ -7,6 +7,9 @@ const PointsCanvas = forwardRef((props, ref) => {
     const { initialPoints = 0 } = props
     const canvasRef = useRef(null)
     const engineRef = useRef(null)
+    const boundsRef = useRef(null)
+    const env = Taro.getEnv()
+    const isWeb = env === Taro.ENV_TYPE.WEB || env === 'WEB' || env === 'H5'
 
     useImperativeHandle(ref, () => ({
         add: (count) => engineRef.current?.add(count),
@@ -22,25 +25,41 @@ const PointsCanvas = forwardRef((props, ref) => {
             await new Promise(resolve => Taro.nextTick(resolve))
             await new Promise(resolve => setTimeout(resolve, 50))
 
+            if (isWeb && typeof document !== 'undefined') {
+                const el = canvasRef.current
+                if (!el || typeof el.getContext !== 'function') return
+                const rect = el.getBoundingClientRect()
+                const ctx = el.getContext('2d')
+                const dpr = (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1
+                const width = rect.width
+                const height = rect.height
+                boundsRef.current = rect
+                el.width = width * dpr
+                el.height = height * dpr
+                ctx.scale(dpr, dpr)
+                const scaleFactor = (width / 375) || 1
+                startEngine(el, ctx, width, height, scaleFactor)
+                return
+            }
+
+            // MiniProgram & other platforms that support node:true
             const query = Taro.createSelectorQuery()
             query.select('#points-canvas')
-                .fields({ node: true, size: true })
+                .fields({ node: true, size: true, rect: true })
                 .exec((res) => {
-                    if (!res[0] || !res[0].node) return
-                    const canvas = res[0].node
-                    const ctx = canvas.getContext('2d')
-                    const dpr = Taro.getSystemInfoSync().pixelRatio
-                    const width = res[0].width
-                    const height = res[0].height
+                    if (!res || !res[0] || !res[0].node) return
 
-                    // Setup physical resolution
+                    const { node: canvas, width, height, left, top, right, bottom } = res[0]
+                    const ctx = canvas.getContext('2d')
+                    if (!ctx) return
+                    const dpr = Taro.getSystemInfoSync().pixelRatio || 1
+                    boundsRef.current = { left, top, right, bottom }
+
                     canvas.width = width * dpr
                     canvas.height = height * dpr
                     ctx.scale(dpr, dpr)
 
-                    // Scaling factor based on design width 375
                     const scaleFactor = (width / 375) || 1
-
                     startEngine(canvas, ctx, width, height, scaleFactor)
                 })
         }
@@ -302,35 +321,64 @@ const PointsCanvas = forwardRef((props, ref) => {
         return () => {
             engineRef.current?.requestClose()
         }
-    }, [initialPoints])
+    }, [initialPoints, isWeb])
 
     const handleTouch = (e, active) => {
         if (!engineRef.current) return
-        const touch = e.touches[0]
-        if (touch) {
-            // In Weapp, we need to convert clientX/Y to canvas local
+        const touch = e.touches?.[0]
+        if (!touch) {
+            engineRef.current.updateMouse(-1000, -1000, false)
+            return
+        }
+
+        const applyUpdate = (rect) => {
+            const x = touch.clientX - rect.left
+            const y = touch.clientY - rect.top
+            engineRef.current.updateMouse(x, y, active)
+        }
+
+        if (boundsRef.current) {
+            applyUpdate(boundsRef.current)
+        } else if (env === Taro.ENV_TYPE.WEAPP) {
             const query = Taro.createSelectorQuery()
             query.select('#points-canvas').boundingClientRect(res => {
                 if (res) {
-                    const x = touch.clientX - res.left
-                    const y = touch.clientY - res.top
-                    engineRef.current.updateMouse(x, y, active)
+                    boundsRef.current = res
+                    applyUpdate(res)
                 }
             }).exec()
-        } else {
-            engineRef.current.updateMouse(-1000, -1000, false)
+        } else if (typeof document !== 'undefined') {
+            const rect = (canvasRef.current || document.getElementById('points-canvas'))?.getBoundingClientRect()
+            if (rect) {
+                boundsRef.current = rect
+                applyUpdate(rect)
+            }
         }
     }
 
     return (
-        <Canvas
-            type='2d'
-            id='points-canvas'
-            className='points-canvas'
-            onTouchStart={(e) => handleTouch(e, true)}
-            onTouchMove={(e) => handleTouch(e, true)}
-            onTouchEnd={() => engineRef.current?.updateMouse(-1000, -1000, false)}
-        />
+        isWeb ? (
+            <canvas
+                id='points-canvas'
+                className='points-canvas'
+                ref={canvasRef}
+                onTouchStart={(e) => handleTouch(e, true)}
+                onTouchMove={(e) => handleTouch(e, true)}
+                onTouchEnd={() => engineRef.current?.updateMouse(-1000, -1000, false)}
+                onTouchCancel={() => engineRef.current?.updateMouse(-1000, -1000, false)}
+            />
+        ) : (
+            <Canvas
+                type='2d'
+                id='points-canvas'
+                className='points-canvas'
+                ref={canvasRef}
+                onTouchStart={(e) => handleTouch(e, true)}
+                onTouchMove={(e) => handleTouch(e, true)}
+                onTouchEnd={() => engineRef.current?.updateMouse(-1000, -1000, false)}
+                onTouchCancel={() => engineRef.current?.updateMouse(-1000, -1000, false)}
+            />
+        )
     )
 })
 

@@ -201,6 +201,12 @@ $$ \lambda = \frac{G_{daily}}{24 \cdot P_{max}^3} $$
 - 分享积分（Secondary, Icon Block）
 - 付款抵扣（Dark Button, Full Width）
 
+**Canvas 实现要点（H5/Weapp 一致性）**：
+- H5 环境使用原生 `<canvas>` + `ref` 直接 `getContext('2d')`，不要依赖 `Taro.createSelectorQuery().fields({ node: true })`，否则 H5 取不到 `node` 导致没有星星。
+- Weapp 仍用 `fields({ node: true, size: true, rect: true })` 拿到小程序专用 CanvasNode。
+- 初始化时均需按 `dpr`（`devicePixelRatio` 或 `pixelRatio`）设置物理分辨率，再按 `width/375` 计算 `scaleFactor`。
+- 触摸交互共用一套逻辑：先用缓存的 bounding rect，将 `clientX/Y` 转换为局部坐标；找不到时再各自平台查询一次。
+
 ### 5.2 Earn Flow（赚积分流程）
 
 三个连续状态：

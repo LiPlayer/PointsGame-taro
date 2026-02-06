@@ -16,7 +16,10 @@ export default function Index() {
   return (
     <View
       className='home-page'
-      style={{ '--status-bar-height': `${statusBarHeight}px` }}
+      style={{
+        '--status-bar-height': `${statusBarHeight}px`,
+        '--page-padding-top': `${Math.max(50, statusBarHeight + 16)}px`
+      }}
     >
       {/* Scrollable Content */}
       <View className='page-content'>
@@ -27,7 +30,7 @@ export default function Index() {
 
             {/* Brand Header */}
             <View className='brand-header'>
-              <View className='logo shadow-glow'>
+              <View className='logo shadow-logo'>
                 <Text>婷</Text>
               </View>
               <Text className='title'>婷姐•贵州炒鸡</Text>
