@@ -22,7 +22,7 @@ export default function InstantResult() {
     })
 
     const goHome = () => {
-        Taro.reLaunch({ url: '/pages/earn/index' })
+        Taro.reLaunch({ url: '/pages/home/index' })
     }
 
     const handleNextChallenge = () => {

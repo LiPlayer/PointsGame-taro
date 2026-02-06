@@ -3,6 +3,19 @@
 @tailwind utilities;
 
 /* Global Layout & Scrollbar */
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* H5: avoid the iOS/embedded-browser 100vh "extra scroll" issue when using Tailwind's `min-h-screen`. */
+@supports (height: 100svh) {
+  .platform-h5.min-h-screen {
+    min-height: 100svh;
+  }
+}
+
 page {
   height: 100%;
   background-color: #f8fafc;

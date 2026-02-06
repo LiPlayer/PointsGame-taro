@@ -79,6 +79,16 @@ export default defineConfig(async (merge, { command, mode }) => {
         chunkFilename: 'css/[name].[chunkhash].css'
       },
       postcss: {
+        pxtransform: {
+          enable: true,
+          config: {
+            // Align H5 rem scale with prototype.html (Tailwind defaults to 16px root).
+            // Taro's default baseFontSize (20) makes Tailwind rem units appear larger,
+            // which can cause unexpected overflow/scroll when comparing to the prototype.
+            baseFontSize: 16,
+            minRootSize: 16
+          }
+        },
         autoprefixer: {
           enable: true,
           config: {}

@@ -1,4 +1,6 @@
 /** @type {import('tailwindcss').Config} */
+const plugin = require('tailwindcss/plugin')
+
 module.exports = {
     content: ['./src/**/*.{html,js,ts,jsx,tsx}'],
     theme: {
@@ -20,7 +22,14 @@ module.exports = {
             }
         },
     },
-    plugins: [],
+    plugins: [
+        // Cross-platform variants used by weapp-tailwindcss + Taro builds.
+        // Usage: `h5:mix-blend-multiply` (only active when an ancestor has `platform-h5`).
+        plugin(({ addVariant }) => {
+            addVariant('h5', '.platform-h5 &')
+            addVariant('weapp', '.platform-weapp &')
+        })
+    ],
     corePlugins: {
         preflight: false,
     }

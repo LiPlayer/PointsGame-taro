@@ -10,7 +10,7 @@ const SVG_REPLAY = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22
 
 export default function Collection() {
     const goHome = () => {
-        Taro.reLaunch({ url: '/pages/earn/index' })
+        Taro.reLaunch({ url: '/pages/home/index' })
     }
 
     const handleReplay = (gameId) => {

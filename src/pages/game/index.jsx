@@ -11,7 +11,7 @@ export default function Game() {
         if (isReplay) {
             Taro.reLaunch({ url: '/pages/collection/index' })
         } else {
-            Taro.reLaunch({ url: '/pages/earn/index' })
+            Taro.reLaunch({ url: '/pages/home/index' })
         }
     }
 

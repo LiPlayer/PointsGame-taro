@@ -16,7 +16,7 @@ export default function Pay() {
     const [pageState, setPageState] = useState(STATE.SCAN)
 
     const goHome = () => {
-        Taro.reLaunch({ url: '/pages/earn/index' })
+        Taro.reLaunch({ url: '/pages/home/index' })
     }
 
     // Simulate scanning
@@ -31,7 +31,7 @@ export default function Pay() {
     const handlePay = () => {
         Taro.showToast({ title: '支付成功', icon: 'success' })
         setTimeout(() => {
-            Taro.reLaunch({ url: '/pages/earn/index' })
+            Taro.reLaunch({ url: '/pages/home/index' })
         }, 1500)
     }
 
