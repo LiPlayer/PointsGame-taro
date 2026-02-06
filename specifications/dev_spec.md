@@ -3,7 +3,7 @@
 **适用对象**：开发者 / 团队 / AI 协作工具
 **核心架构**：Taro v4 (React) + Tailwind CSS (via weapp-tailwindcss)
 **适用范围**：H5 (Web) / 微信小程序 (Weapp)
-**SSOT**：视觉标准以 `prototype.html` 为准，逻辑标准以本文档为准。
+**SSOT**：视觉标准以 `prototype.tsx` 为准，逻辑标准以本文档为准。
 
 ---
 

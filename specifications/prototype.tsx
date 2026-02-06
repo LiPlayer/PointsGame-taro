@@ -178,7 +178,8 @@ const PointsCard = () => {
             this.oldY = y + (Math.random() - 0.5) * 2;
             this.radius = CONFIG.radius * (0.8 + Math.random() * 0.4);
             this.angle = Math.random() * Math.PI * 2;
-            this.angularVelocity = (Math.random() - 0.5) * 0.1;
+            // High Fidelity: 保持自转，并略微提升速度确保肉眼可见
+            this.angularVelocity = (Math.random() - 0.5) * 0.2; 
             this.z = Math.floor(Math.random() * 3) / 2;
             this.color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
             this.isSleeping = false;
@@ -212,6 +213,7 @@ const PointsCard = () => {
   
             this.x += vx;
             this.y += vy + CONFIG.gravity;
+            // Update rotation
             this.angle += this.angularVelocity;
   
             if (this.y + this.radius > height) {
@@ -298,6 +300,7 @@ const PointsCard = () => {
     container.addEventListener('touchend', listeners.touchend);
 
     const solve = () => {
+        // High Fidelity: 保持网格碰撞检测
         grid = {};
         for (let p of particles) {
             if (p.isDying) continue;
@@ -325,7 +328,7 @@ const PointsCard = () => {
                 }
             }
 
-            // Particle Collisions
+            // High Fidelity: 粒子碰撞检测与响应 (完整保留)
             const cellX = Math.floor(p.x / cellSize);
             const cellY = Math.floor(p.y / cellSize);
 
@@ -370,6 +373,7 @@ const PointsCard = () => {
         for (let p of particles) {
             ctx.save();
             ctx.translate(p.x, p.y);
+            // High Fidelity: 保持旋转渲染
             ctx.rotate(p.angle);
             const baseScale = p.radius * 2 / 64;
             const zScale = 0.5 + p.z * 0.7;
@@ -420,7 +424,7 @@ const PointsCard = () => {
         add: (count: number) => {
             currentPoints += count;
             if (displayRef.current) displayRef.current.innerText = currentPoints.toLocaleString();
-            const MAX_STARS = 3600;
+            const MAX_STARS = 3000; // Limit stars to 3000
             const currentActiveParticles = particles.filter(p => !p.isDying).length;
             const spaceLeft = Math.max(0, MAX_STARS - currentActiveParticles);
             const starsToAdd = Math.min(count, spaceLeft);
