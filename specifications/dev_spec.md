@@ -184,8 +184,9 @@ $$ \lambda = \frac{G_{daily}}{24 \cdot P_{max}^3} $$
 
 ### 5.0 全局导航 (Global Nav)
 
-- Home 页：无顶部导航，沉浸式
-- 其他页面：左上角悬浮 [X] 按钮
+- **沉浸式体验**: 微信小程序必须开启全屏模式，**禁止保留顶部原生导航栏区域** (`navigationStyle: 'custom'`)。
+- Home 页：无顶部导航，沉浸式背景填充至屏幕顶部。
+- 其他页面：左上角悬浮 [X] 按钮，需避开胶囊按钮 (Capsule Button) 区域。
 - 行为：点击 [X] 直接返回 Home（Reset to Home，不走历史栈）
 
 ### 5.1 Home（首页）
@@ -305,37 +306,41 @@ $$ \lambda = \frac{G_{daily}}{24 \cdot P_{max}^3} $$
 
 ### 7.3 分辨率与坐标系规范 (Resolution & Coordinate System)
 
-#### A. 2D 上下文 (UI & 2D Canvas)
-- **设计稿标准**: 375px 设计稿 (iPhone 6/7/8 为基准)
-- **单位策略**:
-  - UI 样式: 书写 `px` 会被转换。由于 `designWidth` 设为 `375`，写 `100px` 在真机上表现为 `200rpx`，正好对应 375 屏幕下的 100 物理像素点。
-  - 2D Canvas: 通常使用逻辑像素 (`windowWidth`)，但需与设计系统对齐。
+#### A. 视觉设计标准 (Visual Standard)
+- **基准画布**: **375px × 812px** (iPhone X/13 逻辑比例)。
+- **设计稿单位**: 1:1 像素单位。开发者在 `prototype.html` 中看到的 `px` 即为代码直接书写值。
 
-#### B. 3D 上下文 (WebGL / Three.js)
-- **渲染标准**: 物理像素 (强制使用物理像素以保证清晰度)
+#### B. 2D 渲染规范 (UI & 2D Canvas)
+- **UI 样式**: 
+  - 项目 `designWidth` 已设为 `375`。
+  - **强制要求**: 书写原生 `px`。Taro 会自动将其转换为 `rpx` (375 屏幕下 1px = 2rpx)，确保跨端缩放准确。
+  - **Tailwind**: 直接复制 `prototype.html` 中的 Tailwind 类名（如 `p-4`, `w-8`），无需转换单位。
+- **2D Canvas**: 
+  - 必须使用逻辑像素进行布局绘制。
+  - 必须应用物理像素缩放以防止模糊：`ctx.scale(dpr, dpr)`。
+
+#### C. 3D 与游戏核心 (Game Core)
+- **渲染分辨率**: 强制物理像素渲染。
 - **DPR 处理**:
   ```ts
   const dpr = Taro.getSystemInfoSync().pixelRatio
-  // 内部缓冲区大小 (物理像素)
+  // 渲染器缓冲区使用物理像素 (清晰度保障)
   renderer.setSize(width * dpr, height * dpr, false)
-  // CSS 显示尺寸 (逻辑像素)
+  // 容器显示使用逻辑像素 (布局对齐)
   canvas.style.width = `${width}px`
   canvas.style.height = `${height}px`
   ```
-- **坐标系**: 右手坐标系 Y轴向上 (Three.js 默认)
 
-#### C. Aspect Ratio Strategy (多设备适配策略)
-- **核心原则**: 宽度优先 (Width-First)，高度弹性 (Height-Flexible)。
-- **Game Content (2D & 3D)**:
-  - **Safe Zone (安全区)**: 核心玩法区域必须限制在 **9:16 (约 0.56)** 的比例范围内。
-    - 无论设备屏幕多长 (如 20:9)，必须保证该核心区域完整可见。
-    - 无论设备屏幕多宽 (如 iPad)，必须保证该核心区域不被裁剪 (Letterbox or FOV adjustment)。
-- **2D UI**:
-  - 顶部/底部固定元素：使用 `fixed` 定位及 `safe-area-inset-*` 适配刘海屏与 Home Bar。
-  - 中间内容区：使用 Flex 弹性布局 (`flex-1`) 自适应剩余高度。
-- **3D Specifics**:
-  - **FOV 适配**: 默认为垂直 FOV 固定。针对极宽屏幕 (iPad)，需动态调整 Camera Distance 或 FOV 以保证横向内容不被裁剪。
-  - **背景填充**: 3D 场景背景应有一定的冗余 (Over-scan)，以覆盖全面屏手机的超长纵横比 (如 20:9)。
+#### D. 多设备适配策略 (Aspect Ratio Strategy)
+- **核心原则**: **宽度锁定 (Fixed-Width-Fit) + 高度弹性 (Flexible-Height)**。
+- **安全区 (Safe Zone)**:
+  - 核心游戏交互区必须限制在 **9:16 (0.5625)** 的正中区域内。
+  - 高于 16:9 的屏幕（即长屏手机）：内容垂直居中，顶部/底部留白或使用装饰性背景填充（Overscan）。
+  - 低于 16:9 的屏幕（即 iPad/折叠屏）：侧边留白或调整摄像机 FOV，保证内容不被裁剪。
+- **UI 适配**:
+  - 顶部导航/状态栏：使用 `safe-area-inset-top`。
+  - 底部操作栏：使用 `safe-area-inset-bottom`。
+  - 中间区：使用 `flex-1` 或 `justify-between` 吸收高度增量。
 
 ---
 
