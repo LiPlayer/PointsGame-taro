@@ -173,10 +173,11 @@
     }
 }
 
-/* SVG Icon Helpers */
+/* SVG Icon Helpers (Cross-platform safe) */
 .icon-svg {
     width: 12px;
     height: 12px;
+    display: inline-block;
 }
 
 .icon-svg-md {
@@ -189,42 +190,26 @@
     height: 24px;
 }
 
+.icon-bolt-svg {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%23b45309' viewBox='0 0 24 24' stroke-width='3'%3E%3Cpath d='M13 10V3L4 14h7v7l9-11h-7z'%3E%3C/path%3E%3C/svg%3E") no-repeat center/contain;
+}
+
+.icon-bolt-fill {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3E%3Cpath d='M13 10V3L4 14h7v7l9-11h-7z'%3E%3C/path%3E%3C/svg%3E") no-repeat center/contain;
+}
+
+.icon-trophy-svg {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%2394a3b8' viewBox='0 0 24 24' stroke-width='2'%3E%3Cpath d='M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'%3E%3C/path%3E%3C/svg%3E") no-repeat center/contain;
+}
+
+.icon-share-svg {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%2394a3b8' viewBox='0 0 24 24' stroke-width='2'%3E%3Cpath d='M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7'%3E%3C/path%3E%3C/svg%3E") no-repeat center/contain;
+}
+
+.icon-card-svg {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='white' viewBox='0 0 24 24' stroke-width='2'%3E%3Cpath d='M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z'%3E%3C/path%3E%3C/svg%3E") no-repeat center/contain;
+}
+
 .text-slate-400 {
     color: #94a3b8;
-}
-
-/* Icons using simple shapes/gradients for now to avoid external assets in first pass */
-.icon-bolt {
-    width: 12px;
-    height: 12px;
-    background-color: currentColor;
-    clip-path: polygon(70% 0, 30% 0, 10% 60%, 40% 60%, 20% 100%, 90% 40%, 60% 40%);
-}
-
-.icon-lightning {
-    width: 24px;
-    height: 24px;
-    background-color: #ffffff;
-    clip-path: polygon(70% 0, 30% 0, 10% 60%, 40% 60%, 20% 100%, 90% 40%, 60% 40%);
-}
-
-.icon-trophy {
-    width: 24px;
-    height: 24px;
-    background-color: #94a3b8;
-    clip-path: polygon(10% 10%, 90% 10%, 80% 60%, 50% 90%, 20% 60%);
-}
-
-.icon-share {
-    width: 24px;
-    height: 24px;
-    background-color: #94a3b8;
-    clip-path: circle(50% at 50% 50%);
-}
-
-.icon-card {
-    width: 20px;
-    height: 20px;
-    background-color: #ffffff;
-    border-radius: 2px;
 }

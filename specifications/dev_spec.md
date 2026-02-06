@@ -340,12 +340,13 @@ $$ \lambda = \frac{G_{daily}}{24 \cdot P_{max}^3} $$
 ### 8.1 视觉与单位 (Units & Visual)
 - **绝对单位**: **强制只写 `px`**。
   - Taro 会根据 `designWidth: 375` 自动将 `px` 转为小程序的 `rpx` 和 H5 的 `rem`。
-  - **禁忌**: 严禁在代码中手动书写 `rem` 或 `rpx` 单位，这会导致 Taro 的自动伸缩机制失效。
+  - **禁忌**: 严禁在代码中手动书写 `rem` 或 `rpx` 单位，这会导致 Taro 的自动伸缩机制失效。比例失调是双端对齐失败的首要原因。
 - **字体加粗**:
   - 现象：安卓微信对 `font-black` 渲染偏细。
   - 方案：必要时对关键数字应用 `text-shadow: 0 0 1px currentColor` 进行视觉增广。
-- **SVG 图标**: 
-  - 统一使用 SVG，并固定外层 View 的 `w-x h-x`，避免 `Image` 标签在不同内核下的缩放差异。
+- **SVG 图标 (No Inline SVG in JSX)**: 
+  - **禁令**: 在小程序环境下，Taro 对原生 `<svg>` 标签支持极差，编译时常将其误判为名为 `comp` 的组件导致崩溃。
+  - **方案**: 统一将 SVG 路径转义后存入 CSS 的 `background-image` (Data URI) 中，或直接引用图片资源。
 - **行高对齐**: 统一使用 `leading-none` 加 `padding` 定位，消除不同内核 Baseline 差异。
 - **多设备适配策略 (Aspect Ratio Strategy)**:
   - **核心原则**: **宽度锁定 (Fixed-Width-Fit) + 高度弹性 (Flexible-Height)**。
@@ -372,19 +373,19 @@ $$ \lambda = \frac{G_{daily}}{24 \cdot P_{max}^3} $$
 ### 8.3 视口与安全区 (Viewport)
 - **禁用法令**: **严禁使用 `100vh`**。
   - 原因：H5 包含地址栏，小程序包含状态栏，`100vh` 会导致底部内容偏离。
-  - 方案：统一使用 `min-h-screen` (Tailwind) 或 `height: 100%`。
+  - 方案：统一使用 `min-h-screen` (Tailwind) 或 `height: 100%`。必须确保 `app.scss` 中 `page { height: 100% }` 已显式定义。
 - **安全区**: 定位吸底元素必须使用 `env(safe-area-inset-bottom)`。
 - **状态栏与胶囊按钮 (Status Bar & Capsule)**:
-  - **Weapp**: 必须使用 `Taro.getMenuButtonBoundingClientRect()` 获取胶囊位置，确保 UI (如 [X] 按钮) 不被遮挡。
-  - **H5**: 无胶囊按钮。需模拟等高的顶部 padding (通常为 44px-50px) 以维持页面重心一致。
-  - **方案**: 统一封装 `NavBar` 占位组件，根据 `process.env.TARO_ENV` 动态调整。
+  - **Weapp**: 必须通过 `Taro.getSystemInfoSync().statusBarHeight` 动态获取高度并应用为 Padding。
+  - **H5**: 建议通过环境变量注入模拟高度。
 
 ### 8.4 渲染时机与生命周期 (Timing)
 - **NextTick 机制**: 
-  - 在 `useEffect` 或 `componentDidMount` 中获取 Canvas 实例或测算 DOM 尺寸之前，**必须包裹在 `Taro.nextTick()` 中**。
-  - 小程序的逻辑层与渲染层异步通信，直接获取往往返回旧值或 `null`。
-- **获取 Canvas 实例或容器尺寸前，必须包裹在 `Taro.nextTick()` 中，确保逻辑层指令已下发至渲染层。**
-- **获取容器尺寸必须通过双重校验：初始化获取一次，`onReady` 或特定时机重试确认。**
+  - 获取 Canvas 实例或测算 DOM 尺寸前，**必须包裹在 `Taro.nextTick()` 中**。
+  - **Weapp 特供缓冲**: 在真机上，布局容器伸缩可能存在延迟，初始化时建议在 `nextTick` 后再附加 `50ms` 延迟，确保获取的是稳定后的最终尺寸。
+- **离屏渲染 (Offscreen Canvas)**:
+  - `Taro.createOffscreenCanvas` 在 H5 端不存在。
+  - **方案**: 分支处理，H5 环境使用标准 `document.createElement('canvas')`。
 
 ### 8.5 交互反馈 (Interaction)
 - **点击延迟消除**:
@@ -411,6 +412,12 @@ $$ \lambda = \frac{G_{daily}}{24 \cdot P_{max}^3} $$
 - **强制方案**:
   - **配置隔离**: 所有自定义组件必须声明 `options: { addGlobalClass: true }`，确保 Tailwind 等全局原子类能渗透进组件内部。
   - **禁止级联**: 避免写 `& .child` 这种深层级联选择器，小程序组件化后层级会发生变化。**强制使用原子类**。
+
+### 8.9 自定义组件与元素选型 (Component Selection)
+- **原生元素陷阱**: 小程序的原生 `Button` 自带不可重置的 UA 样式。
+  - **方案**: 除必须使用原生能力的场景外，高保真布局建议使用 `View` 模拟按钮。
+- **权限配置**: 所有自定义组件必须声明 `options: { addGlobalClass: true }`，确保 Tailwind 原子类渗透。
+- **层级隔离**: 避免深层 CSS 级联，强制使用原子类。
 
 ### 8.9 资源路径与网络 (Network & Assets)
 - **现象**: H5 本地测试可用相对路径，小程序真机必须使用 HTTPS 且域名必须在白名单内。
