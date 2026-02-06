@@ -10,7 +10,7 @@ export default defineConfig(async (merge, { command, mode }) => {
   const baseConfig = {
     projectName: 'points-game-taro',
     date: '2026-2-4',
-    designWidth: 750,
+    designWidth: 375,
     deviceRatio: {
       640: 2.34 / 2,
       750: 1,

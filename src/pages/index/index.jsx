@@ -1,33 +1,86 @@
-import { View, Text, Image, Button } from '@tarojs/components'
+import { View, Text, Image, Button, Canvas } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getUserData, refreshPoints } from '../../utils/user'
 import { calculateCurrentPoints } from '../../utils/economy'
+import { StarAnimation } from '../../utils/starAnimation'
 
 export default function Index() {
   const [displayPoints, setDisplayPoints] = useState(0)
   const [playCount, setPlayCount] = useState(0)
+  const animationRef = useRef(null)
 
   // Update loop for real-time evaporation
   useEffect(() => {
     const timer = setInterval(() => {
       const data = getUserData()
       if (data) {
-        // Calculate points based on current time without modifying userData object every second
         const current = calculateCurrentPoints(data.points, data.lastUpdatedAt)
         setDisplayPoints(current)
+        if (animationRef.current) {
+          animationRef.current.setParticleCount(current)
+        }
       }
     }, 1000)
     return () => clearInterval(timer)
   }, [])
 
-  useDidShow(() => {
-    const data = getUserData()
+  useDidShow(async () => {
+    // Wait for user data to be ready if it's still null
+    let data = getUserData()
+    if (!data) {
+      // Simple polling or wait for login() to finish
+      // For better UX, we could use a global state or event emitter, 
+      // but for now, we'll try to refresh again.
+      await new Promise(r => setTimeout(r, 500))
+      data = getUserData()
+    }
+
     if (data) {
-      setDisplayPoints(calculateCurrentPoints(data.points, data.lastUpdatedAt))
+      const current = calculateCurrentPoints(data.points, data.lastUpdatedAt)
+      setDisplayPoints(current)
       setPlayCount(data.dailyPlayCount)
+      if (animationRef.current) {
+        animationRef.current.setParticleCount(current)
+      }
     }
   })
+
+  // Initialize Star Animation
+  useEffect(() => {
+    // Wait for the view to be ready
+    const timer = setTimeout(() => {
+      const query = Taro.createSelectorQuery()
+      query.select('#points-canvas')
+        .fields({ node: true, size: true })
+        .exec((res) => {
+          if (res[0]) {
+            const canvas = res[0].node
+            // In H5, res[0].width/height might be missing depending on Taro version/environment
+            // Fallback to clientWidth/Height if needed
+            const width = res[0].width || (canvas && canvas.clientWidth) || 300
+            const height = res[0].height || (canvas && canvas.clientHeight) || 200
+            const dpr = Taro.getSystemInfoSync().pixelRatio
+
+            if (canvas) {
+              canvas.width = width * dpr
+              canvas.height = height * dpr
+
+              // Init Engine
+              const data = getUserData()
+              const initialCount = data ? calculateCurrentPoints(data.points, data.lastUpdatedAt) : 0
+              animationRef.current = new StarAnimation(canvas, width * dpr, height * dpr, dpr, initialCount)
+              if (initialCount > 0) {
+                setDisplayPoints(initialCount)
+              }
+            } else {
+              console.error("[Index] Canvas node not found in SelectorQuery result");
+            }
+          }
+        })
+    }, 200) // Slightly longer delay to ensure node layout
+    return () => clearTimeout(timer)
+  }, []) // Run once on mount
 
   // Lazy update: Save to storage when page is hidden
   Taro.useDidHide(() => {
@@ -37,39 +90,44 @@ export default function Index() {
 
 
   return (
-    <View className="min-h-screen bg-[#f8fafc] p-6 pt-8 text-[#0f172a] box-border pb-24">
-      {/* Header / User Info */}
-      <View className="flex flex-col items-center mt-4 mb-8">
-        <View className="w-16 h-16 bg-brand-red rounded-2xl shadow-lg flex items-center justify-center text-white text-3xl font-black mb-4">
-          婷
-        </View>
-        <Text className="text-xl font-black text-brand-dark">婷姐•贵州炒鸡</Text>
-      </View>
-
+    <View className="min-h-screen bg-[#f8fafc] flex flex-col box-border px-6 pt-[50px] pb-[calc(24px+env(safe-area-inset-bottom))]">
       {/* Points Card */}
-      <View className="bg-white border border-slate-100 rounded-[32px] p-6 text-center shadow-card mb-8 relative overflow-hidden box-border">
-        {/* Background Decorative Icon */}
-        <View className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-          <Image
-            src="data:image/svg+xml;base64,PHN2ZyBmaWxsPSJjdXJyZW50Q29sb3IiIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMmwzLjA5IDYuMjZMMjIgOS4yN2wtNSA0Ljg3IDEuMTggNi44OEwxMiAxNy43N2wtNi4xOCAzLjI1TDcgMTQuMTQgMiA5LjI3bDYuOTEtMS4wMUwxMiAyeiIvPjwvc3ZnPg=="
-            className="w-32 h-32 text-slate-900"
-            style={{ width: '128px', height: '128px' }}
-          />
+      <View className="bg-white border border-slate-100 rounded-[32px] p-8 text-center shadow-card mb-4 relative overflow-hidden box-border isolate">
+        {/* Brand Header (Inside Card as per V3.2 Prototype) */}
+        <View className="flex flex-col items-center mt-2 mb-16 relative z-20">
+          <View className="w-16 h-16 bg-brand-red rounded-2xl shadow-lg flex items-center justify-center text-white text-3xl font-black mb-4">
+            婷
+          </View>
+          <Text className="text-xl font-black text-brand-dark">婷姐•贵州炒鸡</Text>
         </View>
 
-        <Text className="text-sm font-extrabold tracking-widest uppercase text-slate-400 block mb-2">当前可用积分</Text>
-        <View className="text-6xl font-black text-brand-dark tracking-tighter mb-4">
-          {displayPoints.toLocaleString()}
-        </View>
+        {/* Canvas Background */}
+        <Canvas
+          type="2d"
+          id="points-canvas"
+          className="absolute inset-0 w-full h-full z-0 pointer-events-none opacity-90"
+          style={{ width: '100%', height: '100%' }}
+        />
 
-        <View className="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold">
-          <Text className="text-sm">⚡</Text>
-          <Text>今日已玩 {playCount}/3 次</Text>
+        {/* Content (Higher z-index) */}
+        <View className="relative z-10 pointer-events-none">
+          <Text className="text-[10px] font-extrabold tracking-[0.1em] uppercase text-slate-400 block mb-2">当前可用积分</Text>
+          <View className="text-6xl font-black text-brand-dark tracking-tighter mb-4 mix-blend-multiply">
+            {displayPoints.toLocaleString()}
+          </View>
+
+          <View className="inline-flex items-center gap-2 px-3 py-1 bg-amber-50/80 backdrop-blur-sm text-amber-700 rounded-full text-[10px] font-bold shadow-sm">
+            <Image
+              src="data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%223%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M13%2010V3L4%2014h7v7l9-11h-7z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E"
+              className="w-3 h-3"
+            />
+            <Text>今日已玩 {playCount}/3 次</Text>
+          </View>
         </View>
       </View>
 
       {/* Action Buttons */}
-      <View className="space-y-4 mb-4 mt-4">
+      <View className="space-y-4 mt-auto">
         {/* Earn Points Button */}
         <View
           className="w-full py-5 rounded-2xl bg-gradient-to-br from-[#e11d48] to-[#be123c] shadow-glow active:scale-95 transition-transform flex items-center justify-center gap-3"
@@ -116,7 +174,7 @@ export default function Index() {
         >
           {/* Card Icon */}
           <Image
-            src="data:image/svg+xml;base64,PHN2ZyBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiB2aWV3Qm94PSIwIDAgMjQgMjQiIHN0cm9rZS13aWR0aD0iMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMyAxMGgxOE03IDE1aDFtNCAwaDFtLTcgNGgxMmEzIDMgMCAwMDMtM1Y4YTMgMyAwIDAwLTMtM0g2YTMgMyAwIDAwLTMtM0g2YTMgMyAwIDAwLTMgM3Y4YTMgMyAwIDAwMyAzeiIvPjwvc3ZnPg=="
+            src="data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%222%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M3%2010h18M7%2015h1m4%200h1m-7%204h12a3%203%200%20003-3V8a3%203%200%2000-3-3H6a3%203%200%2000-3%203v8a3%203%200%20003%203z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E"
             className="w-5 h-5"
           />
           <Text>付款抵扣</Text>

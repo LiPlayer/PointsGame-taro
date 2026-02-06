@@ -2,7 +2,7 @@
 
 **适用对象**：开发者 / 团队 / AI 协作工具  
 **核心架构**：Taro v4 (Native Shell + Game Core)
-**UI 框架**：React 18 + Sass (Module)
+**UI 框架**：React 18 + Tailwind CSS (via weapp-tailwindcss)
 **项目性质**：线下门店引流 + 复访驱动的轻量小游戏系统
 
 ---
@@ -306,9 +306,9 @@ $$ \lambda = \frac{G_{daily}}{24 \cdot P_{max}^3} $$
 ### 7.3 分辨率与坐标系规范 (Resolution & Coordinate System)
 
 #### A. 2D 上下文 (UI & 2D Canvas)
-- **设计稿标准**: 750px 设计稿
+- **设计稿标准**: 375px 设计稿 (iPhone 6/7/8 为基准)
 - **单位策略**:
-  - UI 样式: 书写 `px` 或 `rpx` (Taro 默认配置会将 `px` 1:1 编译为 `rpx`)
+  - UI 样式: 书写 `px` 会被转换。由于 `designWidth` 设为 `375`，写 `100px` 在真机上表现为 `200rpx`，正好对应 375 屏幕下的 100 物理像素点。
   - 2D Canvas: 通常使用逻辑像素 (`windowWidth`)，但需与设计系统对齐。
 
 #### B. 3D 上下文 (WebGL / Three.js)

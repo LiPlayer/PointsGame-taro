@@ -26,7 +26,7 @@ export default function Game() {
         <View className="flex flex-col h-screen bg-slate-900 relative overflow-hidden">
             {/* Game Canvas Placeholder */}
             <View className="absolute inset-0 bg-slate-800 flex items-center justify-center overflow-hidden" onClick={handleGameOver}>
-                <Text className="text-slate-700 text-8xl font-black opacity-10 rotate-12 select-none">游戏中</Text>
+                <Text className="text-slate-700 text-9xl font-black opacity-10 rotate-12 select-none">游戏中</Text>
                 <Text className="absolute bottom-20 text-white/30 text-xs font-bold uppercase tracking-widest">(点击屏幕模拟游戏结束)</Text>
 
                 {/* Mock Objects */}
@@ -52,7 +52,7 @@ export default function Game() {
 
             {/* Footer Info */}
             <View className="absolute bottom-10 width-full text-center w-full z-10 pointer-events-none">
-                <Text className="text-white/50 text-sm uppercase tracking-[0.2em] font-bold">游戏进行中...</Text>
+                <Text className="text-white/50 text-[10px] uppercase tracking-[0.2em] font-bold">游戏进行中...</Text>
             </View>
         </View>
     )

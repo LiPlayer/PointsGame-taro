@@ -19,7 +19,7 @@ export default function Collection() {
     }
 
     return (
-        <View className="flex flex-col h-screen box-border p-6 pt-12 bg-[#f8fafc]">
+        <View className="flex flex-col h-screen box-border px-6 pt-[50px] pb-[calc(16px+env(safe-area-inset-bottom))] bg-[#f8fafc]">
             <View className="flex items-center gap-4 mb-8">
                 <View className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center active:bg-slate-50" onClick={goHome}>
                     <Image src={SVG_CLOSE} className="w-5 h-5 text-slate-900" />
@@ -36,11 +36,11 @@ export default function Collection() {
                         </View>
                         <View>
                             <Text className="font-black text-slate-900 block">疯狂炒鸡</Text>
-                            <Text className="text-xs font-bold text-slate-500">已玩 12 次</Text>
+                            <Text className="text-[10px] font-bold text-slate-400">已玩 12 次</Text>
                         </View>
                     </View>
                     <View
-                        className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold flex items-center gap-1 active:opacity-80"
+                        className="px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-bold flex items-center gap-1 active:opacity-80"
                         onClick={() => handleReplay(1)}
                     >
                         <Image src={SVG_REPLAY} className="w-3 h-3 text-white" />
@@ -56,11 +56,11 @@ export default function Collection() {
                         </View>
                         <View>
                             <Text className="font-black text-slate-900 block">砂锅围筷子</Text>
-                            <Text className="text-xs font-bold text-slate-500">已玩 3 次</Text>
+                            <Text className="text-[10px] font-bold text-slate-400">已玩 3 次</Text>
                         </View>
                     </View>
                     <View
-                        className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold flex items-center gap-1 active:opacity-80"
+                        className="px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-bold flex items-center gap-1 active:opacity-80"
                         onClick={() => handleReplay(2)}
                     >
                         <Image src={SVG_REPLAY} className="w-3 h-3 text-white" />
@@ -78,7 +78,7 @@ export default function Collection() {
             </View>
 
             <View className="py-4 text-center">
-                <Text className="text-sm font-black text-slate-300 uppercase tracking-[0.2em]">复玩不会获得积分</Text>
+                <Text className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">复玩不会获得积分</Text>
             </View>
         </View>
     )

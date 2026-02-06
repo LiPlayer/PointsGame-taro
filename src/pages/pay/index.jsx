@@ -38,8 +38,8 @@ export default function Pay() {
     return (
         <View className="block">
             {pageState === STATE.SCAN ? (
-                <View className="flex flex-col h-screen box-border bg-black relative">
-                    <View className="absolute top-6 left-6 w-10 h-10 rounded-full bg-black/40 text-white z-20 flex items-center justify-center active:bg-black/60" onClick={goHome}>
+                <View className="flex flex-col h-screen box-border bg-black relative pt-[50px]">
+                    <View className="absolute top-6 left-6 p-2 rounded-full bg-black/40 text-white z-20 flex items-center justify-center active:bg-black/60" onClick={goHome}>
                         <Image src={SVG_CLOSE} className="w-5 h-5 text-white" />
                     </View>
 
@@ -58,13 +58,13 @@ export default function Pay() {
                             <View className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-rose-500 rounded-bl-lg"></View>
                             <View className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-rose-500 rounded-br-lg"></View>
                             {/* Scan Line Animation - handled by CSS in app.scss typically, or inline style here */}
-                            <View className="absolute left-0 right-0 h-[2px] bg-rose-500 shadow-[0_0_10px_#e11d48] animate-scan-line" style={{ top: '50%' }}></View>
+                            <View className="absolute left-0 right-0 h-[2px] bg-rose-500 shadow-[0_0_10px_#e11d48] animate-scan-line"></View>
                         </View>
                         <Text className="text-white/70 text-sm mt-8 text-center leading-relaxed">识别成功后{'\n'}积分将自动全额抵扣</Text>
                     </View>
                 </View>
             ) : (
-                <View className="flex flex-col h-screen bg-[#f8fafc] p-6 justify-center">
+                <View className="flex flex-col h-screen bg-[#f8fafc] px-6 pt-[50px] pb-[calc(24px+env(safe-area-inset-bottom))] justify-center">
                     <View className="bg-white rounded-[40px] p-6 shadow-card border border-slate-100 box-border">
                         <View className="flex flex-col items-center mb-6 border-b border-slate-100 pb-6">
                             <View className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600 mb-4">
@@ -88,8 +88,8 @@ export default function Pay() {
                             </View>
                         </View>
 
-                        <View className="bg-slate-50 rounded-2xl p-4 text-center mb-4">
-                            <Text className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-1">还需要支付</Text>
+                        <View className="bg-slate-50 rounded-2xl p-6 text-center mb-6">
+                            <Text className="text-[10px] font-extrabold tracking-[0.1em] uppercase text-slate-400 block mb-1">还需要支付</Text>
                             <Text className="text-4xl font-black text-slate-900 tracking-tighter">¥ 95.60</Text>
                         </View>
 

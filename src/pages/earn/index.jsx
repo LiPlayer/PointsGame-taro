@@ -53,13 +53,13 @@ export default function Earn() {
     return (
         <View className="block">
             {viewState === STATE.ENTRY && (
-                <View className="page-padding text-center flex flex-col h-screen box-border p-6 pt-10 items-center">
+                <View className="text-center flex flex-col h-screen box-border px-6 pt-[50px] pb-[calc(24px+env(safe-area-inset-bottom))] items-center">
                     <View className="absolute top-6 left-6 w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center active:bg-slate-200" onClick={goHome}>
                         <Image src={SVG_CLOSE} className="w-5 h-5 text-slate-400" />
                     </View>
 
                     <View className="flex-1 flex flex-col items-center justify-center w-full">
-                        <View className="w-32 h-32 bg-slate-50 rounded-[40px] border-4 border-white shadow-xl flex items-center justify-center mb-6 relative">
+                        <View className="w-48 h-48 bg-slate-50 rounded-[48px] border-4 border-white shadow-xl flex items-center justify-center mb-8 relative">
                             {/* Gradient Overlay */}
                             <View className="absolute inset-0 rounded-[44px] bg-gradient-to-tr from-rose-50 to-white opacity-50 pointer-events-none"></View>
 
@@ -68,11 +68,10 @@ export default function Earn() {
                                 <Image
                                     src={SVG_GAMEPAD}
                                     className="w-24 h-24"
-                                    style={{ width: '96px', height: '96px' }}
                                 />
                             </View>
                         </View>
-                        <Text className="text-2xl font-black text-slate-900 mb-2">准备好了吗？</Text>
+                        <Text className="text-2xl font-black text-brand-dark mb-2">准备好了吗？</Text>
                         <Text className="text-sm text-slate-400 px-8 leading-relaxed">点击开始，系统将为你随机匹配{'\n'}一个小挑战或惊喜奖励。</Text>
                     </View>
 
@@ -87,13 +86,13 @@ export default function Earn() {
             )}
 
             {viewState === STATE.INSTANT_WIN && (
-                <View className="page-padding text-center flex flex-col h-screen box-border p-6 pt-10 items-center bg-amber-50">
+                <View className="text-center flex flex-col h-screen box-border px-6 pt-[50px] pb-[calc(24px+env(safe-area-inset-bottom))] items-center bg-amber-50">
                     <View className="absolute top-6 left-6 w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center active:bg-slate-200" onClick={goHome}>
                         <Image src={SVG_CLOSE} className="w-5 h-5 text-slate-600" />
                     </View>
 
                     <View className="flex-1 flex flex-col items-center justify-center w-full">
-                        <View className="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-lg mb-6 border-4 border-amber-200 animate-pulse-glow">
+                        <View className="w-40 h-40 bg-white rounded-full flex items-center justify-center shadow-lg mb-8 border-4 border-amber-200 animate-pulse-glow">
                             <Image
                                 src={SVG_GIFT}
                                 className="w-20 h-20"
@@ -114,14 +113,14 @@ export default function Earn() {
             )}
 
             {viewState === STATE.GAME_ENCOUNTER && (
-                <View className="page-padding text-center flex flex-col h-screen box-border p-6 pt-10 items-center bg-rose-50">
+                <View className="text-center flex flex-col h-screen box-border px-6 pt-[50px] pb-[calc(24px+env(safe-area-inset-bottom))] items-center bg-rose-50">
                     <View className="absolute top-6 left-6 w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center active:bg-slate-200" onClick={goHome}>
                         <Image src={SVG_CLOSE} className="w-5 h-5 text-slate-600" />
                     </View>
 
                     <View className="flex-1 flex flex-col items-center justify-center w-full">
-                        <View className="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-lg mb-6 border-4 border-rose-200 relative animate-float">
-                            <View className="absolute -top-3 px-3 py-1 bg-amber-400 text-amber-900 text-sm font-black uppercase tracking-widest rounded-full shadow-sm z-10">
+                        <View className="w-40 h-40 bg-white rounded-full flex items-center justify-center shadow-lg mb-8 border-4 border-rose-200 relative animate-float">
+                            <View className="absolute -top-3 px-3 py-1 bg-amber-400 text-amber-900 text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm z-10">
                                 新游戏解锁
                             </View>
                             {/* Game Icon */}

@@ -23,10 +23,10 @@ export default function Share() {
     }
 
     return (
-        <View className="flex flex-col h-screen bg-[#f8fafc]">
+        <View className="flex flex-col h-screen bg-[#f8fafc] pt-[50px] pb-[calc(24px+env(safe-area-inset-bottom))]">
             {/* Close Button - Absolute positioning relative to screen or top container */}
-            <View className="absolute top-6 left-6 w-10 h-10 rounded-full bg-slate-100 text-slate-600 z-10 flex items-center justify-center active:bg-slate-200" onClick={goHome}>
-                <Image src={SVG_CLOSE} className="w-5 h-5 text-slate-600" />
+            <View className="absolute top-6 left-6 p-2 rounded-full bg-white/50 text-slate-600 z-10 flex items-center justify-center active:bg-white/80" onClick={goHome}>
+                <Image src={SVG_CLOSE} className="w-5 h-5" />
             </View>
 
             {/* Top Half: Receive */}
@@ -35,8 +35,8 @@ export default function Share() {
                 <View className="w-48 h-48 bg-slate-900 rounded-3xl flex items-center justify-center text-white mb-4 shadow-lg">
                     <Image src={SVG_QR_PLACEHOLDER} className="w-20 h-20 opacity-50 text-white" />
                 </View>
-                <View className="bg-slate-100 px-4 py-1 rounded-full">
-                    <Text className="text-sm font-mono font-bold text-slate-500">ID: TJ_88921</Text>
+                <View className="bg-slate-100 px-4 py-1 rounded-full text-[10px] font-mono font-bold text-slate-500">
+                    ID: TJ_88921
                 </View>
             </View>
 
@@ -48,7 +48,7 @@ export default function Share() {
                 </View>
 
                 <View className="mb-6">
-                    <Text className="text-sm font-bold text-slate-400 uppercase block mb-2 tracking-widest">积分数量</Text>
+                    <Text className="text-[10px] font-extrabold tracking-[0.1em] uppercase text-slate-400 block mb-2">积分数量</Text>
                     <Input
                         type="number"
                         value={amount}

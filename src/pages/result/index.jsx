@@ -58,7 +58,7 @@ export default function Result() {
     }
 
     return (
-        <View className="flex flex-col h-screen box-border p-6 pt-10 bg-white">
+        <View className="flex flex-col h-screen box-border px-6 pt-[50px] pb-[calc(24px+env(safe-area-inset-bottom))] bg-white">
             <View className="absolute top-6 left-6 w-10 h-10 rounded-full bg-slate-100 text-slate-400 z-10 flex items-center justify-center active:bg-slate-200" onClick={goHome}>
                 <Image src={SVG_CLOSE} className="w-5 h-5" />
             </View>
@@ -71,8 +71,8 @@ export default function Result() {
                     </View>
 
                     <View className="text-center mb-10">
-                        <Text className="text-sm font-bold text-emerald-600 mb-2 block uppercase tracking-widest">惊喜时刻！</Text>
-                        <Text className="text-xs text-slate-400 font-bold opacity-70 mb-4 block">无需任何挑战，系统赠送</Text>
+                        <Text className="text-[10px] font-extrabold tracking-[0.1em] uppercase text-emerald-600 mb-2 block">惊喜时刻！</Text>
+                        <Text className="text-[10px] text-slate-400 font-bold opacity-70 mb-4 block uppercase tracking-widest">无需任何挑战，系统赠送</Text>
                         <View className="text-7xl font-black text-emerald-600 tracking-tighter flex items-center justify-center gap-2">
                             <Text>+{winPoints}</Text>
                             <Text className="text-2xl mt-4">积分</Text>
@@ -87,7 +87,7 @@ export default function Result() {
             ) : (
                 /* Standard Game Result Layout */
                 <View className="flex-1 flex flex-col items-center justify-center pt-10">
-                    <Text className={`text-sm font-bold uppercase tracking-widest mb-2 ${isReplay ? 'text-slate-400' : 'text-emerald-600'}`}>
+                    <Text className={`text-[10px] font-extrabold uppercase tracking-[0.1em] mb-2 ${isReplay ? 'text-slate-400' : 'text-emerald-600'}`}>
                         {isReplay ? '练习模式' : '挑战成功'}
                     </Text>
 
@@ -121,7 +121,7 @@ export default function Result() {
                                 <Text className="text-xl font-black text-slate-900">{currentScore}分</Text>
                             </View>
                             <View className="text-right">
-                                <Text className="text-sm font-bold text-slate-400 uppercase block mb-1">历史最高</Text>
+                                <Text className="text-[10px] font-extrabold tracking-[0.1em] uppercase text-slate-400 block mb-1">历史最高</Text>
                                 <Text className="text-xl font-black text-slate-400">{bestScore}</Text>
                             </View>
                         </View>
@@ -132,8 +132,8 @@ export default function Result() {
                             </View>
                         )}
                         <View className="flex justify-between items-center border-t border-slate-200 pt-3">
-                            <Text className="text-xs text-slate-400">{isNewRecord ? '打破纪录' : '表现记录'}</Text>
-                            <Text className={`text-xs font-bold ${isNewRecord ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            <Text className="text-[10px] text-slate-400 uppercase tracking-widest">打破纪录</Text>
+                            <Text className={`text-[10px] font-bold uppercase tracking-widest ${isNewRecord ? 'text-emerald-600' : 'text-slate-400'}`}>
                                 {isNewRecord ? `+${currentScore - 70} (突破)` : '稳步提升'}
                             </Text>
                         </View>
