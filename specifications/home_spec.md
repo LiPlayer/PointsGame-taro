@@ -1,92 +1,166 @@
-# 首页 (Home Page) 全量技术规范与一致性指南 (V3.2)
+# 首页 (Home) 开发实施规范 (V4.1 - Simplified)
 
-本文档是首页开发的最终权威参考，整合了所有视觉微调、物理交互及适配逻辑。
-
----
-
-## 1. 基础架构与适配 (Base Architecture)
-
-### 1.1 沉浸式配置
-- **微信小程序**: 必须在 `pages.config` 或 `app.config` 中设置 `"navigationStyle": "custom"`。
-- **背景填充**: 页面背景需满铺至屏幕顶部（StatusBar 区域）。
-- **状态栏透明**: 页面顶部不得显示任何原生导航栏背景。
-
-### 1.2 比例一致性 (Scaling Strategy)
-- **基准画布**: 宽度 `375px`。
-- **动态缩放系数**: `scaleFactor = 实测容器宽度 / 375`。
-- **规范要求**: 所有非文字的尺寸单位（星星半径、排斥圆半径、物理力大小）必须在运行时乘以 `scaleFactor` 以保证不同机型下的画面比例一致。
+**文档定位**：本文档是 “静态 HTML 原型” 到 “工业级 Taro 应用” 的工程桥梁。
 
 ---
 
-## 2. 积分卡片 (Points Card) - 深度解析
+## 0. AI 协作核心协议 (AI Protocol)
 
-### 2.1 样式与融合 (The Glass & Stacking)
-- **容器属性**: 
-  - `isolate`: **必须开启**。使用 `isolate` (CSS isolation) 或 `z-index` 创建独立的层叠上下文，隔离 `mix-blend-multiply`。
-  - `overflow-hidden`: 严格裁剪超出的粒子动画。
-  - `shadow-card`: `0 20px 40px -10px rgba(15, 23, 42, 0.05)`。
-- **渐变透明边框 (`gradient-border`)**:
-  - 实现: 双层背景叠加 (`padding-box` + `border-box`)。
-  - **核心特性**: 边框颜色向顶部渐变消失 (`to top`)，实现与背景的羽化融合。
-  - 代码参考:
-    ```css
-    background-image: linear-gradient(white, white), 
-                      linear-gradient(to top, rgba(241, 245, 249, 1), rgba(241, 245, 249, 0));
-    ```
-
-### 2.2 信息层层级
-- **指针穿透**: 包含积分数值的文字层必须设置 `pointer-events: none`，确保触摸事件能直接传递到下层的 Canvas。
-- **玻璃态组件 (Points Badge)**: 
-  - 样式: `bg-white/80 backdrop-blur-sm`。
-  - 功能: 实时显示今日已玩次数，不遮挡 Canvas 交互。
-- **混合模式**: 积分数字使用 `mix-blend-multiply`，使星星在数字后方流动时呈现自然的视觉融合感。
+- **视觉数据源 (Visual Data)**：`prototype.html`。
+    - **指令**：自动解析 HTML 中的 Tailwind 类名（颜色、间距、圆角）。
+    - **禁止**：在此文档中重新定义具体的 Hex 颜色或字体名称。
+- **工程架构源 (Engineering Spec)**：本文档。
+    - **指令**：必须遵守本文档定义的 DOM 结构、物理引擎参数、Tailwind 配置和跨端钩子。
+- **冲突解决**：若代码实现与本文档冲突，以本文档为准。
 
 ---
 
-## 3. 动态粒子系统 (Points-Canvas Engine)
+## 1. 架构配置 (Architecture Setup)
 
-### 3.1 物理引擎 (Verlet Physics)
-- **稳定性**: 每帧进行 **2次（Double Solve）** 约束迭代，防止星星在大量堆叠时产生穿透。
-- **物理常量**:
-  - `gravity`: `0.15 * scaleFactor`。
-  - `friction`: `0.96` (阻力系数)。
-  - `bounce`: 碰撞边界时保留 `50%` 的反弹动能。
-- **按压排斥 (Interaction)**:
-  - 触发节点: `touchstart` (按压) 与 `touchmove` (滑动)。
-  - 斥力半径: `80 * scaleFactor` px。
-  - 逻辑: 即使处于静止状态的粒子，一旦进入斥力半径，必须被“唤醒”并赋予反向速度。
+> [!IMPORTANT]
+> **强制指令**：AI 在生成代码前，必须先验证以下配置文件。
 
-### 3.2 渲染细节
-- **分层渲染 (Pseudo-3D)**:
-  - 粒子分为 3 个离散 Z 深层 (0, 0.5, 1.0)。
-  - 不同层应用不同的缩放倍率 (`0.5x` 到 `1.2x`)。
-- **星星素材**: 
-  - 基于三层绘制：`amber-100` 外边框 -> `white` 主体 -> `amber-500` 中心星。
-  - 前景粒子（Z=1.0）额外绘制 `rgba(255,255,255,0.3)` 的弧形高光。
+### 1.1 Tailwind 条件编译 (Project Config)
+为了解决混合模式在小程序的兼容性问题，同时保持 JSX 整洁，必须在 `tailwind.config.js` 中注册平台变体。
 
-### 3.3 状态机与 API
-- **ADD (落入)**: 粒子从 Canvas 顶部 (`y < 0`) 洒入。
-- **CONSUME (消耗)**: 
-  - 阶段 1 (40%): 向上漂浮。
-  - 阶段 2 (60%): 旋转加速并缩放至 0。
-- **EXPLODE (喷发)**: 全场粒子获得向上的随机矢量力 (10-30 units)。
+```javascript
+// tailwind.config.js
+const plugin = require('tailwindcss/plugin');
 
----
+module.exports = {
+  // ... 其他配置
+  plugins: [
+    plugin(function({ addVariant }) {
+      // 注册 h5: 前缀 -> 仅在 H5 环境生效
+      addVariant('h5', process.env.TARO_ENV === 'h5' ? '&' : '.ignore-h5');
+      // 注册 weapp: 前缀 -> 仅在 小程序 环境生效
+      addVariant('weapp', process.env.TARO_ENV === 'weapp' ? '&' : '.ignore-weapp');
+    })
+  ],
+}
+```
 
-## 4. 视觉层级与字重
-- **Typography**: 
-  - 数字: `font-black` (权重 900)。
-  - 标题: `font-black`。
-  - 标签: `font-800` (Plus Jakarta Sans)。
-- **色彩**: 严禁使用纯红/纯黑。
-  - 品牌红: `#e11d48` (rose-600)。
-  - 标题黑: `#0f172a` (slate-900)。
+### 1.2 组件样式隔离 (Component Config)
+由于使用 `weapp-tailwindcss`，所有拆分的组件（如 `PointsHeroCard`, `ActionGrid`）必须在组件代码中配置：
+
+```javascript
+// 在组件文件底部添加
+PointsHeroCard.options = {
+  addGlobalClass: true
+};
+```
 
 ---
 
-## 5. 交互一致性检测清单 (QA Check)
-- [ ] 微信胶囊按钮区域是否已避开？
-- [ ] 积分卡片顶部边框是否是透明渐变的？
-- [ ] 触摸按压数字位置时，背后的星星是否被推开？
-- [ ] 大屏手机和 iPad 下，星星的大小比例是否协调？
-- [ ] 积分卡片是否开启了 CSS Isolation (`isolate`)？
+## 2. 页面架构 (Component Tree)
+
+> [!IMPORTANT]
+> **强制指令**：DOM 顺序是解决小程序 Canvas 层级问题的唯一手段。
+
+```jsx
+<View className="min-h-screen bg-brand-bg flex flex-col relative overflow-hidden">
+  
+  {/* Layer 1: 品牌头 (Header) */}
+  <BrandHeader />
+
+  {/* Layer 2: 核心交互卡片 (Hero) */}
+  {/* 关键点：isolate 建立独立堆叠上下文，z-10 提升层级 */}
+  <PointsHeroCard className="relative isolate z-10" />
+
+  {/* Layer 3: 操作区 */}
+  <ActionGrid className="relative z-20" />
+
+  {/* Layer 4: 安全区垫片 (使用 JIT 语法) */}
+  <View className="pb-[env(safe-area-inset-bottom)]" />
+
+</View>
+```
+
+---
+
+## 3. 核心特性实施细节 (Implementation)
+
+### 3.1 积分卡片 (PointsHeroCard) - 核心难点
+
+#### A. 层级与渲染策略 (Rendering Strategy)
+- **DOM 顺序 (Critical)**：JSX 中，`<Canvas>` 必须 **写在** `<Content>` 之前。
+    - **原理**：小程序原生组件遵循“先渲染的在下层”规则（即使是同层渲染）。
+- **Z-Index**：
+    - `Canvas`: `absolute z-0`
+    - `Content`: `relative z-10 pointer-events-none`
+- **混合模式 (Mix-Blend Mode)**：
+    - **Weapp**: 严禁使用 `mix-blend-multiply`（会导致文字消失或层级错误）。
+    - **H5**: 推荐保留。
+    - **实现**：使用 1.1 定义的变体：`h5:mix-blend-multiply`。
+
+#### B. 物理粒子引擎 (Physics Engine)
+必须移植 `prototype.html` 中的 `<script>` 逻辑，但需适配 Taro：
+- **参数**：Gravity `0.15`, Friction `0.96`, Floor Bounce `-0.5`。
+- **交互**：实现手指滑动的排斥力场（Repulsion Force）。
+- **绘制 (Rendering)**：严禁使用图片 (`drawImage`)。必须使用 Canvas API (`ctx.arc`, `ctx.lineTo`) 手绘星星（外圈、内体、核心三层）。
+
+### 3.2 品牌头 (BrandHeader)
+- **布局适配**：
+    - **H5**: 使用 Tailwind 变体 `h5:pt-[20px]`。
+    - **Weapp**: 使用行内样式 `style={{ paddingTop: sysInfo.statusBarHeight }}`。
+- **Logo**: 暂时使用 CSS 实现（红色圆角矩形），预留 `Image` 接口。
+
+### 3.3 视觉特效 (Visual Effects)
+- **渐变边框**：小程序不支持 `border-box` 渐变。
+    - **方案**：双层 `View` 模拟（外层渐变 + `Padding 1px` -> 内层纯白）。
+- **毛玻璃**：安卓小程序不支持 `backdrop-blur`。
+    - **方案**：使用 `bg-amber-50/90` (高不透明度) 作为保底，叠加 `backdrop-blur-sm`。
+
+---
+
+## 4. 跨端一致性逻辑 (Cross-Platform Logic)
+
+### 4.1 Canvas 2D Hook (Standard)
+使用此 Hook 抹平 DOM 和 `SelectorQuery` 的差异。
+
+```javascript
+import Taro, { useReady } from '@tarojs/taro';
+
+export function useCanvas2D(id, drawCallback) {
+  useReady(() => {
+    Taro.nextTick(() => {
+      const dpr = Taro.getSystemInfoSync().pixelRatio;
+      
+      // 分支 A: H5 (Standard DOM)
+      if (process.env.TARO_ENV === 'h5') {
+        const canvas = document.getElementById(id);
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        drawCallback(canvas, ctx, rect.width, rect.height, dpr);
+        return;
+      }
+
+      // 分支 B: Weapp (SelectorQuery)
+      Taro.createSelectorQuery().select(`#${id}`)
+        .fields({ node: true, size: true }).exec((res) => {
+          if (!res[0]?.node) return;
+          const { node, width, height } = res[0];
+          node.width = width * dpr;
+          node.height = height * dpr;
+          const ctx = node.getContext('2d');
+          ctx.scale(dpr, dpr);
+          drawCallback(node, ctx, width, height, dpr);
+        });
+    });
+  });
+}
+```
+
+---
+
+## 5. 开发自查清单 (QA)
+
+- [ ] **配置检查**：`tailwind.config.js` 是否已添加 `h5/weapp` 插件？
+- [ ] **组件检查**：所有组件文件底部是否包含 `addGlobalClass: true`？
+- [ ] **层级检查**：JSX 中 `<Canvas>` 是否在 `<Content>` 之前？
+- [ ] **视觉检查**：小程序端文字是否清晰（无混合模式），H5 端是否有混合模式？
+- [ ] **物理检查**：星星是否是手绘的矢量图，而非模糊的位图？
