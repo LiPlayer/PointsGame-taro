@@ -9,7 +9,6 @@ import { getUserData, initUserData, refreshPoints } from '../../utils/user'
 export default function Home() {
   const [points, setPoints] = useState(0)
   const [dailyPlayCount, setDailyPlayCount] = useState(0)
-  const [isRunning, setIsRunning] = useState(true)
 
   const platformClass = useMemo(() => `platform-${process.env.TARO_ENV || 'unknown'}`, [])
 
@@ -28,12 +27,7 @@ export default function Home() {
   }, [])
 
   useDidShow(() => {
-    setIsRunning(true)
     syncUser()
-  })
-
-  useDidHide(() => {
-    setIsRunning(false)
   })
 
   return (
@@ -42,7 +36,6 @@ export default function Home() {
         className="relative isolate z-10 mt-4 mb-auto"
         points={points}
         dailyPlayCount={dailyPlayCount}
-        isRunning={isRunning}
       />
 
       <ActionGrid
