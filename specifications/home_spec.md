@@ -1,6 +1,7 @@
-# 首页 (Home) 开发实施规范 (V4.1 - Simplified)
+# 首页 (Home) 开发实施规范 (V4.4 - Final Guarantee)
 
-**文档定位**：本文档是 “静态 HTML 原型” 到 “工业级 Taro 应用” 的工程桥梁。
+**文档定位**：
+本文档是 “静态 HTML 原型” 到 “工业级 Taro 应用” 的工程桥梁。
 
 ---
 
@@ -57,20 +58,19 @@ PointsHeroCard.options = {
 > [!IMPORTANT]
 > **强制指令**：DOM 顺序是解决小程序 Canvas 层级问题的唯一手段。
 
+**结构说明**：`BrandHeader` 必须作为 `PointsHeroCard` 的子元素存在，以确保粒子背景能够覆盖整个头部区域。
+
 ```jsx
 <View className="min-h-screen bg-brand-bg flex flex-col relative overflow-hidden">
   
-  {/* Layer 1: 品牌头 (Header) */}
-  <BrandHeader />
-
-  {/* Layer 2: 核心交互卡片 (Hero) */}
-  {/* 关键点：isolate 建立独立堆叠上下文，z-10 提升层级 */}
+  {/* Layer 1: 核心交互容器 (Hero) */}
+  {/* 包含：Canvas背景 + BrandHeader + 积分数字 */}
   <PointsHeroCard className="relative isolate z-10" />
 
-  {/* Layer 3: 操作区 */}
+  {/* Layer 2: 操作区 */}
   <ActionGrid className="relative z-20" />
 
-  {/* Layer 4: 安全区垫片 (使用 JIT 语法) */}
+  {/* Layer 3: 安全区垫片 (使用 JIT 语法) */}
   <View className="pb-[env(safe-area-inset-bottom)]" />
 
 </View>
@@ -82,34 +82,51 @@ PointsHeroCard.options = {
 
 ### 3.1 积分卡片 (PointsHeroCard) - 核心难点
 
-#### A. 层级与渲染策略 (Rendering Strategy)
-- **DOM 顺序 (Critical)**：JSX 中，`<Canvas>` 必须 **写在** `<Content>` 之前。
-    - **原理**：小程序原生组件遵循“先渲染的在下层”规则（即使是同层渲染）。
-- **Z-Index**：
-    - `Canvas`: `absolute z-0`
-    - `Content`: `relative z-10 pointer-events-none`
-- **混合模式 (Mix-Blend Mode)**：
-    - **Weapp**: 严禁使用 `mix-blend-multiply`（会导致文字消失或层级错误）。
-    - **H5**: 推荐保留。
-    - **实现**：使用 1.1 定义的变体：`h5:mix-blend-multiply`。
+#### A. 内部 DOM 结构与顺序 (Internal DOM Order)
+为了解决层级问题并实现沉浸式头部，组件内部结构必须如下：
 
-#### B. 物理粒子引擎 (Physics Engine)
-必须移植 `prototype.html` 中的 `<script>` 逻辑，但需适配 Taro：
+```jsx
+<View className="..."> {/* Container */}
+  
+  {/* 1. 物理层：Canvas 粒子背景 (绝对定位，最底层) */}
+  {/* DOM 顺序第一位，Z-Index 0 */}
+  <Canvas type="2d" className="absolute inset-0 z-0 ..." />
+
+  {/* 2. 头部层：品牌 Logo 与标题 */}
+  {/* 必须在 Canvas 之后，Z-Index 20 (需高于积分内容以防重叠难点) */}
+  <BrandHeader className="relative z-20" />
+
+  {/* 3. 内容层：积分数字与胶囊 */}
+  {/* 必须在 Canvas 之后，Z-Index 10 */}
+  <View className="relative z-10 pointer-events-none ...">
+     <Content />
+  </View>
+
+</View>
+```
+
+#### B. 混合模式 (Mix-Blend Mode)
+- **Weapp**: 严禁使用 `mix-blend-multiply`。这是导致“星星挡字”现象的主要原因。
+- **H5**: 推荐保留。
+- **实现**：使用 1.1 定义的变体：`h5:mix-blend-multiply`。
+
+#### C. 物理粒子引擎 (Physics Engine)
 - **参数**：Gravity `0.15`, Friction `0.96`, Floor Bounce `-0.5`。
 - **交互**：实现手指滑动的排斥力场（Repulsion Force）。
-- **绘制 (Rendering)**：严禁使用图片 (`drawImage`)。必须使用 Canvas API (`ctx.arc`, `ctx.lineTo`) 手绘星星（外圈、内体、核心三层）。
+- **绘制**：使用 `ctx.arc` / `ctx.lineTo` 手绘星星。
 
 ### 3.2 品牌头 (BrandHeader)
-- **布局适配**：
-    - **H5**: 使用 Tailwind 变体 `h5:pt-[20px]`。
-    - **Weapp**: 使用行内样式 `style={{ paddingTop: sysInfo.statusBarHeight }}`。
+作为子组件的适配：
+- **Weapp**: `style={{ paddingTop: sysInfo.statusBarHeight }}`。
 - **Logo**: 暂时使用 CSS 实现（红色圆角矩形），预留 `Image` 接口。
 
 ### 3.3 视觉特效 (Visual Effects)
-- **渐变边框**：小程序不支持 `border-box` 渐变。
-    - **方案**：双层 `View` 模拟（外层渐变 + `Padding 1px` -> 内层纯白）。
-- **毛玻璃**：安卓小程序不支持 `backdrop-blur`。
-    - **方案**：使用 `bg-amber-50/90` (高不透明度) 作为保底，叠加 `backdrop-blur-sm`。
+- **渐变边框 (Gradient Border)**：
+    - **强制方案**：双层 `View` 模拟。
+    - **外层 View**：`rounded-[32px] p-[1px]` 设置渐变背景。
+    - **内层 View**：`rounded-[31px] bg-white h-full w-full`。
+- **毛玻璃 (Backdrop Blur)**：
+    - **强制方案**：使用 `bg-amber-50/90` (Amber-50, 90% Opacity) 降级，叠加 `backdrop-blur-sm`。
 
 ---
 
@@ -126,10 +143,14 @@ export function useCanvas2D(id, drawCallback) {
     Taro.nextTick(() => {
       const dpr = Taro.getSystemInfoSync().pixelRatio;
       
-      // 分支 A: H5 (Standard DOM)
+      // 分支 A: H5 (Robust DOM Lookup)
       if (process.env.TARO_ENV === 'h5') {
-        const canvas = document.getElementById(id);
+        const el = document.getElementById(id);
+        if (!el) return;
+        // 兼容 Taro 容器：若 ID 在容器上，则查找内部真正的 canvas
+        const canvas = el.tagName === 'CANVAS' ? el : el.querySelector('canvas');
         if (!canvas) return;
+        
         const rect = canvas.getBoundingClientRect();
         canvas.width = rect.width * dpr;
         canvas.height = rect.height * dpr;
@@ -140,16 +161,18 @@ export function useCanvas2D(id, drawCallback) {
       }
 
       // 分支 B: Weapp (SelectorQuery)
-      Taro.createSelectorQuery().select(`#${id}`)
-        .fields({ node: true, size: true }).exec((res) => {
-          if (!res[0]?.node) return;
-          const { node, width, height } = res[0];
-          node.width = width * dpr;
-          node.height = height * dpr;
-          const ctx = node.getContext('2d');
-          ctx.scale(dpr, dpr);
-          drawCallback(node, ctx, width, height, dpr);
-        });
+      if (process.env.TARO_ENV === 'weapp') {
+        Taro.createSelectorQuery().select(`#${id}`)
+          .fields({ node: true, size: true }).exec((res) => {
+            if (!res[0]?.node) return;
+            const { node, width, height } = res[0];
+            node.width = width * dpr;
+            node.height = height * dpr;
+            const ctx = node.getContext('2d');
+            ctx.scale(dpr, dpr);
+            drawCallback(node, ctx, width, height, dpr);
+          });
+      }
     });
   });
 }
@@ -157,10 +180,10 @@ export function useCanvas2D(id, drawCallback) {
 
 ---
 
-## 5. 开发自查清单 (QA)
+## 5. 故障排查 (Troubleshooting - Emergency Only)
 
-- [ ] **配置检查**：`tailwind.config.js` 是否已添加 `h5/weapp` 插件？
-- [ ] **组件检查**：所有组件文件底部是否包含 `addGlobalClass: true`？
-- [ ] **层级检查**：JSX 中 `<Canvas>` 是否在 `<Content>` 之前？
-- [ ] **视觉检查**：小程序端文字是否清晰（无混合模式），H5 端是否有混合模式？
-- [ ] **物理检查**：星星是否是手绘的矢量图，而非模糊的位图？
+如果严格执行上述规范后，Weapp 端依然出现“星星在文字上”，请按以下顺序执行保底措施：
+
+1.  **Check 1**: 确认文字元素没有被施加 `mix-blend-mode`。这是最常见的隐形杀手。
+2.  **Check 2**: 确认 `<Canvas>` 的 Z-Index 显式设置为 `z-0` 或 `z-[-1]`（负值通常能强制置底，但需确保父容器非 `overflow-hidden` 导致消失）。
+3.  **Check 3 (核武器)**: 如果上述都无效，请在 `<Canvas>` 上使用 `visibility: hidden` 直到第一帧绘制完成，或给文字容器包裹一层 `<CoverView>`（不推荐，会失去 CSS 能力，仅作为最后手段）。
