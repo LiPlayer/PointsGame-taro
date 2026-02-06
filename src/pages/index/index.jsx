@@ -44,6 +44,18 @@ export default function Index() {
         animationRef.current.setParticleCount(current)
       }
     }
+
+    // Cache rect for touch interaction
+    Taro.nextTick(() => {
+      Taro.createSelectorQuery()
+        .select('#points-canvas')
+        .boundingClientRect()
+        .exec((res) => {
+          if (res && res[0]) {
+            cardRectRef.current = res[0]
+          }
+        })
+    })
   })
 
   // Initialize Star Animation
@@ -89,12 +101,54 @@ export default function Index() {
 
 
 
+  const cardRectRef = useRef(null)
+
   return (
     <View className="min-h-screen bg-[#f8fafc] flex flex-col box-border px-6 pt-[50px] pb-[calc(24px+env(safe-area-inset-bottom))]">
       {/* Points Card */}
-      <View className="bg-white border border-slate-100 rounded-[32px] p-8 text-center shadow-card mb-4 relative overflow-hidden box-border isolate">
+      <View
+        className="bg-white gradient-border rounded-[32px] p-8 text-center shadow-card mb-4 relative overflow-hidden box-border isolate"
+        style={{ transform: 'translateZ(0)', webkitMaskImage: '-webkit-radial-gradient(white, black)' }} // Enhanced clipping for some engines
+        onTouchStart={(e) => {
+          if (animationRef.current && e.touches && e.touches[0]) {
+            const touch = e.touches[0];
+            const x = touch.clientX || touch.pageX;
+            const y = touch.clientY || touch.pageY;
+
+            if (cardRectRef.current) {
+              animationRef.current.handleInput(x - cardRectRef.current.left, y - cardRectRef.current.top);
+            } else {
+              Taro.createSelectorQuery().select('#points-canvas').boundingClientRect().exec(res => {
+                if (res && res[0]) {
+                  cardRectRef.current = res[0];
+                  animationRef.current.handleInput(x - res[0].left, y - res[0].top);
+                }
+              });
+            }
+          }
+        }}
+        onTouchMove={(e) => {
+          if (animationRef.current && e.touches && e.touches[0] && cardRectRef.current) {
+            const touch = e.touches[0];
+            const x = touch.clientX || touch.pageX;
+            const y = touch.clientY || touch.pageY;
+            animationRef.current.handleInput(x - cardRectRef.current.left, y - cardRectRef.current.top);
+          }
+        }}
+        onTouchEnd={() => {
+          if (animationRef.current) animationRef.current.stopInput();
+        }}
+        onMouseMove={(e) => {
+          if (animationRef.current && cardRectRef.current) {
+            animationRef.current.handleInput(e.clientX - cardRectRef.current.left, e.clientY - cardRectRef.current.top);
+          }
+        }}
+        onMouseLeave={() => {
+          if (animationRef.current) animationRef.current.stopInput();
+        }}
+      >
         {/* Brand Header (Inside Card as per V3.2 Prototype) */}
-        <View className="flex flex-col items-center mt-2 mb-16 relative z-20">
+        <View className="flex flex-col items-center mt-2 mb-16 relative z-20 pointer-events-none">
           <View className="w-16 h-16 bg-brand-red rounded-2xl shadow-lg flex items-center justify-center text-white text-3xl font-black mb-4">
             婷
           </View>
@@ -106,7 +160,7 @@ export default function Index() {
           type="2d"
           id="points-canvas"
           className="absolute inset-0 w-full h-full z-0 pointer-events-none opacity-90"
-          style={{ width: '100%', height: '100%' }}
+          style={{ width: '100%', height: '100%', borderRadius: '32px', overflow: 'hidden', transform: 'translateZ(0)' }}
         />
 
         {/* Content (Higher z-index) */}

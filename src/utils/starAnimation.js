@@ -16,14 +16,14 @@ export class StarAnimation {
         this.canvas = canvasNode;
         this.ctx = this.canvas.getContext('2d');
 
-        // Configuration
+        const widthFactor = this.width / (375 * this.dpr);
         this.CONFIG = {
-            particleCount: Math.min(initialPoints, 1500), // Cap effective particles for performance
-            radius: 12 * (this.width / (375 * this.dpr)), // Increased base radius from 8 to 12
-            gravity: 0.15,
+            particleCount: Math.min(initialPoints, 1500),
+            radius: 12 * widthFactor,
+            gravity: 0.15 * this.dpr,
             friction: 0.96,
-            repulsionRadius: 80,
-            repulsionForce: 1.0,
+            repulsionRadius: 180 * widthFactor * this.dpr, // Further increased
+            repulsionForce: 8.0 * widthFactor * this.dpr,  // Further increased
             colors: ['#fbbf24', '#f59e0b', '#d97706'],
             sleepThreshold: 0.05
         };
@@ -300,11 +300,6 @@ export class StarAnimation {
     }
 
     draw() {
-        if (!this.drawCounter) this.drawCounter = 0;
-        this.drawCounter++;
-        if (this.drawCounter % 60 === 0) {
-            console.log(`[StarAnimation] Rendering frame ${this.drawCounter}, active particles: ${this.particles.length}`);
-        }
         this.ctx.clearRect(0, 0, this.width, this.height);
 
         // Sort slightly expensive but crucial for Z-order
