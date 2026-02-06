@@ -19,49 +19,80 @@ const PointsCanvas = forwardRef((props, ref) => {
 
     useEffect(() => {
         let timer = null
+        let cleanupInteraction = null
+
         const initCanvas = async () => {
-            // Must wait for nextTick to ensuring rendering layer is ready
-            // Weapp sometimes needs extra time for layout values to stabilize
+            // Wait for Taro to finish layout
             await new Promise(resolve => Taro.nextTick(resolve))
-            await new Promise(resolve => setTimeout(resolve, 50))
+            await new Promise(resolve => setTimeout(resolve, 100))
+
+            let canvasNode, width, height, ctx, dpr;
 
             if (isWeb && typeof document !== 'undefined') {
-                const el = canvasRef.current
-                if (!el || typeof el.getContext !== 'function') return
-                const rect = el.getBoundingClientRect()
-                const ctx = el.getContext('2d')
-                const dpr = (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1
-                const width = rect.width
-                const height = rect.height
-                boundsRef.current = rect
-                el.width = width * dpr
-                el.height = height * dpr
+                canvasNode = canvasRef.current
+                if (!canvasNode) return
+                const rect = canvasNode.getBoundingClientRect()
+                ctx = canvasNode.getContext('2d')
+                dpr = window.devicePixelRatio || 1
+                width = rect.width
+                height = rect.height
+                canvasNode.width = width * dpr
+                canvasNode.height = height * dpr
                 ctx.scale(dpr, dpr)
-                const scaleFactor = (width / 375) || 1
-                startEngine(el, ctx, width, height, scaleFactor)
-                return
+            } else {
+                const query = Taro.createSelectorQuery()
+                const res = await new Promise(resolve => {
+                    query.select('#points-canvas')
+                        .fields({ node: true, size: true, rect: true })
+                        .exec(resolve)
+                })
+                if (!res || !res[0] || !res[0].node) return
+                const data = res[0]
+                canvasNode = data.node
+                width = data.width
+                height = data.height
+                ctx = canvasNode.getContext('2d')
+                dpr = Taro.getSystemInfoSync().pixelRatio || 1
+                canvasNode.width = width * dpr
+                canvasNode.height = height * dpr
+                ctx.scale(dpr, dpr)
             }
 
-            // MiniProgram & other platforms that support node:true
-            const query = Taro.createSelectorQuery()
-            query.select('#points-canvas')
-                .fields({ node: true, size: true, rect: true })
-                .exec((res) => {
-                    if (!res || !res[0] || !res[0].node) return
+            const scaleFactor = (width / 375) || 1
+            startEngine(canvasNode, ctx, width, height, scaleFactor)
 
-                    const { node: canvas, width, height, left, top, right, bottom } = res[0]
-                    const ctx = canvas.getContext('2d')
-                    if (!ctx) return
-                    const dpr = Taro.getSystemInfoSync().pixelRatio || 1
-                    boundsRef.current = { left, top, right, bottom }
+            // Native Interaction: Attach to parent card like the prototype
+            const container = canvasNode.parentElement
+            if (container) {
+                const handleUpdate = (clientX, clientY, active) => {
+                    const rect = canvasNode.getBoundingClientRect()
+                    const x = clientX - rect.left
+                    const y = clientY - rect.top
+                    engineRef.current?.updateMouse(x, y, active)
+                }
 
-                    canvas.width = width * dpr
-                    canvas.height = height * dpr
-                    ctx.scale(dpr, dpr)
+                const moveHandler = (e) => {
+                    const touch = e.touches?.[0] || e
+                    handleUpdate(touch.clientX, touch.clientY, true)
+                }
+                const leaveHandler = () => engineRef.current?.updateMouse(-1000, -1000, false)
 
-                    const scaleFactor = (width / 375) || 1
-                    startEngine(canvas, ctx, width, height, scaleFactor)
-                })
+                container.addEventListener('mousemove', moveHandler)
+                container.addEventListener('touchmove', moveHandler, { passive: false })
+                container.addEventListener('touchstart', moveHandler, { passive: false })
+                container.addEventListener('mouseleave', leaveHandler)
+                container.addEventListener('touchend', leaveHandler)
+                container.addEventListener('mouseenter', moveHandler)
+
+                cleanupInteraction = () => {
+                    container.removeEventListener('mousemove', moveHandler)
+                    container.removeEventListener('touchmove', moveHandler)
+                    container.removeEventListener('touchstart', moveHandler)
+                    container.removeEventListener('mouseleave', leaveHandler)
+                    container.removeEventListener('touchend', leaveHandler)
+                    container.removeEventListener('mouseenter', moveHandler)
+                }
+            }
         }
 
         const startEngine = (canvas, ctx, width, height, scaleFactor) => {
@@ -70,13 +101,12 @@ const PointsCanvas = forwardRef((props, ref) => {
                 gravity: 0.15 * scaleFactor,
                 friction: 0.96,
                 repulsionRadius: 80 * scaleFactor,
-                colors: ['#fbbf24', '#f59e0b', '#d97706'],
-                sleepThreshold: 0.05
+                repulsionForce: 1.0,
+                stiffness: 0.5,
+                colors: ['#fbbf24', '#f59e0b', '#d97706']
             }
 
-            // Pre-render star template
             const starTemplate = createStarTemplate(ctx, CONFIG.radius)
-
             const particles = []
             let mouse = { x: -1000, y: -1000, active: false }
 
@@ -89,8 +119,7 @@ const PointsCanvas = forwardRef((props, ref) => {
                     this.radius = CONFIG.radius * (0.8 + Math.random() * 0.4)
                     this.angle = Math.random() * Math.PI * 2
                     this.angularVelocity = (Math.random() - 0.5) * 0.1
-                    this.z = Math.floor(Math.random() * 3) / 2 // 0, 0.5, 1.0
-                    this.color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)]
+                    this.z = Math.floor(Math.random() * 3) / 2
                     this.isSleeping = false
                     this.isDying = false
                     this.deathTimer = 0
@@ -123,20 +152,21 @@ const PointsCanvas = forwardRef((props, ref) => {
                     this.y += vy + CONFIG.gravity
                     this.angle += this.angularVelocity
 
-                    // Repulsion
                     if (mouse.active) {
                         const dx = this.x - mouse.x
                         const dy = this.y - mouse.y
-                        const dist = Math.sqrt(dx * dx + dy * dy)
-                        if (dist < CONFIG.repulsionRadius) {
-                            const force = (CONFIG.repulsionRadius - dist) / CONFIG.repulsionRadius
-                            this.x += dx / dist * force * 2
-                            this.y += dy / dist * force * 2
+                        const distSq = dx * dx + dy * dy
+                        const rSq = CONFIG.repulsionRadius * CONFIG.repulsionRadius
+                        if (distSq < rSq) {
+                            const dist = Math.sqrt(distSq)
+                            const force = (1 - dist / CONFIG.repulsionRadius) * CONFIG.repulsionForce
+                            const angle = Math.atan2(dy, dx)
+                            this.x += Math.cos(angle) * force * 2
+                            this.y += Math.sin(angle) * force * 2
                             this.isSleeping = false
                         }
                     }
 
-                    // Boundaries
                     if (this.y + this.radius > height) {
                         this.y = height - this.radius
                         this.oldY = this.y + (this.y - this.oldY) * -0.5
@@ -151,22 +181,17 @@ const PointsCanvas = forwardRef((props, ref) => {
                 }
 
                 draw() {
-                    const s = this.scale * (0.6 + this.z * 0.6)
+                    const baseScale = (this.radius * 2 / 64)
+                    const zScale = 0.5 + this.z * 0.7
+                    const s = baseScale * zScale * this.scale
                     ctx.save()
                     ctx.translate(this.x, this.y)
                     ctx.rotate(this.angle)
                     ctx.scale(s, s)
-
-                    if (starTemplate && starTemplate.width > 0 && starTemplate.height > 0) {
-                        ctx.drawImage(starTemplate, -CONFIG.radius, -CONFIG.radius)
-                    } else {
-                        // Primitive fallback if template failed or is invalid
-                        drawPrimitiveStar(ctx, 0, 0, CONFIG.radius, this.color)
-                    }
-
-                    if (this.z === 1.0) { // Shine for near particles
+                    if (starTemplate) ctx.drawImage(starTemplate, -32, -32)
+                    if (this.z > 0.7) {
                         ctx.beginPath()
-                        ctx.arc(-CONFIG.radius * 0.3, -CONFIG.radius * 0.3, CONFIG.radius * 0.2, 0, Math.PI * 2)
+                        ctx.arc(-10, -10, 8, 0, Math.PI * 2)
                         ctx.fillStyle = 'rgba(255,255,255,0.3)'
                         ctx.fill()
                     }
@@ -174,210 +199,124 @@ const PointsCanvas = forwardRef((props, ref) => {
                 }
             }
 
-            // Init particles
+            const cellSize = CONFIG.radius * 2.2
+            let grid = {}
+
+            const solveCollisions = () => {
+                grid = {}
+                for (let p of particles) {
+                    if (p.isDying) continue
+                    const key = `${Math.floor(p.x / cellSize)},${Math.floor(p.y / cellSize)}`
+                    if (!grid[key]) grid[key] = []
+                    grid[key].push(p)
+                }
+                for (let p of particles) {
+                    if (p.isDying) continue
+                    const gx = Math.floor(p.x / cellSize)
+                    const gy = Math.floor(p.y / cellSize)
+                    for (let xi = gx - 1; xi <= gx + 1; xi++) {
+                        for (let yi = gy - 1; yi <= gy + 1; yi++) {
+                            const cell = grid[`${xi},${yi}`]
+                            if (!cell) continue
+                            for (let other of cell) {
+                                if (p === other || Math.abs(p.z - other.z) > 0.1) continue
+                                const dx = p.x - other.x
+                                const dy = p.y - other.y
+                                const distSq = dx * dx + dy * dy
+                                const minDist = p.radius + other.radius
+                                if (distSq < minDist * minDist && distSq > 0) {
+                                    const dist = Math.sqrt(distSq)
+                                    const overlap = (minDist - dist) * CONFIG.stiffness
+                                    const nx = dx / dist, ny = dy / dist
+                                    p.x += nx * overlap; p.y += ny * overlap
+                                    other.x -= nx * overlap; other.y -= ny * overlap
+                                    p.isSleeping = false; other.isSleeping = false
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             const cols = Math.floor(width / (CONFIG.radius * 2))
             for (let i = 0; i < initialPoints; i++) {
                 const col = i % cols
                 const row = Math.floor(i / cols)
-                const x = (col + 0.5) * (CONFIG.radius * 2) + (Math.random() - 0.5) * 5
-                const y = height - (row + 0.5) * (CONFIG.radius * 2) - 10
-                particles.push(new Particle(x, y, true))
+                particles.push(new Particle((col + 0.5) * (CONFIG.radius * 2), height - (row + 0.5) * (CONFIG.radius * 2) - 10, true))
             }
 
             const loop = () => {
                 ctx.clearRect(0, 0, width, height)
-
-                // Verlet solver (2 iterations)
-                for (let i = 0; i < 2; i++) {
-                    particles.forEach(p => p.update())
-                }
-
-                // Render
+                particles.forEach(p => p.update())
+                for (let i = 0; i < 2; i++) solveCollisions()
+                particles.sort((a, b) => a.z - b.z)
                 particles.forEach(p => p.draw())
-
-                // Remove dead particles
                 for (let i = particles.length - 1; i >= 0; i--) {
-                    if (particles[i].isDying && particles[i].deathTimer >= 1) {
-                        particles.splice(i, 1)
-                    }
+                    if (particles[i].isDying && particles[i].deathTimer >= 1) particles.splice(i, 1)
                 }
-
-                const nextFrame = (callback) => {
-                    if (canvas.requestAnimationFrame) return canvas.requestAnimationFrame(callback)
-                    return (Taro.requestAnimationFrame || window.requestAnimationFrame)(callback)
-                }
-
+                const nextFrame = (cb) => (canvas.requestAnimationFrame || Taro.requestAnimationFrame || window.requestAnimationFrame)(cb)
                 timer = nextFrame(loop)
             }
 
             engineRef.current = {
-                add: (count) => {
-                    for (let i = 0; i < count; i++) {
-                        particles.push(new Particle(Math.random() * width, -20))
-                    }
-                },
+                add: (count) => { for (let i = 0; i < count; i++) particles.push(new Particle(Math.random() * width, -20)) },
                 consume: (count) => {
                     let killed = 0
                     for (let i = particles.length - 1; i >= 0 && killed < count; i--) {
-                        if (!particles[i].isDying) {
-                            particles[i].isDying = true
-                            killed++
-                        }
+                        if (!particles[i].isDying) { particles[i].isDying = true; killed++ }
                     }
                 },
                 explode: () => {
                     particles.forEach(p => {
-                        p.oldY += 10 + Math.random() * 20
-                        p.oldX += (Math.random() - 0.5) * 10
-                        p.isSleeping = false
+                        const force = (10 + Math.random() * 20) * scaleFactor
+                        const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI
+                        p.oldX = p.x - Math.cos(angle) * force; p.oldY = p.y - Math.sin(angle) * force; p.isSleeping = false
                     })
                 },
-                updateMouse: (x, y, active) => {
-                    mouse.x = x
-                    mouse.y = y
-                    mouse.active = active
-                },
+                updateMouse: (x, y, active) => { mouse.x = x; mouse.y = y; mouse.active = active },
                 requestClose: () => {
-                    if (canvas.cancelAnimationFrame) canvas.cancelAnimationFrame(timer)
-                    else (Taro.cancelAnimationFrame || window.cancelAnimationFrame)(timer)
+                    const cancel = (id) => (canvas.cancelAnimationFrame || Taro.cancelAnimationFrame || window.cancelAnimationFrame)(id)
+                    cancel(timer)
                 }
             }
-
             loop()
         }
 
         const createStarTemplate = (ctx, r) => {
-            const size = Math.max(1, Math.ceil(r * 4))
+            const size = 64
             let canvas
-
             if (process.env.TARO_ENV === 'h5') {
                 canvas = document.createElement('canvas')
-                canvas.width = size
-                canvas.height = size
+                canvas.width = size; canvas.height = size
             } else {
-                try {
-                    canvas = Taro.createOffscreenCanvas({ type: '2d', width: size, height: size })
-                } catch (e) {
-                    // Fallback if OffscreenCanvas fails (older Weapp versions)
-                    return null
-                }
+                try { canvas = Taro.createOffscreenCanvas({ type: '2d', width: size, height: size }) } catch (e) { return null }
             }
-
-            if (!canvas || canvas.width === 0 || canvas.height === 0) return null
+            if (!canvas || canvas.width === 0) return null
             const sctx = canvas.getContext('2d')
-            if (!sctx) return null
-            const c = r * 2
-
-            // Outer Glow/Border
-            sctx.beginPath()
-            drawStar(sctx, c, c, 5, r, r * 0.5)
-            sctx.fillStyle = '#fef3c7' // amber-100
-            sctx.fill()
-
-            // Main Body
-            sctx.beginPath()
-            drawStar(sctx, c, c, 5, r * 0.85, r * 0.4)
-            sctx.fillStyle = '#ffffff'
-            sctx.fill()
-
-            // Core
-            sctx.beginPath()
-            drawStar(sctx, c, c, 5, r * 0.4, r * 0.15)
-            sctx.fillStyle = '#f59e0b' // amber-500
-            sctx.fill()
-
+            const cx = size / 2, cy = size / 2, outerR = 28
+            sctx.beginPath(); sctx.arc(cx, cy, outerR, 0, Math.PI * 2); sctx.fillStyle = '#fef3c7'; sctx.fill()
+            sctx.beginPath(); sctx.arc(cx, cy, outerR - 6, 0, Math.PI * 2); sctx.fillStyle = '#ffffff'; sctx.fill()
+            sctx.save(); sctx.translate(cx, cy); sctx.beginPath()
+            for (let i = 0; i < 5; i++) {
+                sctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * 19, -Math.sin((18 + i * 72) * Math.PI / 180) * 19)
+                sctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * 9, -Math.sin((54 + i * 72) * Math.PI / 180) * 9)
+            }
+            sctx.closePath(); sctx.fillStyle = '#f59e0b'; sctx.fill(); sctx.restore()
             return canvas
         }
 
-        const drawStar = (ctx, cx, cy, spikes, outerRadius, innerRadius) => {
-            let rot = Math.PI / 2 * 3
-            let x = cx
-            let y = cy
-            let step = Math.PI / spikes
-            ctx.moveTo(cx, cy - outerRadius)
-            for (let i = 0; i < spikes; i++) {
-                x = cx + Math.cos(rot) * outerRadius
-                y = cy + Math.sin(rot) * outerRadius
-                ctx.lineTo(x, y)
-                rot += step
-                x = cx + Math.cos(rot) * innerRadius
-                y = cy + Math.sin(rot) * innerRadius
-                ctx.lineTo(x, y)
-                rot += step
-            }
-            ctx.lineTo(cx, cy - outerRadius)
-            ctx.closePath()
-        }
-
-        const drawPrimitiveStar = (targetCtx, cx, cy, r, color) => {
-            targetCtx.beginPath()
-            drawStar(targetCtx, cx, cy, 5, r, r * 0.5)
-            targetCtx.fillStyle = color
-            targetCtx.fill()
-        }
-
         initCanvas()
-
         return () => {
             engineRef.current?.requestClose()
+            if (cleanupInteraction) cleanupInteraction()
         }
     }, [initialPoints, isWeb])
 
-    const handleTouch = (e, active) => {
-        if (!engineRef.current) return
-        const touch = e.touches?.[0]
-        if (!touch) {
-            engineRef.current.updateMouse(-1000, -1000, false)
-            return
-        }
-
-        const applyUpdate = (rect) => {
-            const x = touch.clientX - rect.left
-            const y = touch.clientY - rect.top
-            engineRef.current.updateMouse(x, y, active)
-        }
-
-        if (boundsRef.current) {
-            applyUpdate(boundsRef.current)
-        } else if (env === Taro.ENV_TYPE.WEAPP) {
-            const query = Taro.createSelectorQuery()
-            query.select('#points-canvas').boundingClientRect(res => {
-                if (res) {
-                    boundsRef.current = res
-                    applyUpdate(res)
-                }
-            }).exec()
-        } else if (typeof document !== 'undefined') {
-            const rect = (canvasRef.current || document.getElementById('points-canvas'))?.getBoundingClientRect()
-            if (rect) {
-                boundsRef.current = rect
-                applyUpdate(rect)
-            }
-        }
-    }
-
     return (
         isWeb ? (
-            <canvas
-                id='points-canvas'
-                className='points-canvas'
-                ref={canvasRef}
-                onTouchStart={(e) => handleTouch(e, true)}
-                onTouchMove={(e) => handleTouch(e, true)}
-                onTouchEnd={() => engineRef.current?.updateMouse(-1000, -1000, false)}
-                onTouchCancel={() => engineRef.current?.updateMouse(-1000, -1000, false)}
-            />
+            <canvas id='points-canvas' className='points-canvas' ref={canvasRef} />
         ) : (
-            <Canvas
-                type='2d'
-                id='points-canvas'
-                className='points-canvas'
-                ref={canvasRef}
-                onTouchStart={(e) => handleTouch(e, true)}
-                onTouchMove={(e) => handleTouch(e, true)}
-                onTouchEnd={() => engineRef.current?.updateMouse(-1000, -1000, false)}
-                onTouchCancel={() => engineRef.current?.updateMouse(-1000, -1000, false)}
-            />
+            <Canvas type='2d' id='points-canvas' className='points-canvas' ref={canvasRef} />
         )
     )
 })
