@@ -24,22 +24,6 @@
 ### 1.1 Tailwind 条件编译 (Project Config)
 为了解决混合模式在小程序的兼容性问题，同时保持 JSX 整洁，必须在 `tailwind.config.js` 中注册平台变体。
 
-```javascript
-// tailwind.config.js
-const plugin = require('tailwindcss/plugin');
-
-module.exports = {
-  // ... 其他配置
-  plugins: [
-    plugin(function({ addVariant }) {
-      // 注册 h5: 前缀 -> 仅在 H5 环境生效
-      addVariant('h5', process.env.TARO_ENV === 'h5' ? '&' : '.ignore-h5');
-      // 注册 weapp: 前缀 -> 仅在 小程序 环境生效
-      addVariant('weapp', process.env.TARO_ENV === 'weapp' ? '&' : '.ignore-weapp');
-    })
-  ],
-}
-```
 
 ### 1.2 组件样式隔离 (Component Config)
 由于使用 `weapp-tailwindcss`，所有拆分的组件（如 `PointsHeroCard`, `ActionGrid`）必须在组件代码中配置：
@@ -50,6 +34,14 @@ PointsHeroCard.options = {
   addGlobalClass: true
 };
 ```
+
+### 1.3 H5 视觉对齐原型 (Prototype Parity - H5)
+原型 `prototype.html` 运行在浏览器默认 `rem=16px` 的基准下；而 Taro H5 默认会将根字号钳制到 `minRootSize=20px`，会导致 Tailwind 的 `rem` 间距/字号整体放大（例如 `px-6` 由 24px 变为 30px），从而在 375×812 对比时出现“尺寸不一致 / 多出滚动区域”。
+
+**强制约束（用于 Home 视觉对齐与验收）**：
+- **H5 pxtransform**：在 `config/index.js` 的 `h5.postcss.pxtransform.config` 中设置：`baseFontSize: 16` 且 `minRootSize: 16`。
+- **避免 H5 100vh 多余滚动**：在全局样式中对 H5 的 `min-h-screen` 进行 `100svh` 覆盖（仅当浏览器支持 `svh` 时）。
+- **Safe Area 垫片**：Home 页的底部安全区垫片在 H5 对比时应置 0（例如使用 `h5:pb-0`），避免在 DevTools 固定 375×812 时引入额外高度。
 
 ---
 
