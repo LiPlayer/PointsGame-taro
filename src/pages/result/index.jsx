@@ -95,18 +95,18 @@ export default function Result() {
                         {isReplay ? (
                             <>
                                 <View className="text-8xl font-black text-slate-900 tracking-tighter">{currentScore}</View>
-                                <View className="bg-slate-100 text-slate-500 text-xs font-bold px-3 py-1 rounded-full inline-block mt-2">
+                                <View className="bg-slate-100 text-slate-500 text-[10px] font-bold px-3 py-1 rounded-full inline-block mt-2 uppercase tracking-widest">
                                     复玩不计分
                                 </View>
                             </>
                         ) : (
                             <>
-                                <View className="text-7xl font-black text-emerald-600 tracking-tighter flex items-center justify-center gap-2">
+                                <View className="text-8xl font-black text-emerald-600 tracking-tighter flex items-center justify-center gap-2">
                                     <Text>+{currentScore}</Text>
                                     <Text className="text-2xl mt-4">积分</Text>
                                 </View>
                                 {isNewRecord && (
-                                    <View className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full inline-block mt-2 font-black">
+                                    <View className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-3 py-1 rounded-full inline-block mt-2 font-black uppercase tracking-widest">
                                         🎉 新纪录奖励
                                     </View>
                                 )}
@@ -151,7 +151,7 @@ export default function Result() {
             <View className="mt-auto space-y-3 mb-6">
                 {!isInstant && (
                     <Button
-                        className="w-full py-4 rounded-2xl bg-white border-2 border-slate-100 text-slate-600 font-bold text-sm flex items-center justify-center gap-2 active:bg-slate-50 border-none outline-none"
+                        className="w-full py-4 rounded-2xl bg-white border border-slate-100 shadow-sm text-slate-600 font-bold text-sm flex items-center justify-center gap-2 active:bg-slate-50 border-none outline-none"
                         onClick={handleAgain}
                     >
                         <Image src={SVG_REPLAY} className="w-5 h-5 text-slate-400" />

@@ -16,14 +16,15 @@ export class StarAnimation {
         this.canvas = canvasNode;
         this.ctx = this.canvas.getContext('2d');
 
-        const widthFactor = this.width / (375 * this.dpr);
+        const logicalWidth = this.width / this.dpr;
+        const widthFactor = logicalWidth / 375;
         this.CONFIG = {
-            particleCount: Math.min(initialPoints, 1500),
-            radius: 12 * widthFactor,
-            gravity: 0.15 * this.dpr,
+            particleCount: Math.floor(Math.min(initialPoints, 1500)),
+            radius: 8 * widthFactor,
+            gravity: 0.15,
             friction: 0.96,
-            repulsionRadius: 180 * widthFactor * this.dpr, // Further increased
-            repulsionForce: 8.0 * widthFactor * this.dpr,  // Further increased
+            repulsionRadius: 80 * widthFactor,
+            repulsionForce: 1.0,
             colors: ['#fbbf24', '#f59e0b', '#d97706'],
             sleepThreshold: 0.05
         };
@@ -153,16 +154,9 @@ export class StarAnimation {
     }
 
     handleInput(x, y) {
-        // x, y should be relative to canvas (handled by View onTouch callback)
-        // we assume we get raw touch coordinates relative to the canvas directly or we need bounding rect
-        // For simplicity in Taro View `onTouchMove`, ev.detail gives x/y relative to page. 
-        // We usually need `x - rect.left` unless the logic handles page coordinates.
-        // However, here we will rely on external value passing relative coordinates if possible, or just raw.
-        // Let's assume passed x/y are correct relative coordinates scaled by pixel ratio if needed?
-        // Actually canvas 2d size is usually scaled. 
-
-        this.pointer.x = x * this.dpr;
-        this.pointer.y = y * this.dpr;
+        // x, y are logical pixels from touch/mouse
+        this.pointer.x = x;
+        this.pointer.y = y;
         this.pointer.active = true;
     }
 
@@ -271,17 +265,18 @@ export class StarAnimation {
             p.y += vy + this.CONFIG.gravity;
             p.angle += p.angularVelocity;
 
-            // Floor
-            if (p.y + p.radius > this.height) {
-                p.y = this.height - p.radius;
+            // Walls
+            const logicalWidth = this.width / this.dpr;
+            const logicalHeight = this.height / this.dpr;
+            if (p.y + p.radius > logicalHeight) {
+                p.y = logicalHeight - p.radius;
                 const impact = vy;
                 p.oldY = p.y + impact * 0.5;
                 p.angularVelocity *= 0.9;
             }
 
-            // Walls
-            if (p.x + p.radius > this.width) {
-                p.x = this.width - p.radius;
+            if (p.x + p.radius > logicalWidth) {
+                p.x = logicalWidth - p.radius;
                 p.oldX = p.x + vx * 0.5;
             } else if (p.x - p.radius < 0) {
                 p.x = p.radius;
@@ -300,10 +295,13 @@ export class StarAnimation {
     }
 
     draw() {
+        // MUST clear the entire PHYSICAL buffer.
         this.ctx.clearRect(0, 0, this.width, this.height);
 
+        this.ctx.save();
+        this.ctx.scale(this.dpr, this.dpr);
+
         // Sort slightly expensive but crucial for Z-order
-        // Minimize sort frequency? Or just do it. 1000 items is okay-ish on modern JS engines.
         this.particles.sort((a, b) => a.z - b.z);
 
         for (let p of this.particles) {
@@ -337,6 +335,7 @@ export class StarAnimation {
 
             this.ctx.restore();
         }
+        this.ctx.restore();
     }
 
     loop() {
@@ -378,7 +377,7 @@ export class StarAnimation {
     }
 
     setParticleCount(count) {
-        const targetCount = Math.min(count, 1500);
+        const targetCount = Math.floor(Math.min(count, 1500));
         const currentActive = this.particles.filter(p => !p.isDying).length;
 
         if (targetCount > currentActive) {

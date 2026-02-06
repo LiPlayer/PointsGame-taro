@@ -44,10 +44,9 @@ export default function InstantResult() {
                 </View>
 
                 <View className="text-center mb-10">
-                    <Text className="text-sm font-bold text-emerald-600 mb-2 block uppercase tracking-widest">惊喜时刻！</Text>
-                    <Text className="text-xs text-slate-400 font-bold opacity-70 mb-4 block">无需任何挑战，系统赠送</Text>
-
-                    <View className="text-7xl font-black text-emerald-600 tracking-tighter flex items-center justify-center gap-2">
+                    <Text className="text-[10px] font-extrabold tracking-[0.1em] uppercase text-emerald-600 mb-2 block">惊喜时刻！</Text>
+                    <Text className="text-[10px] text-slate-400 font-bold opacity-70 mb-4 block uppercase tracking-widest">无需任何挑战，系统赠送</Text>
+                    <View className="text-8xl font-black text-emerald-600 tracking-tighter flex items-center justify-center gap-2">
                         <Text>+{winPoints}</Text>
                         <Text className="text-2xl mt-4">积分</Text>
                     </View>

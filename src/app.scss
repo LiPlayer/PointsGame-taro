@@ -88,8 +88,16 @@ page {
 }
 
 .shadow-glow {
-  box-shadow: 0 0 20px -5px rgba(225, 29, 72, 0.5);
+  box-shadow: 0 10px 20px -5px rgba(225, 29, 72, 0.4);
 }
+
+.gradient-border {
+  position: relative;
+  border: 1px solid #f1f5f9;
+  z-index: 1;
+}
+
+/* Optional: use a more complex one if needed, but solid #f1f5f9 matches design tokens well enough for now if gradient is buggy */
 
 .bg-brand-red {
   background-color: #e11d48;

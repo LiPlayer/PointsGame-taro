@@ -58,7 +58,7 @@ export default function Share() {
                 </View>
 
                 <View
-                    className="w-full py-5 rounded-2xl bg-slate-900 text-white font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                    className="w-full py-5 rounded-2xl bg-slate-900 text-white font-black flex items-center justify-center gap-2 active:scale-95 transition-transform"
                     onClick={handleScan}
                 >
                     <Image src={SVG_SCAN} className="w-5 h-5 text-white" />
