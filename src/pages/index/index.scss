@@ -1,0 +1,230 @@
+.home-page {
+    height: 100%;
+    background-color: #ffffff; // Main page background within phone shell
+    display: flex;
+    flex-direction: column;
+
+    .page-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
+        padding-top: calc(16px + var(--status-bar-height, 20px));
+        padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    }
+
+    .points-card-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        // Removed mb-auto to prevent layout collapse in Weapp
+    }
+
+    .points-card {
+        background-color: #ffffff;
+        border-radius: 32px;
+        padding: 32px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+        margin-top: 16px;
+        margin-bottom: auto; // Push buttons down naturally
+        display: flex;
+        flex-direction: column;
+        min-height: 380px;
+
+        .brand-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 8px;
+            margin-bottom: 64px;
+            position: relative;
+            z-index: 10;
+
+            .logo {
+                width: 64px;
+                height: 64px;
+                background-color: #e11d48;
+                border-radius: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #ffffff;
+                font-size: 32px;
+                font-weight: 900;
+                margin-bottom: 16px;
+            }
+
+            .title {
+                font-size: 20px;
+                font-weight: 900;
+                color: #0f172a;
+            }
+        }
+
+        .info-layer {
+            position: relative;
+            z-index: 10;
+            pointer-events: none; // Allow touches to pass to canvas
+
+            .label {
+                font-size: 10px;
+                font-weight: 800;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+                color: #94a3b8;
+                display: block;
+                margin-bottom: 8px;
+            }
+
+            .points-value {
+                font-size: 60px;
+                font-weight: 900;
+                color: #0f172a;
+                letter-spacing: -0.05em;
+                line-height: 1;
+                mix-blend-mode: multiply;
+            }
+
+            .daily-badge {
+                margin-top: 16px;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 4px 12px;
+                background-color: rgba(255, 251, 235, 0.8); // amber-50/80
+                backdrop-filter: blur(4px);
+                color: #b45309; // amber-700
+                border-radius: 99px;
+                font-size: 10px;
+                font-weight: 700;
+            }
+        }
+    }
+
+    .action-group {
+        margin-top: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+
+        .main-action {
+            height: 64px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 900;
+            border: none;
+        }
+
+        .secondary-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+
+            .btn-secondary {
+                height: 80px;
+                background-color: #ffffff;
+                border: 1px solid #f1f5f9;
+                border-radius: 16px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+                text {
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: #475569;
+                }
+
+                &:active {
+                    background-color: #f8fafc;
+                    transform: scale(0.98);
+                }
+            }
+        }
+
+        .btn-dark {
+            height: 64px;
+            background-color: #0f172a;
+            color: #ffffff;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 900;
+            border: none;
+
+            &:active {
+                opacity: 0.9;
+                transform: scale(0.98);
+            }
+        }
+    }
+}
+
+/* SVG Icon Helpers */
+.icon-svg {
+    width: 12px;
+    height: 12px;
+}
+
+.icon-svg-md {
+    width: 20px;
+    height: 20px;
+}
+
+.icon-svg-lg {
+    width: 24px;
+    height: 24px;
+}
+
+.text-slate-400 {
+    color: #94a3b8;
+}
+
+/* Icons using simple shapes/gradients for now to avoid external assets in first pass */
+.icon-bolt {
+    width: 12px;
+    height: 12px;
+    background-color: currentColor;
+    clip-path: polygon(70% 0, 30% 0, 10% 60%, 40% 60%, 20% 100%, 90% 40%, 60% 40%);
+}
+
+.icon-lightning {
+    width: 24px;
+    height: 24px;
+    background-color: #ffffff;
+    clip-path: polygon(70% 0, 30% 0, 10% 60%, 40% 60%, 20% 100%, 90% 40%, 60% 40%);
+}
+
+.icon-trophy {
+    width: 24px;
+    height: 24px;
+    background-color: #94a3b8;
+    clip-path: polygon(10% 10%, 90% 10%, 80% 60%, 50% 90%, 20% 60%);
+}
+
+.icon-share {
+    width: 24px;
+    height: 24px;
+    background-color: #94a3b8;
+    clip-path: circle(50% at 50% 50%);
+}
+
+.icon-card {
+    width: 20px;
+    height: 20px;
+    background-color: #ffffff;
+    border-radius: 2px;
+}

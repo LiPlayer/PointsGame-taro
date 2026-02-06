@@ -4,8 +4,39 @@
 
 /* Global Layout & Scrollbar */
 page {
+  height: 100%;
   background-color: #f8fafc;
   -webkit-overflow-scrolling: touch;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  padding: 0;
+  margin: 0;
+  line-height: normal;
+  background: transparent;
+
+  &::after {
+    border: none;
+  }
+}
+
+.btn-secondary {
+  height: 80px;
+  padding: 0;
+  background-color: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 /* Custom Animations from Prototype */
@@ -83,6 +114,13 @@ page {
   animation: scan-line 2s linear infinite;
 }
 
+/* Typography & Weight Compensation */
+.font-black-compensated {
+  font-weight: 900;
+  /* Compensation for Android/Weapp where black weight might look thin */
+  text-shadow: 0 0 1px currentColor;
+}
+
 .shadow-card {
   box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.05);
 }
@@ -92,12 +130,23 @@ page {
 }
 
 .gradient-border {
-  position: relative;
-  border: 1px solid #f1f5f9;
-  z-index: 1;
+  border: 1px solid transparent;
+  background-clip: padding-box, border-box;
+  background-origin: padding-box, border-box;
+  background-image:
+    linear-gradient(white, white),
+    linear-gradient(to top, rgba(241, 245, 249, 1), rgba(241, 245, 249, 0));
 }
 
-/* Optional: use a more complex one if needed, but solid #f1f5f9 matches design tokens well enough for now if gradient is buggy */
+.btn-primary {
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  color: white;
+  transition: transform 0.1s;
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
 
 .bg-brand-red {
   background-color: #e11d48;
