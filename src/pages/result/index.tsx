@@ -1,6 +1,6 @@
 import { View, Text, Image, Button } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState } from 'react'
+import { useState, FC } from 'react'
 import { getUserData, updatePoints } from '../../utils/user'
 
 const SVG_CLOSE = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%222.5%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M6%2018L18%206M6%206l12%2012%22%2F%3E%3C%2Fsvg%3E"
@@ -9,22 +9,21 @@ const SVG_BOOK = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22cu
 const SVG_NEXT = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22white%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%222.5%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22M13%205l7%207-7%207M5%205l7%207-7%207%22%2F%3E%3C%2Fsvg%3E"
 const SVG_GIFT_GOLD = "data:image/svg+xml,%3Csvg%20fill%3D%22%23f59e0b%22%20viewBox%3D%220%200%2024%2024%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M12%202l2.4%207.2h7.6l-6%204.8%202.4%207.2-6-4.8-6%204.8%202.4-7.2-6-4.8h7.6z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E"
 
-export default function Result() {
+const Result: FC = () => {
     const router = Taro.useRouter()
     const isReplay = router.params.mode === 'replay'
     const isInstant = router.params.instant === 'true'
     const currentScore = parseInt(router.params.score || '0')
-    const winPoints = 10 // Fixed points for instant win
+    const winPoints = 10
 
     const [points, setPoints] = useState(0)
-    const [bestScore, setBestScore] = useState(70) // Mock best score
+    const [bestScore, setBestScore] = useState(70)
     const [isNewRecord, setIsNewRecord] = useState(false)
 
     useDidShow(() => {
         const data = getUserData()
         if (data) {
             setPoints(data.points)
-            // In earn mode, update points
             if (isInstant) {
                 const updatedPoints = data.points + winPoints
                 updatePoints(winPoints)
@@ -64,7 +63,6 @@ export default function Result() {
             </View>
 
             {isInstant ? (
-                /* Instant Win Layout */
                 <View className="flex-1 flex flex-col items-center justify-center pt-10">
                     <View className="w-32 h-32 bg-amber-50 rounded-full flex items-center justify-center shadow-lg mb-8 border-4 border-amber-100">
                         <Image src={SVG_GIFT_GOLD} className="w-16 h-16" />
@@ -85,7 +83,6 @@ export default function Result() {
                     </View>
                 </View>
             ) : (
-                /* Standard Game Result Layout */
                 <View className="flex-1 flex flex-col items-center justify-center pt-10">
                     <Text className={`text-[10px] font-extrabold uppercase tracking-[0.1em] mb-2 ${isReplay ? 'text-slate-400' : 'text-emerald-600'}`}>
                         {isReplay ? '练习模式' : '挑战成功'}
@@ -169,3 +166,5 @@ export default function Result() {
         </View>
     )
 }
+
+export default Result

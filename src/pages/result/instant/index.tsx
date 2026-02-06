@@ -1,21 +1,20 @@
 import { View, Text, Image, Button } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState } from 'react'
+import { useState, FC } from 'react'
 import { getUserData, updatePoints } from '../../../utils/user'
 
 const SVG_CLOSE = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%222.5%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M6%2018L18%206M6%206l12%2012%22%2F%3E%3C%2Fsvg%3E"
 const SVG_GIFT_GOLD = "data:image/svg+xml,%3Csvg%20fill%3D%22%23f59e0b%22%20viewBox%3D%220%200%2024%2024%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M12%202l2.4%207.2h7.6l-6%204.8%202.4%207.2-6-4.8-6%204.8%202.4-7.2-6-4.8h7.6z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E"
 const SVG_NEXT = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22white%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%222.5%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22M13%205l7%207-7%207M5%205l7%207-7%207%22%2F%3E%3C%2Fsvg%3E"
 
-export default function InstantResult() {
+const InstantResult: FC = () => {
     const [points, setPoints] = useState(0)
-    const winPoints = 10 // Mock fixed win points for instant win
+    const winPoints = 10
 
     useDidShow(() => {
         const data = getUserData()
         if (data) {
             setPoints(data.points)
-            // Update points only once
             updatePoints(winPoints)
             setPoints(data.points + winPoints)
         }
@@ -70,3 +69,5 @@ export default function InstantResult() {
         </View>
     )
 }
+
+export default InstantResult
