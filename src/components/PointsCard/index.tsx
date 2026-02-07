@@ -152,11 +152,17 @@ const PointsCard: FC<PointsCardProps> = React.memo(({
 
         const loop = () => {
             if (!isActiveRef.current || !app.ticker || (app.ticker as any)._destroyed) return
-            const dt = app.ticker.deltaTime || 1
-            const n = count.current, w = app.screen.width, h = app.screen.height, g = CONFIG.gravity * dt, f = Math.pow(CONFIG.friction, dt)
+
+            // FIXED-STEP PHYSICS (Smoothing out jitter)
+            const n = count.current, w = app.screen.width, h = app.screen.height
+            const gravity = CONFIG.gravity, friction = CONFIG.friction
+            const r2 = CONFIG.repulsionRadius * CONFIG.repulsionRadius
+            const rForce = CONFIG.repulsionForce
+            const rRad = CONFIG.repulsionRadius
+
             const _px = px.current, _py = py.current, _ox = ox.current, _oy = oy.current, _ag = ags.current, _av = avs.current
             const _rd = rads.current, _st = sts.current, _dt = dts.current, _bs = bsc.current, _sp = sps.current, _zs = zs.current
-            const p = pointer.current, r2 = CONFIG.repulsionRadius ** 2
+            const p = pointer.current
 
             // PASS 1: Integration + GRID REBUILD
             const c = Math.ceil(w / cellSize), r = Math.ceil(h / cellSize)
@@ -167,9 +173,9 @@ const PointsCard: FC<PointsCardProps> = React.memo(({
             for (let i = 0; i < n; i++) {
                 const s = _sp[i]; if (!s) continue
                 if (_st[i] === STATUS_DYING) {
-                    _dt[i] += 0.02 * dt; if (_dt[i] >= 1) { s.visible = false; _sp[i] = null; continue }
-                    if (_dt[i] < 0.4) { _py[i] -= 2 * dt; _ag[i] += 0.1 * dt } else {
-                        const ph = (_dt[i] - 0.4) / 0.6; s.scale.set(_bs[i] * Math.max(0, 1 - ph)); _ag[i] += 0.3 * dt; _py[i] -= 1 * dt; s.alpha = 1 - ph
+                    _dt[i] += 0.02; if (_dt[i] >= 1) { s.visible = false; _sp[i] = null; continue }
+                    if (_dt[i] < 0.4) { _py[i] -= 2; _ag[i] += 0.1 } else {
+                        const ph = (_dt[i] - 0.4) / 0.6; s.scale.set(_bs[i] * Math.max(0, 1 - ph)); _ag[i] += 0.3; _py[i] -= 1; s.alpha = 1 - ph
                     }
                     s.x = _px[i]; s.y = _py[i]; s.rotation = _ag[i]; continue
                 }
@@ -177,15 +183,15 @@ const PointsCard: FC<PointsCardProps> = React.memo(({
                 if (_st[i] === STATUS_SLEEPING) {
                     if (p.active && (_px[i] - p.x) ** 2 + (_py[i] - p.y) ** 2 < r2) _st[i] = STATUS_ACTIVE
                 } else {
-                    const vx = (_px[i] - _ox[i]) * f, vy = (_py[i] - _oy[i]) * f
-                    _ox[i] = _px[i]; _oy[i] = _py[i]; _px[i] += vx; _py[i] += vy + g; _ag[i] += _av[i] * dt
+                    const vx = (_px[i] - _ox[i]) * friction, vy = (_py[i] - _oy[i]) * friction
+                    _ox[i] = _px[i]; _oy[i] = _py[i]; _px[i] += vx; _py[i] += vy + gravity; _ag[i] += _av[i]
                     if (_py[i] + _rd[i] > h) { _py[i] = h - _rd[i]; _oy[i] = _py[i] + vy * 0.5; _av[i] *= 0.9 }
                     if (_px[i] + _rd[i] > w) { _px[i] = w - _rd[i]; _ox[i] = _px[i] + vx * 0.5 } else if (_px[i] - _rd[i] < 0) { _px[i] = _rd[i]; _ox[i] = _px[i] + vx * 0.5 }
                     if (vx * vx + vy * vy < 0.01 && _py[i] > h - _rd[i] - 2) { if (!p.active || (_px[i] - p.x) ** 2 + (_py[i] - p.y) ** 2 > r2) _st[i] = STATUS_SLEEPING }
                 }
 
                 if (_st[i] !== STATUS_DYING) {
-                    const gx = Math.floor(_px[i] / cellSize), gy = Math.floor(_py[i] / cellSize)
+                    const gx = (_px[i] / cellSize) | 0, gy = (_py[i] / cellSize) | 0
                     if (gx >= 0 && gx < c && gy >= 0 && gy < r) { const k = gx + gy * c; nxs[i] = hds[k]; hds[k] = i }
                 }
             }

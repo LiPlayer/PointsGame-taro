@@ -23,13 +23,6 @@ const getDpr = () => {
     return sys.pixelRatio || 1
 }
 
-const scaleCanvas = (canvas: any, width: number, height: number, dpr: number) => {
-    const safeWidth = Math.max(1, Math.floor(width))
-    const safeHeight = Math.max(1, Math.floor(height))
-    canvas.width = Math.floor(safeWidth * dpr)
-    canvas.height = Math.floor(safeHeight * dpr)
-}
-
 const readCanvasInfo = async (id: string) => {
     const dpr = getDpr()
 
@@ -53,7 +46,6 @@ const readCanvasInfo = async (id: string) => {
                     }
 
                     const canvas = info.node as any
-                    scaleCanvas(canvas, width, height, dpr)
                     resolve({ canvas, width, height, dpr })
                 })
         })
@@ -80,12 +72,6 @@ const readCanvasInfo = async (id: string) => {
 
     const rectDom = raw.getBoundingClientRect()
     if (!rectDom.width || !rectDom.height) return null
-
-    canvasEl.style.width = `${rectDom.width}px`
-    canvasEl.style.height = `${rectDom.height}px`
-    canvasEl.style.display = 'block'
-
-    scaleCanvas(canvasEl, rectDom.width, rectDom.height, dpr)
 
     return {
         canvas: canvasEl,
@@ -187,12 +173,11 @@ export const usePixi = (canvasId: string) => {
                 width: (info as any).width,
                 height: (info as any).height,
                 resolution: Math.min((info as any).dpr || 1, 2),
-                backgroundColor: 0xffffff, // Set white as background to avoid black even if alpha fails
+                backgroundColor: 0xffffff,
                 backgroundAlpha: 0,
-                transparent: true, // Legacy support/mobile compatibility
                 autoDensity: true,
                 antialias: false,
-                stencil: true // Explicitly enable to suppress Pixi warnings
+                stencil: true
             } as any)
 
             if (createdApp && createdApp.renderer) {
