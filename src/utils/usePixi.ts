@@ -172,7 +172,7 @@ export const usePixi = (canvasId: string) => {
                 view: (info as any).canvas,
                 width: (info as any).width,
                 height: (info as any).height,
-                resolution: Math.min((info as any).dpr || 1, 2),
+                resolution: process.env.TARO_ENV === 'weapp' ? 1.5 : Math.min((info as any).dpr || 1, 2),
                 backgroundColor: 0xffffff,
                 backgroundAlpha: 0,
                 autoDensity: true,

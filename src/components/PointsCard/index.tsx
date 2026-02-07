@@ -197,17 +197,18 @@ const PointsCard: FC<PointsCardProps> = React.memo(({
             }
 
             // PASS 2: GAME-GRADE COLLISION SOLVER (Avoid Sqrt + Order Cache)
+            const rForce_rRad = rForce / rRad
             for (let iter = 0; iter < 2; iter++) {
                 for (let i = 0; i < n; i++) {
                     const st_i = _st[i]; if (st_i !== STATUS_ACTIVE) continue
                     if (p.active) {
                         const dx = _px[i] - p.x, dy = _py[i] - p.y, d2 = dx * dx + dy * dy
                         if (d2 < r2) {
-                            const d = Math.sqrt(d2), f = (1 - d / CONFIG.repulsionRadius) * CONFIG.repulsionForce
-                            _px[i] += (dx / d) * f * 2; _py[i] += (dy / d) * f * 2
+                            const d = Math.sqrt(d2), invD = 1 / d, f2 = (rForce * invD - rForce_rRad) * 2;
+                            _px[i] += dx * f2; _py[i] += dy * f2
                         }
                     }
-                    const gx = Math.floor(_px[i] / cellSize), gy = Math.floor(_py[i] / cellSize)
+                    const gx = (_px[i] / cellSize) | 0, gy = (_py[i] / cellSize) | 0
                     for (let x = gx - 1; x <= gx + 1; x++) {
                         if (x < 0 || x >= c) continue
                         for (let y = gy - 1; y <= gy + 1; y++) {
@@ -232,8 +233,13 @@ const PointsCard: FC<PointsCardProps> = React.memo(({
                 }
             }
 
-            // PASS 3: SYNC
-            for (let i = 0; i < n; i++) { const s = _sp[i]; if (s && _st[i] < 2) { s.x = _px[i]; s.y = _py[i]; s.rotation = _ag[i] } }
+            // PASS 3: SYNC (Optimized: Zero-Setter for Sleeping stars)
+            for (let i = 0; i < n; i++) {
+                if (_st[i] === STATUS_ACTIVE) {
+                    const s = _sp[i];
+                    if (s) { s.x = _px[i]; s.y = _py[i]; s.rotation = _ag[i] }
+                }
+            }
         }
         app.ticker.add(loop)
 
