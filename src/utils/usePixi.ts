@@ -86,7 +86,7 @@ const readCanvasInfo = async (id: string) => {
 
 const installUnsafeEval = async (PIXI: PixiModule) => {
     if (process.env.TARO_ENV === 'weapp') {
-        const mod = await import('pixi-miniprogram/pixi-miniprogram/example/libs/unsafeEval')
+        const mod = await import('../libs/pixi-unsafe-eval')
         const unsafeEval = (mod as { default?: (pi: PixiModule) => void }).default || (mod as any)
         if (typeof unsafeEval === 'function') {
             unsafeEval(PIXI)
@@ -101,6 +101,10 @@ const ensurePixiModule = async (canvas: any) => {
     if (process.env.TARO_ENV === 'weapp') {
         const { createPIXI } = await import('pixi-miniprogram')
         const PIXI = createPIXI(canvas) as PixiModule
+        if ((PIXI as any).settings && (PIXI as any).ENV) {
+            // WeChat devtools (Windows) does not support webgl2; force webgl1.
+            ;(PIXI as any).settings.PREFER_ENV = (PIXI as any).ENV.WEBGL
+        }
         await installUnsafeEval(PIXI)
         return PIXI
     }
