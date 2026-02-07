@@ -1,10 +1,15 @@
 
 
 export default {
-   logger: {
+  logger: {
     quiet: false,
     stats: true
   },
-  mini: {},
+  devtool: false,
+  mini: {
+    enableSourceMap: false,
+    sourceMapType: 'none',
+    hot: false
+  },
   h5: {}
 }

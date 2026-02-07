@@ -5,6 +5,17 @@ import type * as PixiTypes from 'pixi.js'
 export type PixiModule = typeof import('pixi.js')
 
 const getDpr = () => {
+    // WeChat Mini-program deprecated getSystemInfoSync in favor of newer specific APIs.
+    if (process.env.TARO_ENV === 'weapp') {
+        try {
+            const win = Taro.getWindowInfo()
+            return win.pixelRatio || 1
+        } catch (e) {
+            // Fallback for older versions
+            return Taro.getSystemInfoSync().pixelRatio || 1
+        }
+    }
+
     const sys = Taro.getSystemInfoSync()
     if (process.env.TARO_ENV === 'h5' && typeof window !== 'undefined') {
         return window.devicePixelRatio || sys.pixelRatio || 1
@@ -100,25 +111,24 @@ const installUnsafeEval = async (PIXI: PixiModule) => {
 const ensurePixiModule = async (canvas: any) => {
     if (process.env.TARO_ENV === 'weapp') {
         const { createPIXI } = await import('pixi-miniprogram')
+        if (canvas) {
+            // FORCE stencil buffer by pre-initializing the context.
+            // PIXI internally calls getContext('webgl') or getContext('2d').
+            // By calling getContext('webgl', { stencil: true }) first, we force the created context to have a stencil buffer.
+            try {
+                canvas.getContext('webgl', { stencil: true, depth: true, antialias: true })
+            } catch (e) {
+                console.warn('WebGL pre-init failed, falling back to default', e)
+            }
+        }
         const PIXI = createPIXI(canvas) as PixiModule
         if ((PIXI as any).settings && (PIXI as any).ENV) {
-            // Prefer WebGL2 if the runtime supports it; fallback to WebGL1.
-            let supportsWebgl2 = false
-            try {
-                const wxAny = wx as unknown as { createOffscreenCanvas?: (opts: any) => any }
-                if (typeof wxAny?.createOffscreenCanvas === 'function') {
-                    const testCanvas = wxAny.createOffscreenCanvas({ type: 'webgl', width: 1, height: 1 })
-                    if (testCanvas && typeof testCanvas.getContext === 'function') {
-                        const gl2 = testCanvas.getContext('webgl2')
-                        supportsWebgl2 = !!gl2
-                    }
-                }
-            } catch {
-                supportsWebgl2 = false
+            // Default to WebGL1 on weapp for maximum compatibility and to dodge "Invalid context type [webgl2]" warnings.
+            ; (PIXI as any).settings.PREFER_ENV = (PIXI as any).ENV.WEBGL
+            // Attempt to force stencil in default render options as well
+            if ((PIXI as any).settings.RENDER_OPTIONS) {
+                (PIXI as any).settings.RENDER_OPTIONS.stencil = true
             }
-            ;(PIXI as any).settings.PREFER_ENV = supportsWebgl2
-                ? (PIXI as any).ENV.WEBGL2
-                : (PIXI as any).ENV.WEBGL
         }
         await installUnsafeEval(PIXI)
         return PIXI
@@ -158,18 +168,19 @@ export const usePixi = (canvasId: string) => {
             }
             if (!info || cancelled) return
 
-            const PIXI = await ensurePixiModule(info.canvas)
+            const PIXI = await ensurePixiModule((info as any).canvas)
             if (!PIXI || cancelled) return
 
             createdApp = new PIXI.Application({
-                view: info.canvas,
-                width: info.width,
-                height: info.height,
-                resolution: info.dpr,
+                view: (info as any).canvas,
+                width: (info as any).width,
+                height: (info as any).height,
+                resolution: (info as any).dpr,
                 backgroundAlpha: 0,
                 autoDensity: true,
-                antialias: true
-            })
+                antialias: true,
+                stencil: true // Explicitly enable to suppress Pixi warnings
+            } as any)
 
             if (!cancelled) {
                 setPixi(PIXI)

@@ -7,9 +7,7 @@ import prodConfig from './prod'
 import { UnifiedWebpackPluginV5 } from 'weapp-tailwindcss/webpack'
 
 export default defineConfig(async (merge, { command, mode }) => {
-  const prebundleEnabled =
-    process.env.TARO_PREBUNDLE !== '0' &&
-    process.env.TARO_PREBUNDLE !== 'false'
+  const prebundleEnabled = false
   const baseConfig = {
     projectName: 'points-game-taro',
     date: '2026-2-4',
@@ -37,7 +35,7 @@ export default defineConfig(async (merge, { command, mode }) => {
     compiler: {
       type: 'webpack5',
       prebundle: {
-        enable: prebundleEnabled && process.env.NODE_ENV !== 'production',
+        enable: false,
         exclude: []
       }
     },
@@ -46,12 +44,7 @@ export default defineConfig(async (merge, { command, mode }) => {
     },
     mini: {
       output: {
-        clean: {
-          keep: (asset) =>
-            asset.includes('prebundle/') ||
-            asset.includes('prebundle\\') ||
-            asset.endsWith('project.config.json')
-        }
+        clean: true
       },
       webpackChain(chain) {
         chain.merge({
