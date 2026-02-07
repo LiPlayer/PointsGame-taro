@@ -36,6 +36,10 @@ export default defineConfig(async (merge, { command, mode }) => {
       enable: false // Webpack 持久化缓存配置，建议开启。默认配置请参考：https://docs.taro.zone/docs/config-detail#cache
     },
     mini: {
+      prebundle: {
+        enable: false,
+        exclude: ['pixi.js', 'pixi-miniprogram']
+      },
       webpackChain(chain) {
         chain.merge({
           plugin: {
@@ -47,8 +51,6 @@ export default defineConfig(async (merge, { command, mode }) => {
             }
           }
         })
-
-
       },
       postcss: {
         pxtransform: {

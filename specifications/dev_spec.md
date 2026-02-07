@@ -96,15 +96,14 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
 - **实例管理**：游戏音效统一使用 `Taro.createInnerAudioContext`，严禁使用 HTML5 `<audio>` 标签。
 - **交互诱导**：H5 环境下，浏览器禁止自动播放。必须在用户首次点击（如“开始”按钮）的事件回调中执行一次 `audio.play()` (即使是播放静音片段) 以解锁音频上下文。
 
-### 4.4 Canvas 双端渲染标准 (Canvas 2D)
-为抹平 H5 (DOM) 与 Weapp (CanvasContext) 的巨大差异，严禁直接调用原生 API。
-- **强制标准**：必须封装自定义 Hook `useCanvas2D(id, drawFn)`。
-- **差异处理**：
-    - **H5**: `document.getElementById` + `ctx.scale(dpr, dpr)`。
-    - **Weapp**: `createSelectorQuery().fields({ node: true })` + `type="2d"`。
-- **绘图限制**：
-    - ❌ **禁止 drawImage**：除非必须，否则优先使用 Canvas API 手绘几何图形。
-    - ✅ **动画循环**：统一使用封装后的 `requestAnimationFrame`。
+### 4.4 渲染引擎与 GPU 加速 (Rendering & Acceleration)
+为确保小程序端在大规模粒子运动下的极致流畅度，项目采用 WebGL 方案实施高频动画。
+- **核心引擎**：`PixiJS` (v7+) + 平台适配层。
+- **渲染标准**：
+    - **H5**: 原生 WebGL 渲染。
+    - **Weapp**: 企业级 WebGL 模式，必须使用小程序专用适配器处理 Canvas 实例。
+- **性能红线**：即便使用 GPU，也应严格控制纹理（Texture）大小，优先使用 `Graphics` 或合成 Sprite。
+- **降级策略**：若环境不支持 WebGL，应平滑回退至基础 Canvas 2D 或静态图片展示。
 
 ### 4.5 内存与性能防护 (Performance)
 - **资源释放**：在页面/组件的 `onUnload` 或 `useEffect` 清理函数中，必须显式调用 `cancelAnimationFrame` 并将大型对象（如粒子数组）置为 `null`，防止 Canvas 上下文无法回收导致的崩溃。

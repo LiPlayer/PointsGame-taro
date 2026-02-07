@@ -1,5 +1,5 @@
 import { FC, PropsWithChildren } from 'react'
-import { useLaunch } from '@tarojs/taro'
+import Taro, { useLaunch } from '@tarojs/taro'
 import { login } from './utils/user'
 import { initDatabase } from './utils/db'
 import { getEconomyConfig } from './utils/economy'
