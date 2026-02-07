@@ -87,8 +87,10 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
 - **图片引用**：
     - ❌ **禁止**：在 CSS/Tailwind Class 中引用本地图片路径（如 `bg-[url('./img.png')]`）。
     - ✅ **推荐**：使用 `<Image src={require('@/assets/img.png')} />` 或 Base64/CDN URL。
-- **字体加载 (Font Loading)**：
-    - **双向加载**：小程序端必须在 `useReady` 中显式调用 `Taro.loadFontFace`，同时在 CSS 中声明 `@font-face` 作为 H5 及降级方案。
+- **字体策略 (Font Strategy)**：
+    - **禁用自定义字体**：全项目禁止引用自定义网络字体或本地字体文件，以优化加载速度和稳定性。
+    - **系统字体栈**：强制使用系统默认字体，确保在 iOS (苹方) 和 Android (思源/MiSans) 下具备原生流畅感。
+    - **CSS 规范**：全局样式必须包含完整的 Fallback 序列，优先匹配原生 UI 字体。
 
 ### 4.3 音频与多媒体 (Audio & Multimedia)
 - **实例管理**：游戏音效统一使用 `Taro.createInnerAudioContext`，严禁使用 HTML5 `<audio>` 标签。

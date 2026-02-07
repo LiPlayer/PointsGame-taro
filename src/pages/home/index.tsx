@@ -1,5 +1,5 @@
-import { View } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+﻿import { View } from '@tarojs/components'
+import Taro, { useDidHide, useDidShow } from '@tarojs/taro'
 import { useEffect, useMemo, useState, FC } from 'react'
 
 import PointsHeroCard from '../../components/PointsHeroCard'
@@ -9,6 +9,7 @@ import { getUserData, initUserData, refreshPoints } from '../../utils/user'
 const Home: FC = () => {
     const [points, setPoints] = useState(0)
     const [dailyPlayCount, setDailyPlayCount] = useState(0)
+    const [isActive, setIsActive] = useState(true)
 
     const platformClass = useMemo(() => `platform-${process.env.TARO_ENV || 'unknown'}`, [])
 
@@ -28,14 +29,20 @@ const Home: FC = () => {
 
     useDidShow(() => {
         syncUser()
+        setIsActive(true)
+    })
+
+    useDidHide(() => {
+        setIsActive(false)
     })
 
     return (
-        <View className={`min-h-screen bg-brand-bg flex flex-col relative overflow-hidden ${platformClass} px-6 pt-[50px]`}>
+        <View className={`min-h-screen bg-slate-50 flex flex-col relative overflow-hidden ${platformClass} px-6 pt-[50px]`}>
             <PointsHeroCard
                 className="relative isolate z-10 mt-4 mb-auto"
                 points={points}
                 dailyPlayCount={dailyPlayCount}
+                isActive={isActive}
             />
 
             <ActionGrid

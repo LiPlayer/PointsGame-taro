@@ -1,4 +1,4 @@
-import { View, Text, Image } from '@tarojs/components'
+﻿import { View, Text, Image } from '@tarojs/components'
 import { FC } from 'react'
 
 const SVG_THUNDER_WHITE =
@@ -31,7 +31,7 @@ const ActionGrid: FC<ActionGridProps> = ({
     return (
         <View className={`space-y-4 mb-6 ${className}`}>
             <View
-                className="w-full py-5 rounded-2xl btn-primary text-lg font-black flex items-center justify-center gap-3 active:scale-95 transition-transform"
+                className="w-full py-5 rounded-2xl btn-primary text-lg font-black flex items-center justify-center gap-2 active:scale-98 transition-transform"
                 onClick={onEarn}
             >
                 <Image src={SVG_THUNDER_WHITE} className="w-6 h-6" />
@@ -40,7 +40,7 @@ const ActionGrid: FC<ActionGridProps> = ({
 
             <View className="grid grid-cols-2 gap-4">
                 <View
-                    className="py-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center gap-2 active:bg-slate-50"
+                    className="py-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center gap-2 transition active:bg-slate-50"
                     onClick={onCollection}
                 >
                     <Image src={SVG_SPARKLE_SLATE} className="w-6 h-6" />
@@ -48,7 +48,7 @@ const ActionGrid: FC<ActionGridProps> = ({
                 </View>
 
                 <View
-                    className="py-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center gap-2 active:bg-slate-50"
+                    className="py-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center gap-2 transition active:bg-slate-50"
                     onClick={onShare}
                 >
                     <Image src={SVG_GIFT_SLATE} className="w-6 h-6" />
@@ -57,7 +57,7 @@ const ActionGrid: FC<ActionGridProps> = ({
             </View>
 
             <View
-                className="w-full py-5 rounded-2xl bg-slate-900 text-white text-sm font-black flex items-center justify-center gap-3 active:opacity-90"
+                className="w-full py-5 rounded-2xl bg-slate-900 text-white text-sm font-black flex items-center justify-center gap-3 active:scale-95 transition"
                 onClick={onPay}
             >
                 <Image src={SVG_CARD_WHITE} className="w-5 h-5" />
