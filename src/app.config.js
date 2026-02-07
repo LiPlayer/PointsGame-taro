@@ -1,13 +1,17 @@
 export default defineAppConfig({
   pages: [
     'pages/home/index',
-    'pages/earn/index',
-    'pages/collection/index',
-    'pages/share/index',
-    'pages/pay/index',
+    'pages/earn-entry/index',
+    'pages/earn-instant/index',
+    'pages/earn-encounter/index',
     'pages/game/index',
-    'pages/result/index',
-    'pages/result/instant/index'
+    'pages/result-earn/index',
+    'pages/result-instant/index',
+    'pages/result-replay/index',
+    'pages/share/index',
+    'pages/pay-scan/index',
+    'pages/pay-confirm/index',
+    'pages/collection/index'
   ],
   entryPagePath: 'pages/home/index',
   window: {

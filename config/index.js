@@ -7,6 +7,9 @@ import prodConfig from './prod'
 import { UnifiedWebpackPluginV5 } from 'weapp-tailwindcss/webpack'
 
 export default defineConfig(async (merge, { command, mode }) => {
+  const prebundleEnabled =
+    process.env.TARO_PREBUNDLE !== '0' &&
+    process.env.TARO_PREBUNDLE !== 'false'
   const baseConfig = {
     projectName: 'points-game-taro',
     date: '2026-2-4',
@@ -31,14 +34,24 @@ export default defineConfig(async (merge, { command, mode }) => {
       }
     },
     framework: 'react',
-    compiler: 'webpack5',
+    compiler: {
+      type: 'webpack5',
+      prebundle: {
+        enable: prebundleEnabled && process.env.NODE_ENV !== 'production',
+        exclude: []
+      }
+    },
     cache: {
       enable: false // Webpack 持久化缓存配置，建议开启。默认配置请参考：https://docs.taro.zone/docs/config-detail#cache
     },
     mini: {
-      prebundle: {
-        enable: false,
-        exclude: ['pixi.js', 'pixi-miniprogram']
+      output: {
+        clean: {
+          keep: (asset) =>
+            asset.includes('prebundle/') ||
+            asset.includes('prebundle\\') ||
+            asset.endsWith('project.config.json')
+        }
       },
       webpackChain(chain) {
         chain.merge({

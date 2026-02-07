@@ -42,20 +42,6 @@ button {
   }
 }
 
-.btn-secondary {
-  height: 80px;
-  padding: 0;
-  background-color: #ffffff;
-  border: 1px solid #f1f5f9;
-  border-radius: 16px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
 
 /* Custom Animations from Prototype */
 @keyframes float {
@@ -132,6 +118,22 @@ button {
   animation: scan-line 2s linear infinite;
 }
 
+/* Prototype scan line utility */
+.scan-anim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #e11d48;
+  box-shadow: 0 0 10px #e11d48;
+  animation: scan-line 2s linear infinite;
+}
+
+/* Pay scan background image (H5/Weapp friendly) */
+.pay-scan-bg {
+  background-image: url('https://images.unsplash.com/photo-1550989460-0adf9ea622e2?q=80&w=375&auto=format&fit=crop');
+}
+
 /* Typography & Weight Compensation */
 .font-black-compensated {
   font-weight: 900;
@@ -161,16 +163,6 @@ button {
     linear-gradient(to top, rgba(241, 245, 249, 1), rgba(241, 245, 249, 0));
 }
 
-.btn-primary {
-  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
-  color: white;
-  box-shadow: 0 10px 20px -5px rgba(225, 29, 72, 0.4);
-  transition: transform 0.1s;
-
-  &:active {
-    transform: scale(0.98);
-  }
-}
 
 .bg-brand-red {
   background-color: #e11d48;

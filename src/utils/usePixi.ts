@@ -84,16 +84,31 @@ const readCanvasInfo = async (id: string) => {
     }
 }
 
+const installUnsafeEval = async (PIXI: PixiModule) => {
+    if (process.env.TARO_ENV === 'weapp') {
+        const mod = await import('pixi-miniprogram/pixi-miniprogram/example/libs/unsafeEval')
+        const unsafeEval = (mod as { default?: (pi: PixiModule) => void }).default || (mod as any)
+        if (typeof unsafeEval === 'function') {
+            unsafeEval(PIXI)
+        }
+        return
+    }
+
+    await import('@pixi/unsafe-eval')
+}
+
 const ensurePixiModule = async (canvas: any) => {
     if (process.env.TARO_ENV === 'weapp') {
         const { createPIXI } = await import('pixi-miniprogram')
-        return createPIXI(canvas) as PixiModule
+        const PIXI = createPIXI(canvas) as PixiModule
+        await installUnsafeEval(PIXI)
+        return PIXI
     }
 
-    if (process.env.TARO_ENV === 'h5') {
-        await import('@pixi/unsafe-eval')
-    }
     const mod = await import('pixi.js')
+    if (process.env.TARO_ENV === 'h5') {
+        await installUnsafeEval(mod as PixiModule)
+    }
     return mod as PixiModule
 }
 
