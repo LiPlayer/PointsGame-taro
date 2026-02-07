@@ -23,7 +23,7 @@ interface PointsCardProps {
 
 type PixiModule = typeof import('pixi.js')
 
-const MAX_STARS = 3000
+const MAX_STARS = 5000
 const CONFIG = {
     radius: 6,
     gravity: 0.15,
@@ -150,73 +150,83 @@ const PointsCard: FC<PointsCardProps> = React.memo(({
             window.addEventListener('mouseup', hEnd), window.addEventListener('touchend', hEnd)
         }
 
-        const solve = () => {
-            const n = count.current, w = app.screen.width, h = app.screen.height, c = Math.ceil(w / cellSize), r = Math.ceil(h / cellSize)
+        const loop = () => {
+            if (!isActiveRef.current || !app.ticker || (app.ticker as any)._destroyed) return
+            const dt = app.ticker.deltaTime || 1
+            const n = count.current, w = app.screen.width, h = app.screen.height, g = CONFIG.gravity * dt, f = Math.pow(CONFIG.friction, dt)
+            const _px = px.current, _py = py.current, _ox = ox.current, _oy = oy.current, _ag = ags.current, _av = avs.current
+            const _rd = rads.current, _st = sts.current, _dt = dts.current, _bs = bsc.current, _sp = sps.current, _zs = zs.current
+            const p = pointer.current, r2 = CONFIG.repulsionRadius ** 2
+
+            // PASS 1: Integration + GRID REBUILD
+            const c = Math.ceil(w / cellSize), r = Math.ceil(h / cellSize)
             if (!heads.current || heads.current.length < c * r) heads.current = new Int32Array(c * r)
             if (!nexts.current) nexts.current = new Int32Array(MAX_STARS)
             const hds = heads.current, nxs = nexts.current; hds.fill(-1)
-            const _px = px.current, _py = py.current, _rad = rads.current, _st = sts.current, _zs = zs.current
-            for (let i = 0; i < n; i++) {
-                if (_st[i] === STATUS_DYING) continue
-                const gx = Math.floor(_px[i] / cellSize), gy = Math.floor(_py[i] / cellSize)
-                if (gx >= 0 && gx < c && gy >= 0 && gy < r) { const k = gx + gy * c; nxs[i] = hds[k]; hds[k] = i }
-            }
-            const p = pointer.current, r2 = CONFIG.repulsionRadius ** 2
-            for (let i = 0; i < n; i++) {
-                if (_st[i] !== STATUS_ACTIVE) continue
-                if (p.active) {
-                    const dx = _px[i] - p.x, dy = _py[i] - p.y, d2 = dx * dx + dy * dy
-                    if (d2 < r2) {
-                        const d = Math.sqrt(d2), f = (1 - d / CONFIG.repulsionRadius) * CONFIG.repulsionForce
-                        _px[i] += (dx / d) * f * 2; _py[i] += (dy / d) * f * 2
-                    }
-                }
-                const gx = Math.floor(_px[i] / cellSize), gy = Math.floor(_py[i] / cellSize)
-                for (let x = gx - 1; x <= gx + 1; x++) {
-                    if (x < 0 || x >= c) continue
-                    for (let y = gy - 1; y <= gy + 1; y++) {
-                        if (y < 0 || y >= r) continue
-                        let o = hds[x + y * c]; while (o !== -1) {
-                            if (i !== o && Math.abs(_zs[i] - _zs[o]) < 0.1) {
-                                const dx = _px[i] - _px[o], dy = _py[i] - _py[o], d2 = dx * dx + dy * dy, min = _rad[i] + _rad[o]
-                                if (d2 < min * min && d2 > 0) {
-                                    const d = Math.sqrt(d2), ov = (min - d) * 0.5; _px[i] += (dx / d) * ov; _py[i] += (dy / d) * ov
-                                    _px[o] -= (dx / d) * ov; _py[o] -= (dy / d) * ov; _st[i] = _st[o] = STATUS_ACTIVE
-                                }
-                            }
-                            o = nxs[o]
-                        }
-                    }
-                }
-            }
-        }
-
-        const loop = () => {
-            if (!isActiveRef.current || !app.ticker || (app.ticker as any)._destroyed) return
-            const n = count.current, w = app.screen.width, h = app.screen.height, g = CONFIG.gravity, f = CONFIG.friction
-            const _px = px.current, _py = py.current, _ox = ox.current, _oy = oy.current, _ag = ags.current, _av = avs.current
-            const _rd = rads.current, _st = sts.current, _dt = dts.current, _bs = bsc.current, _sp = sps.current
-            const p = pointer.current, r2 = CONFIG.repulsionRadius ** 2
 
             for (let i = 0; i < n; i++) {
                 const s = _sp[i]; if (!s) continue
                 if (_st[i] === STATUS_DYING) {
-                    _dt[i] += 0.02; if (_dt[i] >= 1) { s.visible = false; continue }
-                    if (_dt[i] < 0.4) { _py[i] -= 2; _ag[i] += 0.1 } else {
-                        const ph = (_dt[i] - 0.4) / 0.6; s.scale.set(_bs[i] * Math.max(0, 1 - ph)); _ag[i] += 0.3; _py[i] -= 1; s.alpha = 1 - ph
+                    _dt[i] += 0.02 * dt; if (_dt[i] >= 1) { s.visible = false; _sp[i] = null; continue }
+                    if (_dt[i] < 0.4) { _py[i] -= 2 * dt; _ag[i] += 0.1 * dt } else {
+                        const ph = (_dt[i] - 0.4) / 0.6; s.scale.set(_bs[i] * Math.max(0, 1 - ph)); _ag[i] += 0.3 * dt; _py[i] -= 1 * dt; s.alpha = 1 - ph
                     }
                     s.x = _px[i]; s.y = _py[i]; s.rotation = _ag[i]; continue
                 }
+
                 if (_st[i] === STATUS_SLEEPING) {
-                    if (p.active && (_px[i] - p.x) ** 2 + (_py[i] - p.y) ** 2 < r2) _st[i] = STATUS_ACTIVE; continue
+                    if (p.active && (_px[i] - p.x) ** 2 + (_py[i] - p.y) ** 2 < r2) _st[i] = STATUS_ACTIVE
+                } else {
+                    const vx = (_px[i] - _ox[i]) * f, vy = (_py[i] - _oy[i]) * f
+                    _ox[i] = _px[i]; _oy[i] = _py[i]; _px[i] += vx; _py[i] += vy + g; _ag[i] += _av[i] * dt
+                    if (_py[i] + _rd[i] > h) { _py[i] = h - _rd[i]; _oy[i] = _py[i] + vy * 0.5; _av[i] *= 0.9 }
+                    if (_px[i] + _rd[i] > w) { _px[i] = w - _rd[i]; _ox[i] = _px[i] + vx * 0.5 } else if (_px[i] - _rd[i] < 0) { _px[i] = _rd[i]; _ox[i] = _px[i] + vx * 0.5 }
+                    if (vx * vx + vy * vy < 0.01 && _py[i] > h - _rd[i] - 2) { if (!p.active || (_px[i] - p.x) ** 2 + (_py[i] - p.y) ** 2 > r2) _st[i] = STATUS_SLEEPING }
                 }
-                const vx = (_px[i] - _ox[i]) * f, vy = (_py[i] - _oy[i]) * f
-                _ox[i] = _px[i]; _oy[i] = _py[i]; _px[i] += vx; _py[i] += vy + g; _ag[i] += _av[i]
-                if (_py[i] + _rd[i] > h) { _py[i] = h - _rd[i]; _oy[i] = _py[i] + vy * 0.5; _av[i] *= 0.9 }
-                if (_px[i] + _rd[i] > w) { _px[i] = w - _rd[i]; _ox[i] = _px[i] + vx * 0.5 } else if (_px[i] - _rd[i] < 0) { _px[i] = _rd[i]; _ox[i] = _px[i] + vx * 0.5 }
-                if (vx * vx + vy * vy < 0.01 && _py[i] > h - _rd[i] - 2) { if (!p.active || (_px[i] - p.x) ** 2 + (_py[i] - p.y) ** 2 > r2) _st[i] = STATUS_SLEEPING }
+
+                if (_st[i] !== STATUS_DYING) {
+                    const gx = Math.floor(_px[i] / cellSize), gy = Math.floor(_py[i] / cellSize)
+                    if (gx >= 0 && gx < c && gy >= 0 && gy < r) { const k = gx + gy * c; nxs[i] = hds[k]; hds[k] = i }
+                }
             }
-            solve(); solve()
+
+            // PASS 2: GAME-GRADE COLLISION SOLVER (Avoid Sqrt + Order Cache)
+            for (let iter = 0; iter < 2; iter++) {
+                for (let i = 0; i < n; i++) {
+                    const st_i = _st[i]; if (st_i !== STATUS_ACTIVE) continue
+                    if (p.active) {
+                        const dx = _px[i] - p.x, dy = _py[i] - p.y, d2 = dx * dx + dy * dy
+                        if (d2 < r2) {
+                            const d = Math.sqrt(d2), f = (1 - d / CONFIG.repulsionRadius) * CONFIG.repulsionForce
+                            _px[i] += (dx / d) * f * 2; _py[i] += (dy / d) * f * 2
+                        }
+                    }
+                    const gx = Math.floor(_px[i] / cellSize), gy = Math.floor(_py[i] / cellSize)
+                    for (let x = gx - 1; x <= gx + 1; x++) {
+                        if (x < 0 || x >= c) continue
+                        for (let y = gy - 1; y <= gy + 1; y++) {
+                            if (y < 0 || y >= r) continue
+                            let o = hds[x + y * c]
+                            while (o !== -1) {
+                                if (o > i && Math.abs(_zs[i] - _zs[o]) < 0.1) {
+                                    const dx = _px[i] - _px[o], dy = _py[i] - _py[o], d2 = dx * dx + dy * dy, min = _rd[i] + _rd[o]
+                                    const min2 = min * min
+                                    if (d2 < min2 && d2 > 0) {
+                                        const d = Math.sqrt(d2), ov = (min - d) * 0.5, invD = 1 / d
+                                        const nx = dx * invD, ny = dy * invD
+                                        _px[i] += nx * ov; _py[i] += ny * ov
+                                        _px[o] -= nx * ov; _py[o] -= ny * ov
+                                        if (_st[o] === STATUS_SLEEPING) _st[o] = STATUS_ACTIVE
+                                    }
+                                }
+                                o = nxs[o]
+                            }
+                        }
+                    }
+                }
+            }
+
+            // PASS 3: SYNC
             for (let i = 0; i < n; i++) { const s = _sp[i]; if (s && _st[i] < 2) { s.x = _px[i]; s.y = _py[i]; s.rotation = _ag[i] } }
         }
         app.ticker.add(loop)
@@ -246,6 +256,7 @@ const PointsCard: FC<PointsCardProps> = React.memo(({
             window.removeEventListener('mouseup', hEnd); window.removeEventListener('touchend', hEnd)
             delete (window as any).PointsSystem; container.destroy({ children: true })
             if (starTexture.current) starTexture.current.destroy(true)
+            sps.current.fill(null)
         }
     }, [app, pixi])
 
@@ -291,10 +302,10 @@ const PointsCard: FC<PointsCardProps> = React.memo(({
             <Canvas id={canvasId} canvasId={canvasId} type="webgl" className="absolute inset-0 w-full h-full z-0" />
             <View className="relative z-10 pointer-events-none">
                 <LabelCaps className="block mb-2">当前可用积分</LabelCaps>
-                <View ref={displayRef} className="text-6xl font-black text-slate-900 tracking-tighter mix-blend-multiply">
+                <View ref={displayRef} className="text-6xl font-black text-slate-900 tracking-tighter">
                     {formatNumber(pointsRef.current)}
                 </View>
-                <View className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-amber-50/80 backdrop-blur-sm text-amber-700 rounded-full text-[10px] font-bold shadow-sm">
+                <View className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full text-[10px] font-bold shadow-sm">
                     <Image src={SVG_THUNDER_AMBER} className="w-3 h-3" />
                     <Text>今日已玩 {dailyPlayCount}/3 次</Text>
                 </View>
