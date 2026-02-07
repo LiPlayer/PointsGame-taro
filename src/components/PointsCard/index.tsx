@@ -377,6 +377,7 @@ const PointsCard: FC<PointsCardProps> = ({
 
         const ticker = () => {
             if (!isActiveRef.current) return
+            if (!app.ticker || (app.ticker as any)._destroyed) return
 
             const w = app.screen.width
             const h = app.screen.height
@@ -446,7 +447,9 @@ const PointsCard: FC<PointsCardProps> = ({
         }
 
         return () => {
-            app.ticker.remove(ticker)
+            if (app && app.ticker) {
+                app.ticker.remove(ticker)
+            }
             createParticle.current = null
             if (process.env.TARO_ENV === 'h5' && typeof window !== 'undefined') {
                 window.removeEventListener('mousemove', onMouseMove)

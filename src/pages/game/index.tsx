@@ -37,6 +37,7 @@ const Game: FC = () => {
                 className="bg-white/20 backdrop-blur text-white active:bg-white/40 hover:bg-white/40 border-none"
                 onClick={goHome}
                 alignToWeappMenu={true}
+                theme="reverse"
             />
 
             <View className="absolute bottom-10 width-full text-center w-full z-10 pointer-events-none">

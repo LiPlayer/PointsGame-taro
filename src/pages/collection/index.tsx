@@ -21,7 +21,7 @@ const Collection: FC = () => {
     return (
         <View className="flex flex-col h-screen box-border px-6 pt-[50px] pb-[calc(16px+env(safe-area-inset-bottom))] bg-white">
             <View className="flex items-center gap-4 mb-8">
-                <NavClose className="!relative !top-0 !left-0 !bg-slate-50" onClick={goHome} />
+                <NavClose className="!relative !top-0 !left-0 !bg-slate-50" onClick={goHome} alignToWeappMenu={false} />
                 <Text className="text-xl font-black text-slate-900">已收集的游戏</Text>
             </View>
 

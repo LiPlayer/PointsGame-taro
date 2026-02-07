@@ -25,7 +25,7 @@ const PayScan: FC = () => {
 
     return (
         <View className="flex flex-col h-screen box-border bg-black relative pt-[50px]">
-            <NavClose className="bg-black/40 text-white active:bg-black/60" onClick={goHome} />
+            <NavClose className="bg-black/40 text-white active:bg-black/60" onClick={goHome} theme="reverse" />
 
             <View className="absolute inset-0 bg-slate-800">
                 <View className="absolute inset-0 pay-scan-bg bg-cover bg-center opacity-40"></View>

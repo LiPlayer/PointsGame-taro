@@ -116,7 +116,7 @@ const ensurePixiModule = async (canvas: any) => {
             // PIXI internally calls getContext('webgl') or getContext('2d').
             // By calling getContext('webgl', { stencil: true }) first, we force the created context to have a stencil buffer.
             try {
-                canvas.getContext('webgl', { stencil: true, depth: true, antialias: true })
+                canvas.getContext('webgl', { stencil: true, depth: true, antialias: true, alpha: true })
             } catch (e) {
                 console.warn('WebGL pre-init failed, falling back to default', e)
             }
@@ -128,6 +128,7 @@ const ensurePixiModule = async (canvas: any) => {
             // Attempt to force stencil in default render options as well
             if ((PIXI as any).settings.RENDER_OPTIONS) {
                 (PIXI as any).settings.RENDER_OPTIONS.stencil = true
+                    ; (PIXI as any).settings.RENDER_OPTIONS.transparent = true
             }
         }
         await installUnsafeEval(PIXI)
@@ -177,6 +178,7 @@ export const usePixi = (canvasId: string) => {
                 height: (info as any).height,
                 resolution: (info as any).dpr,
                 backgroundAlpha: 0,
+                transparent: true, // Legacy support/mobile compatibility
                 autoDensity: true,
                 antialias: true,
                 stencil: true // Explicitly enable to suppress Pixi warnings
@@ -192,12 +194,17 @@ export const usePixi = (canvasId: string) => {
 
         return () => {
             cancelled = true
+            console.log('usePixi: hook cleanup, destroying app')
             if (createdApp) {
-                createdApp.destroy(true, {
-                    children: true,
-                    texture: true,
-                    baseTexture: true
-                })
+                try {
+                    createdApp.destroy(true, {
+                        children: true,
+                        texture: true,
+                        baseTexture: true
+                    })
+                } catch (e) {
+                    console.warn('usePixi: Error during app destroy', e)
+                }
             }
             setApp(null)
             setPixi(null)
