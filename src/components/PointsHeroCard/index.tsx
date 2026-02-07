@@ -1,4 +1,5 @@
 ﻿import { Canvas, Image, Text, View } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import { FC, useCallback, useEffect, useMemo, useRef } from 'react'
 import BrandHeader from '../BrandHeader'
 import { useCanvas2D, Canvas2DRect } from '../../utils/useCanvas2D'
@@ -113,7 +114,7 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
 
     useCanvas2D(
         canvasId,
-        ({ ctx, rect }) => {
+        ({ ctx, rect, canvas }) => {
             rectRef.current = rect
 
             let width = rect.width
@@ -122,6 +123,8 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
             let grid: Record<string, Particle[]> | null = {}
             let animationId: number | null = null
             let running = false
+            let starOffscreen: any = null
+
             const physics = {
                 radius: CONFIG.radius * VISUAL_SCALE,
                 gravity: CONFIG.gravity * VISUAL_SCALE,
@@ -134,12 +137,59 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                 deathRise: 2 * VISUAL_SCALE,
                 deathDrift: 1 * VISUAL_SCALE
             }
+
             const initialCount = Math.min(
                 Math.max(Math.floor(pointsRef.current || 0), 0),
                 MAX_STARS
             )
             let currentPoints = initialCount
             const cellSize = physics.radius * 2.2
+
+            // Caching Star Shape (CRITICAL for Weapp Performance)
+            const prepareStarCache = () => {
+                const size = 64
+                if (process.env.TARO_ENV === 'weapp') {
+                    // Use global API instead of instance method for better compatibility
+                    starOffscreen = Taro.createOffscreenCanvas({
+                        type: '2d',
+                        width: size,
+                        height: size
+                    })
+                } else if (typeof document !== 'undefined') {
+                    starOffscreen = document.createElement('canvas')
+                    starOffscreen.width = size
+                    starOffscreen.height = size
+                }
+
+                if (!starOffscreen || typeof starOffscreen.getContext !== 'function') {
+                    console.error('Offscreen canvas or getContext not available')
+                    return
+                }
+                const sCtx = starOffscreen.getContext('2d')
+                if (!sCtx) return
+
+                sCtx.translate(size / 2, size / 2)
+                sCtx.beginPath()
+                sCtx.arc(0, 0, 28, 0, Math.PI * 2)
+                sCtx.fillStyle = '#fef3c7'
+                sCtx.fill()
+
+                sCtx.beginPath()
+                sCtx.arc(0, 0, 22, 0, Math.PI * 2)
+                sCtx.fillStyle = '#ffffff'
+                sCtx.fill()
+
+                sCtx.beginPath()
+                for (let i = 0; i < 5; i++) {
+                    const outerAngle = (18 + i * 72) * (Math.PI / 180)
+                    const innerAngle = (54 + i * 72) * (Math.PI / 180)
+                    sCtx.lineTo(Math.cos(outerAngle) * 19, -Math.sin(outerAngle) * 19)
+                    sCtx.lineTo(Math.cos(innerAngle) * 9, -Math.sin(innerAngle) * 9)
+                }
+                sCtx.closePath()
+                sCtx.fillStyle = '#f59e0b'
+                sCtx.fill()
+            }
 
             class ParticleImpl implements Particle {
                 x: number
@@ -154,6 +204,7 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                 isDying: boolean
                 deathTimer: number
                 scale: number
+                private sleepTimer: number = 0
 
                 constructor(x: number, y: number) {
                     this.x = x
@@ -190,6 +241,17 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                     const vx = (this.x - this.oldX) * CONFIG.friction
                     const vy = (this.y - this.oldY) * CONFIG.friction
 
+                    // Sleep Check: If movement is very low for multiple frames
+                    if (Math.abs(vx) < 0.05 && Math.abs(vy) < 0.05 && this.y + this.radius >= height - 2) {
+                        this.sleepTimer++
+                        if (this.sleepTimer > 60) {
+                            this.isSleeping = true
+                            return
+                        }
+                    } else {
+                        this.sleepTimer = 0
+                    }
+
                     this.oldX = this.x
                     this.oldY = this.y
 
@@ -214,6 +276,11 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                 }
             }
 
+            const sortParticles = () => {
+                if (!particles) return
+                particles.sort((a, b) => a.z - b.z)
+            }
+
             const init = (count: number) => {
                 if (!particles) return
                 particles.length = 0
@@ -228,6 +295,7 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                         height - (row + 0.5) * (physics.radius * 2) - physics.spawnOffset
                     particles.push(new ParticleImpl(x, y))
                 }
+                sortParticles()
             }
 
             const syncToPoints = (target: number) => {
@@ -255,6 +323,7 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                 }
 
                 currentPoints = nextPoints
+                sortParticles()
             }
 
             const solve = () => {
@@ -262,14 +331,14 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                 grid = {}
 
                 for (const p of particles) {
-                    if (p.isDying) continue
+                    if (p.isDying || p.isSleeping) continue // Skip sleeping particles
                     const key = `${Math.floor(p.x / cellSize)},${Math.floor(p.y / cellSize)}`
                     if (!grid[key]) grid[key] = []
                     grid[key].push(p)
                 }
 
                 for (const p of particles) {
-                    if (p.isDying) continue
+                    if (p.isDying || p.isSleeping) continue
 
                     if (pointerRef.current.active) {
                         const dx = p.x - pointerRef.current.x
@@ -327,43 +396,36 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                 }
             }
 
-            const drawStar = () => {
-                ctx.beginPath()
-                ctx.arc(0, 0, 28, 0, Math.PI * 2)
-                ctx.fillStyle = '#fef3c7'
-                ctx.fill()
-
-                ctx.beginPath()
-                ctx.arc(0, 0, 22, 0, Math.PI * 2)
-                ctx.fillStyle = '#ffffff'
-                ctx.fill()
-
-                ctx.beginPath()
-                for (let i = 0; i < 5; i++) {
-                    const outerAngle = (18 + i * 72) * (Math.PI / 180)
-                    const innerAngle = (54 + i * 72) * (Math.PI / 180)
-                    ctx.lineTo(Math.cos(outerAngle) * 19, -Math.sin(outerAngle) * 19)
-                    ctx.lineTo(Math.cos(innerAngle) * 9, -Math.sin(innerAngle) * 9)
-                }
-                ctx.closePath()
-                ctx.fillStyle = '#f59e0b'
-                ctx.fill()
-            }
-
             const draw = () => {
                 if (!particles) return
                 ctx.clearRect(0, 0, width, height)
-                particles.sort((a, b) => a.z - b.z)
 
                 for (const p of particles) {
-                    ctx.save()
-                    ctx.translate(p.x, p.y)
-                    ctx.rotate(p.angle)
                     const baseScale = (p.radius * 2) / 64
                     const zScale = 0.5 + p.z * 0.7
                     const finalScale = baseScale * zScale * p.scale
+                    const size = 64 * finalScale
+
+                    // 1. Optimized Rendering for small stars (z=0)
+                    // If p.z is 0 and it's not currently animating/dying, we skip matrix transforms entirely.
+                    if (p.z === 0 && !p.isDying && p.isSleeping && starOffscreen) {
+                        ctx.drawImage(starOffscreen, p.x - size / 2, p.y - size / 2, size, size)
+                        continue
+                    }
+
+                    ctx.save()
+                    ctx.translate(p.x, p.y)
+                    ctx.rotate(p.angle)
                     ctx.scale(finalScale, finalScale)
-                    drawStar()
+
+                    if (starOffscreen) {
+                        ctx.drawImage(starOffscreen, -32, -32)
+                    } else {
+                        ctx.beginPath()
+                        ctx.arc(0, 0, 28, 0, Math.PI * 2)
+                        ctx.fillStyle = '#fef3c7'
+                        ctx.fill()
+                    }
 
                     if (p.z > 0.7) {
                         ctx.beginPath()
@@ -380,13 +442,17 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                 if (!running || !particles) return
 
                 for (const p of particles) p.update()
+                const originalLength = particles.length
                 for (let i = particles.length - 1; i >= 0; i--) {
                     if (particles[i].isDying && particles[i].deathTimer >= 1.0) {
                         particles.splice(i, 1)
                     }
                 }
+                if (particles.length !== originalLength) {
+                    sortParticles()
+                }
 
-                solve()
+                // Performance Optimization: One solve per frame is enough for high particle counts in Weapp
                 solve()
                 draw()
 
@@ -408,6 +474,7 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                 pointerRef.current.active = false
             }
 
+            prepareStarCache()
             init(initialCount)
             syncToPoints(pointsRef.current)
 
@@ -425,6 +492,7 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                 particles = null
                 grid = null
                 rectRef.current = null
+                starOffscreen = null
             }
         },
         []
@@ -437,8 +505,6 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
             onTouchStart={handlePointerMove}
             onTouchEnd={handlePointerEnd}
             onTouchCancel={handlePointerEnd}
-            onMouseMove={handlePointerMove}
-            onMouseLeave={handlePointerEnd}
         >
             <BrandHeader className="relative z-10" />
 
