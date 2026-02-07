@@ -74,57 +74,8 @@ const PointsCard: FC<PointsCardProps> = ({
 
     const createStarTexture = (pixi: PixiModule, app: PixiTypes.Application) => {
         const size = 64
-        let canvas: any | null = null
-        let ctx: CanvasRenderingContext2D | null = null
-
-        try {
-            if (process.env.TARO_ENV === 'weapp') {
-                const wxAny = (globalThis as any).wx as { createOffscreenCanvas?: (opts: any) => any }
-                if (wxAny && typeof wxAny.createOffscreenCanvas === 'function') {
-                    canvas = wxAny.createOffscreenCanvas({ type: '2d', width: size, height: size })
-                }
-            } else if (typeof document !== 'undefined') {
-                canvas = document.createElement('canvas')
-                canvas.width = size
-                canvas.height = size
-            }
-
-            if (canvas && typeof canvas.getContext === 'function') {
-                ctx = canvas.getContext('2d')
-            }
-        } catch {
-            ctx = null
-        }
-
-        if (ctx && canvas) {
-            const cx = size / 2
-            const cy = size / 2
-            const r = 28
-
-            ctx.beginPath()
-            ctx.arc(cx, cy, r, 0, Math.PI * 2)
-            ctx.fillStyle = '#fde68a'
-            ctx.fill()
-
-            ctx.beginPath()
-            ctx.arc(cx, cy, r - 6, 0, Math.PI * 2)
-            ctx.fillStyle = '#ffffff'
-            ctx.fill()
-
-            ctx.translate(cx, cy)
-            ctx.beginPath()
-            ctx.fillStyle = '#f59e0b'
-            for (let i = 0; i < 5; i++) {
-                ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * 19, -Math.sin((18 + i * 72) * Math.PI / 180) * 19)
-                ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * 9, -Math.sin((54 + i * 72) * Math.PI / 180) * 9)
-            }
-            ctx.closePath()
-            ctx.fill()
-
-            return pixi.Texture.from(canvas)
-        }
-
-        // Fallback: Pixi Graphics (kept for environments without 2d canvas).
+        // Use Pixi Graphics to create the star texture.
+        // This is more stable across different Mini-program environments than using OffscreenCanvas.
         const g = new pixi.Graphics()
         g.beginFill(0xfde68a, 1)
         g.drawCircle(size / 2, size / 2, 28)
@@ -182,7 +133,7 @@ const PointsCard: FC<PointsCardProps> = ({
             isDying: false,
             deathTimer: 0,
             baseScale: 1,
-            update: () => {}
+            update: () => { }
         }
 
         const sizeScale = (particle.radius * 2) / 64
@@ -419,22 +370,27 @@ const PointsCard: FC<PointsCardProps> = ({
     const handlePointerMove = useCallback((event: any) => {
         if (!app) return
 
-        const detail = event?.detail || {}
-        if (process.env.TARO_ENV === 'weapp' && typeof detail.x === 'number' && typeof detail.y === 'number') {
-            pointer.current.x = detail.x
-            pointer.current.y = detail.y
-            pointer.current.active = true
-            return
+        const touch = event?.touches?.[0] || event?.changedTouches?.[0]
+        if (!touch) return
+
+        // Weapp provides x/y relative to the component in the touch object
+        if (process.env.TARO_ENV === 'weapp') {
+            const x = touch.x
+            const y = touch.y
+            if (typeof x === 'number' && typeof y === 'number') {
+                pointer.current.x = x
+                pointer.current.y = y
+                pointer.current.active = true
+                return
+            }
         }
 
-        const touch = event?.touches?.[0] || event?.changedTouches?.[0]
+        // H5 fallback / Other
         const clientX = touch?.clientX ?? touch?.pageX ?? event?.clientX ?? event?.pageX
         const clientY = touch?.clientY ?? touch?.pageY ?? event?.clientY ?? event?.pageY
 
         if (typeof clientX !== 'number' || typeof clientY !== 'number') return
 
-        // In Pixi, we can use global interaction map if needed, 
-        // but for now we manually offset from canvas bounds
         const canvas = app.view as HTMLCanvasElement
         const rect = canvas.getBoundingClientRect ? canvas.getBoundingClientRect() : { left: 0, top: 0 }
 
@@ -454,8 +410,6 @@ const PointsCard: FC<PointsCardProps> = ({
             onTouchStart={handlePointerMove}
             onTouchEnd={handlePointerEnd}
             onTouchCancel={handlePointerEnd}
-            onMouseMove={handlePointerMove}
-            onMouseLeave={handlePointerEnd}
         >
             <View className="flex flex-col items-center mt-2 mb-16 relative z-10">
                 <View className="w-16 h-16 bg-rose-600 rounded-2xl shadow-lg flex items-center justify-center text-white text-3xl font-black mb-4">
