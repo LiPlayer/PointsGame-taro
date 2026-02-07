@@ -37,6 +37,8 @@ interface Particle {
 }
 
 const MAX_STARS = 3000
+// Height ~ r^2 when width is fixed, so halve height => r * sqrt(0.5)
+const VISUAL_SCALE = Math.SQRT1_2
 const CONFIG = {
     particleCount: 1240,
     radius: 8,
@@ -120,12 +122,24 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
             let grid: Record<string, Particle[]> | null = {}
             let animationId: number | null = null
             let running = false
+            const physics = {
+                radius: CONFIG.radius * VISUAL_SCALE,
+                gravity: CONFIG.gravity * VISUAL_SCALE,
+                repulsionRadius: CONFIG.repulsionRadius * VISUAL_SCALE,
+                repulsionForce: CONFIG.repulsionForce * VISUAL_SCALE,
+                jitter: 2 * VISUAL_SCALE,
+                spawnJitter: 5 * VISUAL_SCALE,
+                spawnOffset: 20 * VISUAL_SCALE,
+                spawnDrop: 100 * VISUAL_SCALE,
+                deathRise: 2 * VISUAL_SCALE,
+                deathDrift: 1 * VISUAL_SCALE
+            }
             const initialCount = Math.min(
                 Math.max(Math.floor(pointsRef.current || 0), 0),
                 MAX_STARS
             )
             let currentPoints = initialCount
-            const cellSize = CONFIG.radius * 2.2
+            const cellSize = physics.radius * 2.2
 
             class ParticleImpl implements Particle {
                 x: number
@@ -144,9 +158,9 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                 constructor(x: number, y: number) {
                     this.x = x
                     this.y = y
-                    this.oldX = x + (Math.random() - 0.5) * 2
-                    this.oldY = y + (Math.random() - 0.5) * 2
-                    this.radius = CONFIG.radius * (0.8 + Math.random() * 0.4)
+                    this.oldX = x + (Math.random() - 0.5) * physics.jitter
+                    this.oldY = y + (Math.random() - 0.5) * physics.jitter
+                    this.radius = physics.radius * (0.8 + Math.random() * 0.4)
                     this.angle = Math.random() * Math.PI * 2
                     this.angularVelocity = (Math.random() - 0.5) * 0.2
                     this.z = Math.floor(Math.random() * 3) / 2
@@ -160,13 +174,13 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                     if (this.isDying) {
                         this.deathTimer += 0.02
                         if (this.deathTimer < 0.4) {
-                            this.y -= 2
+                            this.y -= physics.deathRise
                             this.angle += 0.1
                         } else {
                             const phase2 = (this.deathTimer - 0.4) / 0.6
                             this.scale = 1 - phase2
                             this.angle += 0.3
-                            this.y -= 1
+                            this.y -= physics.deathDrift
                         }
                         return
                     }
@@ -180,7 +194,7 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                     this.oldY = this.y
 
                     this.x += vx
-                    this.y += vy + CONFIG.gravity
+                    this.y += vy + physics.gravity
                     this.angle += this.angularVelocity
 
                     if (this.y + this.radius > height) {
@@ -203,15 +217,15 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
             const init = (count: number) => {
                 if (!particles) return
                 particles.length = 0
-                const cols = Math.max(1, Math.floor(width / (CONFIG.radius * 2)))
+                const cols = Math.max(1, Math.floor(width / (physics.radius * 2)))
                 for (let i = 0; i < count; i++) {
                     const col = i % cols
                     const row = Math.floor(i / cols)
                     const x =
-                        (col + 0.5) * (CONFIG.radius * 2) +
-                        (Math.random() - 0.5) * 5
+                        (col + 0.5) * (physics.radius * 2) +
+                        (Math.random() - 0.5) * physics.spawnJitter
                     const y =
-                        height - (row + 0.5) * (CONFIG.radius * 2) - 20
+                        height - (row + 0.5) * (physics.radius * 2) - physics.spawnOffset
                     particles.push(new ParticleImpl(x, y))
                 }
             }
@@ -227,7 +241,7 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                     const starsToAdd = Math.min(delta, spaceLeft)
                     for (let i = 0; i < starsToAdd; i++) {
                         const x = Math.random() * width
-                        const y = -20 - Math.random() * 100
+                        const y = -physics.spawnOffset - Math.random() * physics.spawnDrop
                         particles.push(new ParticleImpl(x, y))
                     }
                 } else {
@@ -262,13 +276,13 @@ const PointsHeroCard: FC<PointsHeroCardProps> = ({
                         const dy = p.y - pointerRef.current.y
                         const distSq = dx * dx + dy * dy
                         const radiusSq =
-                            CONFIG.repulsionRadius * CONFIG.repulsionRadius
+                            physics.repulsionRadius * physics.repulsionRadius
 
                         if (distSq < radiusSq) {
                             const dist = Math.sqrt(distSq)
                             const force =
-                                (1 - dist / CONFIG.repulsionRadius) *
-                                CONFIG.repulsionForce
+                                (1 - dist / physics.repulsionRadius) *
+                                physics.repulsionForce
                             const angle = Math.atan2(dy, dx)
                             p.x += Math.cos(angle) * force * 2
                             p.y += Math.sin(angle) * force * 2
