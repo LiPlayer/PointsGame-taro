@@ -116,7 +116,14 @@ const ensurePixiModule = async (canvas: any) => {
             // PIXI internally calls getContext('webgl') or getContext('2d').
             // By calling getContext('webgl', { stencil: true }) first, we force the created context to have a stencil buffer.
             try {
-                canvas.getContext('webgl', { stencil: true, depth: true, antialias: true, alpha: true })
+                // Some Android devices need premultipliedAlpha: false for correct transparency in WeChat.
+                canvas.getContext('webgl', {
+                    stencil: true,
+                    depth: true,
+                    antialias: true,
+                    alpha: true,
+                    premultipliedAlpha: false
+                })
             } catch (e) {
                 console.warn('WebGL pre-init failed, falling back to default', e)
             }
@@ -125,10 +132,13 @@ const ensurePixiModule = async (canvas: any) => {
         if ((PIXI as any).settings && (PIXI as any).ENV) {
             // Default to WebGL1 on weapp for maximum compatibility and to dodge "Invalid context type [webgl2]" warnings.
             ; (PIXI as any).settings.PREFER_ENV = (PIXI as any).ENV.WEBGL
-            // Attempt to force stencil in default render options as well
+            // Attempt to force transparency in default render options as well
             if ((PIXI as any).settings.RENDER_OPTIONS) {
-                (PIXI as any).settings.RENDER_OPTIONS.stencil = true
-                    ; (PIXI as any).settings.RENDER_OPTIONS.transparent = true
+                const ro = (PIXI as any).settings.RENDER_OPTIONS
+                ro.stencil = true
+                ro.transparent = true
+                ro.backgroundAlpha = 0
+                ro.backgroundColor = 0xffffff // White fallback instead of black
             }
         }
         await installUnsafeEval(PIXI)
@@ -177,6 +187,7 @@ export const usePixi = (canvasId: string) => {
                 width: (info as any).width,
                 height: (info as any).height,
                 resolution: (info as any).dpr,
+                backgroundColor: 0xffffff, // Set white as background to avoid black even if alpha fails
                 backgroundAlpha: 0,
                 transparent: true, // Legacy support/mobile compatibility
                 autoDensity: true,

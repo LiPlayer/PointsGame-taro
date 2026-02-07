@@ -591,7 +591,7 @@ const PointsCard: FC<PointsCardProps> = ({
 
     return (
         <View
-            className={`bg-white gradient-border rounded-[32px] p-8 text-center shadow-card mb-auto relative overflow-hidden isolate mt-4 ${className}`}
+            className={`bg-white gradient-border rounded-[32px] p-8 text-center shadow-card mb-auto relative overflow-hidden mt-4 ${className}`}
             style={h5GradientBorderStyle}
             onTouchMove={handlePointerMove}
             onTouchStart={handlePointerMove}
@@ -609,8 +609,8 @@ const PointsCard: FC<PointsCardProps> = ({
                 id={canvasId}
                 canvasId={canvasId}
                 type="webgl"
-                className="absolute inset-0 w-full h-full z-0 pointer-events-none rounded-[32px]"
-                style={{ borderRadius: '32px' }}
+                className="absolute inset-0 w-full h-full z-0 pointer-events-none"
+                style={{ backgroundColor: 'transparent' }}
             />
 
             <View className="relative z-10 pointer-events-none">
