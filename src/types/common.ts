@@ -20,6 +20,14 @@ export interface PointRecord {
 }
 
 declare global {
+    interface Window {
+        PointsSystem?: {
+            add: (count: number) => void
+            consume: (count: number) => void
+            explode: () => void
+        }
+    }
+
     namespace NodeJS {
         interface ProcessEnv {
             TARO_ENV: 'weapp' | 'swan' | 'alipay' | 'tt' | 'h5' | 'rn' | 'qq' | 'jd' | 'quickapp'

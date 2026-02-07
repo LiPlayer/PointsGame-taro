@@ -39,14 +39,14 @@ const readCanvasInfo = async (id: string) => {
                 .select(`#${id}`)
                 .fields({ node: true, size: true, rect: true })
                 .exec((res) => {
-                    const info = res?.[0]
+                    const info = res && res[0]
                     if (!info || !info.node) {
                         resolve(null)
                         return
                     }
 
-                    const width = Number(info.width || info.rect?.width || 0)
-                    const height = Number(info.height || info.rect?.height || 0)
+                    const width = Number(info.width || (info.rect && info.rect.width) || 0)
+                    const height = Number(info.height || (info.rect && info.rect.height) || 0)
                     if (!width || !height) {
                         resolve(null)
                         return

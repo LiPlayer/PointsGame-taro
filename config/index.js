@@ -1,4 +1,5 @@
 import { defineConfig } from '@tarojs/cli'
+import path from 'path'
 
 import devConfig from './dev'
 import prodConfig from './prod'
@@ -8,6 +9,13 @@ import { UnifiedWebpackPluginV5 } from 'weapp-tailwindcss/webpack'
 
 export default defineConfig(async (merge, { command, mode }) => {
   const prebundleEnabled = false
+  const transpileForMini = [
+    // Pixi v7 ships modern syntax (e.g. optional chaining) that some MiniProgram runtimes/devtools can't parse.
+    // Force Babel/webpack to compile these deps for the mini build.
+    path.resolve(__dirname, '..', 'node_modules', 'pixi.js'),
+    path.resolve(__dirname, '..', 'node_modules', 'pixi-miniprogram'),
+    path.resolve(__dirname, '..', 'node_modules', '@pixi')
+  ]
   const baseConfig = {
     projectName: 'points-game-taro',
     date: '2026-2-4',
@@ -45,6 +53,9 @@ export default defineConfig(async (merge, { command, mode }) => {
     mini: {
       output: {
         clean: true
+      },
+      compile: {
+        include: transpileForMini
       },
       webpackChain(chain) {
         chain.merge({

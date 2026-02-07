@@ -21,8 +21,9 @@ page {
   background-color: #f8fafc;
   -webkit-overflow-scrolling: touch;
   /* System Font Stack for Premium Feel */
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
-    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -161,6 +162,30 @@ button {
   background-image:
     linear-gradient(white, white),
     linear-gradient(to top, rgba(241, 245, 249, 1), rgba(241, 245, 249, 0));
+}
+
+/* H5 fallback: some WebViews may not honor multi-value background-clip. */
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(to top, rgba(241, 245, 249, 1), rgba(241, 245, 249, 0));
+  pointer-events: none;
+  z-index: 1;
+
+  /* Cut the center out so only the border remains. */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.points-gradient-border {
+  padding: 1px;
+  border-radius: 32px;
+  background-color: rgba(241, 245, 249, 1);
+  background-image: linear-gradient(to top, rgba(241, 245, 249, 1), rgba(241, 245, 249, 0));
 }
 
 

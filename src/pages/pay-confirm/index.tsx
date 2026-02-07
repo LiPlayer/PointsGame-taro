@@ -1,9 +1,10 @@
 ﻿import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { FC } from 'react'
+import { FC, useMemo } from 'react'
 
 import BtnPrimary from '../../components/BtnPrimary'
 import LabelCaps from '../../components/LabelCaps'
+import { getWeappContentPaddingTopPx, isWeapp } from '../../utils/weappLayout'
 
 const SVG_CLOSE = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%222.5%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M6%2018L18%206M6%206l12%2012%22%2F%3E%3C%2Fsvg%3E"
 const SVG_STORE = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%222.5%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M16%2011V7a4%204%200%2000-8%200v4M5%209h14l1%2012H4L5%209z%22%2F%3E%3C%2Fsvg%3E"
@@ -22,8 +23,16 @@ const PayConfirm: FC = () => {
         Taro.redirectTo({ url: '/pages/pay-scan/index' })
     }
 
+    const contentPaddingTop = useMemo(
+        () => (isWeapp() ? getWeappContentPaddingTopPx(50, 12) : 50),
+        []
+    )
+
     return (
-        <View className="flex flex-col h-screen bg-[#f8fafc] px-6 pt-[50px] pb-[calc(24px+env(safe-area-inset-bottom))] justify-center">
+        <View
+            className={`flex flex-col h-screen bg-[#f8fafc] px-6 pb-[calc(24px+env(safe-area-inset-bottom))] justify-center ${isWeapp() ? '' : 'pt-[50px]'}`}
+            style={isWeapp() ? { paddingTop: `${contentPaddingTop}px` } : undefined}
+        >
             <View className="bg-white rounded-[40px] p-8 shadow-card border border-slate-100 box-border">
                 <View className="flex flex-col items-center mb-8 border-b border-slate-100 pb-8">
                     <View className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600 mb-4">

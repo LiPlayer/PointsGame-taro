@@ -1,6 +1,6 @@
 import { Canvas, Image, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { FC, useCallback, useEffect, useMemo, useRef } from 'react'
+import { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type * as PixiTypes from 'pixi.js'
 import LabelCaps from '../LabelCaps'
 import { usePixi } from '../../utils/usePixi'
@@ -56,6 +56,19 @@ const PointsCard: FC<PointsCardProps> = ({
     dailyPlayCount = 0,
     isActive = true
 }) => {
+    const [displayPoints, setDisplayPoints] = useState(points)
+    const displayPointsRef = useRef(points)
+    const h5GradientBorderStyle = useMemo(() => {
+        if (process.env.TARO_ENV !== 'h5') return undefined
+        return {
+            border: '1px solid transparent',
+            backgroundClip: 'padding-box, border-box',
+            backgroundOrigin: 'padding-box, border-box',
+            backgroundImage:
+                'linear-gradient(white, white), linear-gradient(to top, rgba(241, 245, 249, 1), rgba(241, 245, 249, 0))'
+        } as any
+    }, [])
+
     const canvasId = useMemo(
         () => `points-canvas-${Math.random().toString(36).slice(2, 8)}`,
         []
@@ -68,16 +81,54 @@ const PointsCard: FC<PointsCardProps> = ({
     const pointer = useRef({ x: -1000, y: -1000, active: false })
     const canvasRectRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null)
     const particles = useRef<Particle[]>([])
-    const currentPoints = useRef(points)
     const isActiveRef = useRef(isActive)
 
-    currentPoints.current = points
+    displayPointsRef.current = displayPoints
     isActiveRef.current = isActive
 
     const createStarTexture = (pixi: PixiModule, app: PixiTypes.Application) => {
         const size = 64
-        // Use Pixi Graphics to create the star texture.
-        // This is more stable across different Mini-program environments than using OffscreenCanvas.
+        if (process.env.TARO_ENV === 'h5' && typeof document !== 'undefined') {
+            const canvas = document.createElement('canvas')
+            canvas.width = size
+            canvas.height = size
+            const ctx = canvas.getContext('2d')
+            if (ctx) {
+                const cx = 32
+                const cy = 32
+                const r = 28
+
+                ctx.beginPath()
+                ctx.arc(cx, cy, r, 0, Math.PI * 2)
+                ctx.fillStyle = '#fde68a'
+                ctx.fill()
+
+                ctx.beginPath()
+                ctx.arc(cx, cy, r - 6, 0, Math.PI * 2)
+                ctx.fillStyle = '#ffffff'
+                ctx.fill()
+
+                ctx.translate(cx, cy)
+                ctx.beginPath()
+                ctx.fillStyle = '#f59e0b'
+                for (let i = 0; i < 5; i++) {
+                    ctx.lineTo(
+                        Math.cos((18 + i * 72) * Math.PI / 180) * 19,
+                        -Math.sin((18 + i * 72) * Math.PI / 180) * 19
+                    )
+                    ctx.lineTo(
+                        Math.cos((54 + i * 72) * Math.PI / 180) * 9,
+                        -Math.sin((54 + i * 72) * Math.PI / 180) * 9
+                    )
+                }
+                ctx.closePath()
+                ctx.fill()
+
+                return pixi.Texture.from(canvas as any)
+            }
+        }
+
+        // Fallback: Use Pixi Graphics for Mini-program stability.
         const g = new pixi.Graphics()
         g.beginFill(0xfde68a, 1)
         g.drawCircle(size / 2, size / 2, 28)
@@ -115,7 +166,7 @@ const PointsCard: FC<PointsCardProps> = ({
         y: number,
         particleContainer: PixiTypes.Container
     ): Particle => {
-        const texture = starTexture.current ?? pixi.Texture.WHITE
+        const texture = (starTexture.current !== null && starTexture.current !== undefined) ? starTexture.current : pixi.Texture.WHITE
         const sprite = new pixi.Sprite(texture)
         sprite.anchor.set(0.5)
         sprite.x = x
@@ -229,7 +280,33 @@ const PointsCard: FC<PointsCardProps> = ({
             }
         }
 
-        initParticles(currentPoints.current)
+        initParticles(displayPointsRef.current)
+
+        const canvas = app.view as any
+        const onMouseMove = (e: MouseEvent) => {
+            if (process.env.TARO_ENV !== 'h5') return
+            if (!canvas || typeof canvas.getBoundingClientRect !== 'function') return
+
+            const rect = canvas.getBoundingClientRect()
+            const x = e.clientX - rect.left
+            const y = e.clientY - rect.top
+
+            if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+                pointer.current.x = x
+                pointer.current.y = y
+                pointer.current.active = true
+            } else {
+                pointer.current.active = false
+            }
+        }
+        const onBlur = () => {
+            pointer.current.active = false
+        }
+
+        if (process.env.TARO_ENV === 'h5' && typeof window !== 'undefined') {
+            window.addEventListener('mousemove', onMouseMove)
+            window.addEventListener('blur', onBlur)
+        }
 
         const solvePhysics = () => {
             const grid: Record<string, Particle[]> = {}
@@ -323,9 +400,61 @@ const PointsCard: FC<PointsCardProps> = ({
 
         app.ticker.add(ticker)
 
+        if (process.env.TARO_ENV === 'h5' && typeof window !== 'undefined') {
+            window.PointsSystem = {
+                add: (count: number) => {
+                    const delta = Math.floor(count || 0)
+                    const next = Math.max(0, displayPointsRef.current + delta)
+                    displayPointsRef.current = next
+                    setDisplayPoints(next)
+
+                    const currentActive = particles.current.filter(p => !p.isDying).length
+                    const spaceLeft = Math.max(0, MAX_STARS - currentActive)
+                    const toAdd = Math.min(Math.max(0, delta), spaceLeft)
+                    const w = app.screen.width
+
+                    for (let i = 0; i < toAdd; i++) {
+                        const x = Math.random() * w
+                        const y = -20 - Math.random() * 100
+                        particles.current.push(createParticleLocal(x, y))
+                    }
+                },
+                consume: (count: number) => {
+                    const delta = Math.floor(count || 0)
+                    const next = Math.max(0, displayPointsRef.current - delta)
+                    displayPointsRef.current = next
+                    setDisplayPoints(next)
+
+                    const candidates = particles.current.filter(p => !p.isDying)
+                    for (let i = 0; i < delta; i++) {
+                        if (candidates.length > 0) {
+                            const idx = Math.floor(Math.random() * candidates.length)
+                            candidates[idx].isDying = true
+                        }
+                    }
+                },
+                explode: () => {
+                    for (const p of particles.current) {
+                        const force = 10 + Math.random() * 20
+                        const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI
+                        p.oldX = p.x - Math.cos(angle) * force
+                        p.oldY = p.y - Math.sin(angle) * force
+                        p.isSleeping = false
+                    }
+                }
+            }
+        }
+
         return () => {
             app.ticker.remove(ticker)
             createParticle.current = null
+            if (process.env.TARO_ENV === 'h5' && typeof window !== 'undefined') {
+                window.removeEventListener('mousemove', onMouseMove)
+                window.removeEventListener('blur', onBlur)
+            }
+            if (process.env.TARO_ENV === 'h5' && typeof window !== 'undefined') {
+                if (window.PointsSystem) delete window.PointsSystem
+            }
             if (particleContainerRef.current) {
                 particleContainerRef.current.destroy({ children: true })
             }
@@ -340,12 +469,13 @@ const PointsCard: FC<PointsCardProps> = ({
         Taro.createSelectorQuery()
             .select(`#${canvasId}`)
             .boundingClientRect((rect) => {
-                if (!rect) return
+                const r = Array.isArray(rect) ? rect[0] : rect
+                if (!r) return
                 canvasRectRef.current = {
-                    left: rect.left ?? 0,
-                    top: rect.top ?? 0,
-                    width: rect.width ?? 0,
-                    height: rect.height ?? 0
+                    left: r.left ?? 0,
+                    top: r.top ?? 0,
+                    width: r.width ?? 0,
+                    height: r.height ?? 0
                 }
             })
             .exec()
@@ -381,12 +511,12 @@ const PointsCard: FC<PointsCardProps> = ({
         const createParticleLocal = createParticle.current
         if (!app || !particleContainer || !createParticleLocal) return
 
-        const currentCount = particles.current.length
+        const currentActive = particles.current.filter(p => !p.isDying).length
         const nextPoints = Math.max(0, Math.floor(target))
-        const delta = nextPoints - currentCount
+        const delta = nextPoints - currentActive
 
         if (delta > 0) {
-            const spaceLeft = Math.max(0, MAX_STARS - currentCount)
+            const spaceLeft = Math.max(0, MAX_STARS - currentActive)
             const toAdd = Math.min(delta, spaceLeft)
             const w = app.screen.width
             for (let i = 0; i < toAdd; i++) {
@@ -400,25 +530,26 @@ const PointsCard: FC<PointsCardProps> = ({
             for (let i = 0; i < toRemove; i++) {
                 const idx = Math.floor(Math.random() * candidates.length)
                 candidates[idx].isDying = true
-                candidates.splice(idx, 1)
             }
         }
     }, [app])
 
     useEffect(() => {
+        setDisplayPoints(points)
+        displayPointsRef.current = points
         syncParticles(points)
     }, [points, syncParticles])
 
     const handlePointerMove = useCallback((event: any) => {
         if (!app) return
 
-        const touch = event?.touches?.[0] || event?.changedTouches?.[0]
+        const touch = (event && event.touches && event.touches[0]) || (event && event.changedTouches && event.changedTouches[0])
         if (!touch) return
 
         // Weapp: prefer page/client coords minus canvas rect for accurate mapping
         if (process.env.TARO_ENV === 'weapp') {
-            const pageX = touch?.pageX ?? touch?.clientX
-            const pageY = touch?.pageY ?? touch?.clientY
+            const pageX = touch && (touch.pageX !== undefined ? touch.pageX : touch.clientX)
+            const pageY = touch && (touch.pageY !== undefined ? touch.pageY : touch.clientY)
             const rect = canvasRectRef.current
             if (rect && typeof pageX === 'number' && typeof pageY === 'number') {
                 pointer.current.x = pageX - rect.left
@@ -427,8 +558,8 @@ const PointsCard: FC<PointsCardProps> = ({
                 return
             }
 
-            const x = touch?.x
-            const y = touch?.y
+            const x = touch && touch.x
+            const y = touch && touch.y
             if (typeof x === 'number' && typeof y === 'number') {
                 pointer.current.x = x
                 pointer.current.y = y
@@ -438,8 +569,8 @@ const PointsCard: FC<PointsCardProps> = ({
         }
 
         // H5 fallback / Other
-        const clientX = touch?.clientX ?? touch?.pageX ?? event?.clientX ?? event?.pageX
-        const clientY = touch?.clientY ?? touch?.pageY ?? event?.clientY ?? event?.pageY
+        const clientX = (touch && touch.clientX !== undefined) ? touch.clientX : ((touch && touch.pageX !== undefined) ? touch.pageX : ((event && event.clientX !== undefined) ? event.clientX : (event && event.pageX)))
+        const clientY = (touch && touch.clientY !== undefined) ? touch.clientY : ((touch && touch.pageY !== undefined) ? touch.pageY : ((event && event.clientY !== undefined) ? event.clientY : (event && event.pageY)))
 
         if (typeof clientX !== 'number' || typeof clientY !== 'number') return
 
@@ -458,6 +589,7 @@ const PointsCard: FC<PointsCardProps> = ({
     return (
         <View
             className={`bg-white gradient-border rounded-[32px] p-8 text-center shadow-card mb-auto relative overflow-hidden isolate mt-4 ${className}`}
+            style={h5GradientBorderStyle}
             onTouchMove={handlePointerMove}
             onTouchStart={handlePointerMove}
             onTouchEnd={handlePointerEnd}
@@ -481,7 +613,7 @@ const PointsCard: FC<PointsCardProps> = ({
             <View className="relative z-10 pointer-events-none">
                 <LabelCaps className="block mb-2">当前可用积分</LabelCaps>
                 <View className="text-6xl font-black text-slate-900 tracking-tighter mix-blend-multiply">
-                    {formatNumber(points)}
+                    {formatNumber(displayPoints)}
                 </View>
                 <View className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-amber-50/80 backdrop-blur-sm text-amber-700 rounded-full text-[10px] font-bold shadow-sm">
                     <Image src={SVG_THUNDER_AMBER} className="w-3 h-3" />

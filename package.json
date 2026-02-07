@@ -18,8 +18,9 @@
     "dev:h5": "npm run clean && cross-env TARO_PREBUNDLE=0 taro build --type h5 --watch"
   },
   "browserslist": [
-    "defaults and fully supports es6-module",
-    "maintained node versions"
+    "last 3 versions",
+    "Android >= 4.1",
+    "ios >= 8"
   ],
   "author": "",
   "dependencies": {

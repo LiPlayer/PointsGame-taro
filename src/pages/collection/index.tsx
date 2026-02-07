@@ -19,13 +19,13 @@ const Collection: FC = () => {
     }
 
     return (
-        <View className="flex flex-col h-screen box-border px-6 pt-[50px] pb-[calc(16px+env(safe-area-inset-bottom))] bg-[#f8fafc]">
+        <View className="flex flex-col h-screen box-border px-6 pt-[50px] pb-[calc(16px+env(safe-area-inset-bottom))] bg-white">
             <View className="flex items-center gap-4 mb-8">
-                <NavClose className="!relative !top-0 !left-0" onClick={goHome} />
+                <NavClose className="!relative !top-0 !left-0 !bg-slate-50" onClick={goHome} />
                 <Text className="text-xl font-black text-slate-900">已收集的游戏</Text>
             </View>
 
-            <View className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-hide">
+            <View className="flex-1 overflow-y-auto space-y-4 pr-1">
                 <View className="bg-white p-5 rounded-[28px] border border-slate-100 shadow-sm flex items-center justify-between">
                     <View className="flex items-center gap-4">
                         <View className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600">
@@ -37,7 +37,7 @@ const Collection: FC = () => {
                         </View>
                     </View>
                     <View
-                        className="px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-bold flex items-center gap-1 active:opacity-80"
+                        className="px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-bold flex items-center gap-1 active:scale-95 transition"
                         onClick={() => handleReplay(1)}
                     >
                         <Image src={SVG_REPLAY} className="w-3 h-3 text-white" />
@@ -56,7 +56,7 @@ const Collection: FC = () => {
                         </View>
                     </View>
                     <View
-                        className="px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-bold flex items-center gap-1 active:opacity-80"
+                        className="px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-bold flex items-center gap-1 active:scale-95 transition"
                         onClick={() => handleReplay(2)}
                     >
                         <Image src={SVG_REPLAY} className="w-3 h-3 text-white" />

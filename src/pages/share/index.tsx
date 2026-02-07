@@ -1,9 +1,10 @@
 ﻿import { View, Text, Image, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { useState, FC } from 'react'
+import { useState, FC, useMemo } from 'react'
 
 import LabelCaps from '../../components/LabelCaps'
 import NavClose from '../../components/NavClose'
+import { getWeappContentPaddingTopPx, isWeapp } from '../../utils/weappLayout'
 
 const SVG_QR_PLACEHOLDER = "data:image/svg+xml,%3Csvg%20fill%3D%22currentColor%22%20viewBox%3D%220%200%2024%2024%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M3%203h8v8H3V3zm10%200h8v8h-8V3zM3%2013h8v8H3v-8zm13%200h5v2h-5v-2zm0%203h2v5h-2v-5zm3%200h2v2h-2v-2zm0%203h2v2h-2v-2z%22%2F%3E%3C%2Fsvg%3E"
 const SVG_SEND_ICON = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%222.5%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M12%2019l9%202-9-18-9%2018%209-2zm0%200v-8%22%2F%3E%3C%2Fsvg%3E"
@@ -24,8 +25,16 @@ const Share: FC = () => {
         })
     }
 
+    const contentPaddingTop = useMemo(
+        () => (isWeapp() ? getWeappContentPaddingTopPx(50, 12) : 50),
+        []
+    )
+
     return (
-        <View className="flex flex-col h-screen bg-[#f8fafc] pt-[50px] pb-[calc(24px+env(safe-area-inset-bottom))]">
+        <View
+            className={`flex flex-col h-screen bg-[#f8fafc] pb-[calc(24px+env(safe-area-inset-bottom))] ${isWeapp() ? '' : 'pt-[50px]'}`}
+            style={isWeapp() ? { paddingTop: `${contentPaddingTop}px` } : undefined}
+        >
             <NavClose onClick={goHome} />
 
             <View className="flex-1 bg-white rounded-b-[40px] shadow-sm flex flex-col items-center justify-center p-8 relative z-0 box-border">
@@ -50,7 +59,7 @@ const Share: FC = () => {
                         type="number"
                         value={amount}
                         onInput={e => setAmount(e.detail.value)}
-                        className="w-full text-3xl font-black bg-white border border-slate-200 rounded-2xl py-4 px-6 text-slate-900 focus:border-rose-500"
+                        className="w-full text-3xl font-black bg-white border border-slate-200 rounded-2xl py-4 px-6 text-slate-900 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
                     />
                 </View>
 

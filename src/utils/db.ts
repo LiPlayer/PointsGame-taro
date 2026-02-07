@@ -81,6 +81,9 @@ export async function saveDBUser(data: UserData): Promise<{ success: boolean; er
 
             if (existing.length > 0) {
                 const docId = existing[0]._id
+                if (docId === undefined || docId === null) {
+                    throw new Error('[DB] Missing document _id for existing user record')
+                }
                 const { _id, _openid, ...updateBody } = data as any
 
                 if (typeof updateBody.points === 'number') {
