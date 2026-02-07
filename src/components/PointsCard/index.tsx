@@ -1,4 +1,5 @@
-﻿import { Canvas, Image, Text, View } from '@tarojs/components'
+import { Canvas, Image, Text, View } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import { FC, useCallback, useEffect, useMemo, useRef } from 'react'
 import type * as PixiTypes from 'pixi.js'
 import LabelCaps from '../LabelCaps'
@@ -65,6 +66,7 @@ const PointsCard: FC<PointsCardProps> = ({
     const starTexture = useRef<PixiTypes.Texture | null>(null)
     const createParticle = useRef<((x: number, y: number) => Particle) | null>(null)
     const pointer = useRef({ x: -1000, y: -1000, active: false })
+    const canvasRectRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null)
     const particles = useRef<Particle[]>([])
     const currentPoints = useRef(points)
     const isActiveRef = useRef(isActive)
@@ -333,6 +335,46 @@ const PointsCard: FC<PointsCardProps> = ({
             particles.current = []
         }
     }, [app, pixi])
+    const refreshCanvasRect = useCallback(() => {
+        if (process.env.TARO_ENV !== 'weapp') return
+        Taro.createSelectorQuery()
+            .select(`#${canvasId}`)
+            .boundingClientRect((rect) => {
+                if (!rect) return
+                canvasRectRef.current = {
+                    left: rect.left ?? 0,
+                    top: rect.top ?? 0,
+                    width: rect.width ?? 0,
+                    height: rect.height ?? 0
+                }
+            })
+            .exec()
+    }, [canvasId])
+
+    useEffect(() => {
+        if (process.env.TARO_ENV !== 'weapp' || !app) return
+
+        const run = () => {
+            if (typeof Taro.nextTick === 'function') {
+                Taro.nextTick(() => refreshCanvasRect())
+            } else {
+                setTimeout(() => refreshCanvasRect(), 0)
+            }
+        }
+
+        run()
+
+        const onResize = () => refreshCanvasRect()
+        if (typeof Taro.onWindowResize === 'function') {
+            Taro.onWindowResize(onResize)
+        }
+
+        return () => {
+            if (typeof Taro.offWindowResize === 'function') {
+                Taro.offWindowResize(onResize)
+            }
+        }
+    }, [app, refreshCanvasRect])
 
     const syncParticles = useCallback((target: number) => {
         const particleContainer = particleContainerRef.current
@@ -373,10 +415,20 @@ const PointsCard: FC<PointsCardProps> = ({
         const touch = event?.touches?.[0] || event?.changedTouches?.[0]
         if (!touch) return
 
-        // Weapp provides x/y relative to the component in the touch object
+        // Weapp: prefer page/client coords minus canvas rect for accurate mapping
         if (process.env.TARO_ENV === 'weapp') {
-            const x = touch.x
-            const y = touch.y
+            const pageX = touch?.pageX ?? touch?.clientX
+            const pageY = touch?.pageY ?? touch?.clientY
+            const rect = canvasRectRef.current
+            if (rect && typeof pageX === 'number' && typeof pageY === 'number') {
+                pointer.current.x = pageX - rect.left
+                pointer.current.y = pageY - rect.top
+                pointer.current.active = true
+                return
+            }
+
+            const x = touch?.x
+            const y = touch?.y
             if (typeof x === 'number' && typeof y === 'number') {
                 pointer.current.x = x
                 pointer.current.y = y
@@ -446,6 +498,8 @@ PointsCard.options = {
 }
 
 export default PointsCard
+
+
 
 
 
