@@ -191,9 +191,13 @@ export const usePixi = (canvasId: string) => {
                 backgroundAlpha: 0,
                 transparent: true, // Legacy support/mobile compatibility
                 autoDensity: true,
-                antialias: true,
+                antialias: process.env.TARO_ENV === 'weapp' ? false : true, // Disable antialias on mobile for speed
                 stencil: true // Explicitly enable to suppress Pixi warnings
             } as any)
+
+            if (createdApp && createdApp.renderer) {
+                console.log('usePixi: Renderer type:', createdApp.renderer.type === (PIXI as any).RENDERER_TYPE.WEBGL ? 'WebGL' : 'Canvas')
+            }
 
             if (!cancelled) {
                 setPixi(PIXI)

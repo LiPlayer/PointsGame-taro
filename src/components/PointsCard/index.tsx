@@ -33,22 +33,6 @@ const CONFIG = {
 }
 const cellSize = CONFIG.radius * 2.2
 
-interface Particle {
-    sprite: PixiTypes.Sprite
-    x: number
-    y: number
-    oldX: number
-    oldY: number
-    radius: number
-    angle: number
-    angularVelocity: number
-    z: number
-    isSleeping: boolean
-    isDying: boolean
-    deathTimer: number
-    baseScale: number
-    update: (width: number, height: number) => void
-}
 
 const PointsCard: FC<PointsCardProps> = ({
     className = '',
@@ -56,8 +40,11 @@ const PointsCard: FC<PointsCardProps> = ({
     dailyPlayCount = 0,
     isActive = true
 }) => {
-    const [displayPoints, setDisplayPoints] = useState(points)
+    // Optimization: Remove displayPoints state to prevent React re-renders on every point change.
+    // Instead, we manipulate the DOM directly via displayRef.
     const displayPointsRef = useRef(points)
+    const displayRef = useRef<HTMLDivElement>(null)
+
     const h5GradientBorderStyle = useMemo(() => {
         if (process.env.TARO_ENV !== 'h5') return undefined
         return {
@@ -77,14 +64,39 @@ const PointsCard: FC<PointsCardProps> = ({
     const { app, pixi } = usePixi(canvasId)
     const particleContainerRef = useRef<PixiTypes.Container | null>(null)
     const starTexture = useRef<PixiTypes.Texture | null>(null)
-    const createParticle = useRef<((x: number, y: number) => Particle) | null>(null)
     const pointer = useRef({ x: -1000, y: -1000, active: false })
     const canvasRectRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null)
-    const particles = useRef<Particle[]>([])
-    const isActiveRef = useRef(isActive)
 
-    displayPointsRef.current = displayPoints
+    // Optimized State for 3000 particles
+    const posX = useRef(new Float32Array(MAX_STARS))
+    const posY = useRef(new Float32Array(MAX_STARS))
+    const oldX = useRef(new Float32Array(MAX_STARS))
+    const oldY = useRef(new Float32Array(MAX_STARS))
+    const angles = useRef(new Float32Array(MAX_STARS))
+    const angVels = useRef(new Float32Array(MAX_STARS))
+    const radii = useRef(new Float32Array(MAX_STARS))
+    const zs = useRef(new Float32Array(MAX_STARS))
+    const statuses = useRef(new Uint8Array(MAX_STARS)) // 0: active, 1: sleeping, 2: dying
+    const deathTimers = useRef(new Float32Array(MAX_STARS))
+    const baseScales = useRef(new Float32Array(MAX_STARS))
+    const sprites = useRef<(PixiTypes.Sprite | null)[]>(new Array(MAX_STARS).fill(null))
+    const currentCount = useRef(0)
+    const gridHeads = useRef<Int32Array | null>(null)
+    const gridNexts = useRef<Int32Array | null>(null)
+
+    const STATUS_ACTIVE = 0
+    const STATUS_SLEEPING = 1
+    const STATUS_DYING = 2
+
+    const isActiveRef = useRef(isActive)
     isActiveRef.current = isActive
+
+    // Helper: Update point text without triggering React state
+    const updatePointDisplay = (val: number) => {
+        if (displayRef.current) {
+            displayRef.current.innerText = formatNumber(val)
+        }
+    }
 
     const createStarTexture = (pixi: PixiModule, app: PixiTypes.Application) => {
         const size = 64
@@ -128,7 +140,6 @@ const PointsCard: FC<PointsCardProps> = ({
             }
         }
 
-        // Fallback: Use Pixi Graphics for Mini-program stability.
         const g = new pixi.Graphics()
         g.beginFill(0xfde68a, 1)
         g.drawCircle(size / 2, size / 2, 28)
@@ -160,127 +171,71 @@ const PointsCard: FC<PointsCardProps> = ({
         return tex
     }
 
-    const ParticleImpl = (
-        pixi: PixiModule,
-        x: number,
-        y: number,
-        particleContainer: PixiTypes.Container
-    ): Particle => {
-        const texture = (starTexture.current !== null && starTexture.current !== undefined) ? starTexture.current : pixi.Texture.WHITE
-        const sprite = new pixi.Sprite(texture)
-        sprite.anchor.set(0.5)
+    const createParticleAt = (idx: number, x: number, y: number, pixi: PixiModule, container: PixiTypes.Container) => {
+        const texture = starTexture.current || pixi.Texture.WHITE
+        let sprite = sprites.current[idx]
+        if (!sprite) {
+            sprite = new pixi.Sprite(texture)
+            sprite.anchor.set(0.5)
+            container.addChild(sprite)
+            sprites.current[idx] = sprite
+        }
+        sprite.visible = true
         sprite.x = x
         sprite.y = y
 
-        const particle: Particle = {
-            sprite,
-            x,
-            y,
-            oldX: x + (Math.random() - 0.5) * 2,
-            oldY: y + (Math.random() - 0.5) * 2,
-            radius: CONFIG.radius * (0.8 + Math.random() * 0.4),
-            angle: Math.random() * Math.PI * 2,
-            angularVelocity: (Math.random() - 0.5) * 0.2,
-            z: Math.floor(Math.random() * 3) / 2,
-            isSleeping: false,
-            isDying: false,
-            deathTimer: 0,
-            baseScale: 1,
-            update: () => { }
-        }
+        posX.current[idx] = x
+        posY.current[idx] = y
+        oldX.current[idx] = x + (Math.random() - 0.5) * 2
+        oldY.current[idx] = y + (Math.random() - 0.5) * 2
+        radii.current[idx] = CONFIG.radius * (0.8 + Math.random() * 0.4)
+        angles.current[idx] = Math.random() * Math.PI * 2
+        angVels.current[idx] = (Math.random() - 0.5) * 0.2
+        zs.current[idx] = Math.floor(Math.random() * 3) / 2
+        statuses.current[idx] = STATUS_ACTIVE
+        deathTimers.current[idx] = 0
 
-        const sizeScale = (particle.radius * 2) / 64
-        const depthScale = 0.5 + particle.z * 0.7
-        particle.baseScale = sizeScale * depthScale
-        sprite.scale.set(particle.baseScale)
-        sprite.alpha = particle.z > 0.7 ? 1.0 : 0.6 + particle.z * 0.4
-
-        particle.update = (width: number, height: number) => {
-            if (particle.isDying) {
-                particle.deathTimer += 0.02
-                if (particle.deathTimer < 0.4) {
-                    particle.y -= 2
-                    particle.angle += 0.1
-                } else {
-                    const phase2 = (particle.deathTimer - 0.4) / 0.6
-                    const dyingScale = Math.max(0, 1 - phase2)
-                    sprite.scale.set(particle.baseScale * dyingScale)
-                    particle.angle += 0.3
-                    particle.y -= 1
-                    sprite.alpha = 1 - phase2
-                }
-                sprite.x = particle.x
-                sprite.y = particle.y
-                sprite.rotation = particle.angle
-                return
-            }
-
-            if (particle.isSleeping) return
-
-            const vx = (particle.x - particle.oldX) * CONFIG.friction
-            const vy = (particle.y - particle.oldY) * CONFIG.friction
-
-            particle.oldX = particle.x
-            particle.oldY = particle.y
-            particle.x += vx
-            particle.y += vy + CONFIG.gravity
-            particle.angle += particle.angularVelocity
-
-            if (particle.y + particle.radius > height) {
-                particle.y = height - particle.radius
-                const impact = vy
-                particle.oldY = particle.y + impact * 0.5
-                particle.angularVelocity *= 0.9
-            }
-
-            if (particle.x + particle.radius > width) {
-                particle.x = width - particle.radius
-                particle.oldX = particle.x + vx * 0.5
-            } else if (particle.x - particle.radius < 0) {
-                particle.x = particle.radius
-                particle.oldX = particle.x + vx * 0.5
-            }
-
-            sprite.x = particle.x
-            sprite.y = particle.y
-            sprite.rotation = particle.angle
-        }
-
-        particleContainer.addChild(sprite)
-        return particle
+        const sizeScale = (radii.current[idx] * 2) / 64
+        const depthScale = 0.5 + zs.current[idx] * 0.7
+        baseScales.current[idx] = sizeScale * depthScale
+        sprite.scale.set(baseScales.current[idx])
+        sprite.alpha = zs.current[idx] > 0.7 ? 1.0 : 0.6 + zs.current[idx] * 0.4
     }
 
     useEffect(() => {
         if (!app || !pixi) return
 
         starTexture.current = createStarTexture(pixi, app)
-        const particleContainer = new pixi.Container()
+        const particleContainer = new pixi.ParticleContainer(MAX_STARS, {
+            scale: true,
+            position: true,
+            rotation: true,
+            alpha: true
+        })
         app.stage.addChild(particleContainer)
         particleContainerRef.current = particleContainer
 
-        const createParticleLocal = (x: number, y: number) =>
-            ParticleImpl(pixi, x, y, particleContainer)
-        createParticle.current = createParticleLocal
-
         const initParticles = (count: number) => {
             particleContainer.removeChildren()
-            particles.current = []
+            sprites.current.fill(null)
+            const n = Math.min(count, MAX_STARS)
+            currentCount.current = n
 
             const w = app.screen.width
             const h = app.screen.height
             const cols = Math.max(1, Math.floor(w / (CONFIG.radius * 2)))
-            const total = Math.min(Math.max(count, 0), MAX_STARS)
 
-            for (let i = 0; i < total; i++) {
+            for (let i = 0; i < n; i++) {
                 const col = i % cols
                 const row = Math.floor(i / cols)
                 const x = (col + 0.5) * (CONFIG.radius * 2) + (Math.random() - 0.5) * 5
                 const y = h - (row + 0.5) * (CONFIG.radius * 2) - 20
-                particles.current.push(createParticleLocal(x, y))
+                createParticleAt(i, x, y, pixi, particleContainer)
             }
         }
 
         initParticles(displayPointsRef.current)
+        updatePointDisplay(displayPointsRef.current)
 
         const canvas = app.view as any
         const onMouseMove = (e: MouseEvent) => {
@@ -309,66 +264,85 @@ const PointsCard: FC<PointsCardProps> = ({
         }
 
         const solvePhysics = () => {
-            const grid: Record<string, Particle[]> = {}
-            const activeParticles = particles.current
+            const count = currentCount.current
+            const w = app.screen.width
+            const h = app.screen.height
+            const cols = Math.ceil(w / cellSize)
+            const rows = Math.ceil(h / cellSize)
+            const gridCount = cols * rows
 
-            for (const p of activeParticles) {
-                if (p.isDying) continue
-                const key = `${Math.floor(p.x / cellSize)},${Math.floor(p.y / cellSize)}`
-                if (!grid[key]) grid[key] = []
-                grid[key].push(p)
+            if (!gridHeads.current || gridHeads.current.length < gridCount) gridHeads.current = new Int32Array(gridCount)
+            if (!gridNexts.current || gridNexts.current.length < MAX_STARS) gridNexts.current = new Int32Array(MAX_STARS)
+
+            const heads = gridHeads.current
+            const nexts = gridNexts.current
+            heads.fill(-1)
+
+            const px = posX.current
+            const py = posY.current
+            const rads = radii.current
+            const sts = statuses.current
+            const zz = zs.current
+
+            for (let i = 0; i < count; i++) {
+                if (sts[i] === STATUS_DYING) continue
+                const cx = Math.floor(px[i] / cellSize)
+                const cy = Math.floor(py[i] / cellSize)
+                if (cx >= 0 && cx < cols && cy >= 0 && cy < rows) {
+                    const key = cx + cy * cols
+                    nexts[i] = heads[key]
+                    heads[key] = i
+                } else nexts[i] = -1
             }
 
-            for (const p of activeParticles) {
-                if (p.isDying) continue
+            const repulsionRadiusSq = CONFIG.repulsionRadius * CONFIG.repulsionRadius
+            const ptrX = pointer.current.x
+            const ptrY = pointer.current.y
+            const ptrActive = pointer.current.active
 
-                if (pointer.current.active) {
-                    const dx = p.x - pointer.current.x
-                    const dy = p.y - pointer.current.y
+            for (let i = 0; i < count; i++) {
+                if (sts[i] !== STATUS_ACTIVE) continue
+
+                if (ptrActive) {
+                    const dx = px[i] - ptrX
+                    const dy = py[i] - ptrY
                     const distSq = dx * dx + dy * dy
-                    const radiusSq = CONFIG.repulsionRadius * CONFIG.repulsionRadius
-
-                    if (distSq < radiusSq) {
+                    if (distSq < repulsionRadiusSq) {
                         const dist = Math.sqrt(distSq)
                         const force = (1 - dist / CONFIG.repulsionRadius) * CONFIG.repulsionForce
                         const angle = Math.atan2(dy, dx)
-                        p.x += Math.cos(angle) * force * 2
-                        p.y += Math.sin(angle) * force * 2
-                        p.isSleeping = false
+                        px[i] += Math.cos(angle) * force * 2
+                        py[i] += Math.sin(angle) * force * 2
+                        sts[i] = STATUS_ACTIVE // Wake up if touched
                     }
                 }
 
-                const cellX = Math.floor(p.x / cellSize)
-                const cellY = Math.floor(p.y / cellSize)
-
+                const cellX = Math.floor(px[i] / cellSize)
+                const cellY = Math.floor(py[i] / cellSize)
                 for (let cx = cellX - 1; cx <= cellX + 1; cx++) {
+                    if (cx < 0 || cx >= cols) continue
                     for (let cy = cellY - 1; cy <= cellY + 1; cy++) {
-                        const key = `${cx},${cy}`
-                        const cell = grid[key]
-                        if (!cell) continue
-
-                        for (const other of cell) {
-                            if (p === other) continue
-                            if (Math.abs(p.z - other.z) > 0.1) continue
-
-                            const dx = p.x - other.x
-                            const dy = p.y - other.y
-                            const distSq = dx * dx + dy * dy
-                            const minDist = p.radius + other.radius
-
-                            if (distSq < minDist * minDist && distSq > 0) {
-                                const dist = Math.sqrt(distSq)
-                                const overlap = minDist - dist
-                                const nx = dx / dist
-                                const ny = dy / dist
-                                const factor = 0.5
-                                p.x += nx * overlap * factor
-                                p.y += ny * overlap * factor
-                                other.x -= nx * overlap * factor
-                                other.y -= ny * overlap * factor
-                                p.isSleeping = false
-                                other.isSleeping = false
+                        if (cy < 0 || cy >= rows) continue
+                        const cellKey = cx + cy * cols
+                        let oIdx = heads[cellKey]
+                        while (oIdx !== -1) {
+                            if (i !== oIdx) {
+                                if (Math.abs(zz[i] - zz[oIdx]) < 0.1) {
+                                    const dx = px[i] - px[oIdx]
+                                    const dy = py[i] - py[oIdx]
+                                    const distSq = dx * dx + dy * dy
+                                    const minDist = rads[i] + rads[oIdx]
+                                    if (distSq < minDist * minDist && distSq > 0) {
+                                        const dist = Math.sqrt(distSq)
+                                        const overlap = (minDist - dist) * 0.5
+                                        const nx = dx / dist, ny = dy / dist
+                                        px[i] += nx * overlap; py[i] += ny * overlap
+                                        px[oIdx] -= nx * overlap; py[oIdx] -= ny * overlap
+                                        sts[i] = STATUS_ACTIVE; sts[oIdx] = STATUS_ACTIVE
+                                    }
+                                }
                             }
+                            oIdx = nexts[oIdx]
                         }
                     }
                 }
@@ -379,68 +353,121 @@ const PointsCard: FC<PointsCardProps> = ({
             if (!isActiveRef.current) return
             if (!app.ticker || (app.ticker as any)._destroyed) return
 
+            const count = currentCount.current
             const w = app.screen.width
             const h = app.screen.height
+            const px = posX.current; const py = posY.current
+            const ox = oldX.current; const oy = oldY.current
+            const ags = angles.current; const avs = angVels.current
+            const rads = radii.current; const sts = statuses.current
+            const dts = deathTimers.current; const bsc = baseScales.current
+            const sps = sprites.current
 
-            for (let i = particles.current.length - 1; i >= 0; i--) {
-                const p = particles.current[i]
-                if (p.isDying && p.deathTimer >= 1.0) {
-                    particleContainer.removeChild(p.sprite)
-                    p.sprite.destroy()
-                    particles.current.splice(i, 1)
+            const ptrActive = pointer.current.active
+            const ptrX = pointer.current.x; const ptrY = pointer.current.y
+            const repSq = CONFIG.repulsionRadius * CONFIG.repulsionRadius
+
+            for (let i = 0; i < count; i++) {
+                const s = sps[i]
+                if (!s) continue
+
+                if (sts[i] === STATUS_DYING) {
+                    dts[i] += 0.02
+                    if (dts[i] >= 1.0) { s.visible = false; continue }
+                    if (dts[i] < 0.4) { py[i] -= 2; ags[i] += 0.1 }
+                    else {
+                        const phase2 = (dts[i] - 0.4) / 0.6
+                        s.scale.set(bsc[i] * Math.max(0, 1 - phase2))
+                        ags[i] += 0.3; py[i] -= 1; s.alpha = 1 - phase2
+                    }
+                    s.x = px[i]; s.y = py[i]; s.rotation = ags[i]
+                    continue
+                }
+
+                if (sts[i] === STATUS_SLEEPING) {
+                    if (ptrActive) {
+                        const dx = px[i] - ptrX, dy = py[i] - ptrY
+                        if (dx * dx + dy * dy < repSq) sts[i] = STATUS_ACTIVE
+                    }
+                    continue
+                }
+
+                const vx = (px[i] - ox[i]) * CONFIG.friction
+                const vy = (py[i] - oy[i]) * CONFIG.friction
+                ox[i] = px[i]; oy[i] = py[i]
+                px[i] += vx; py[i] += vy + CONFIG.gravity
+                ags[i] += avs[i]
+
+                // Boundary checks
+                if (py[i] + rads[i] > h) { py[i] = h - rads[i]; oy[i] = py[i] + vy * 0.5; avs[i] *= 0.9 }
+                if (px[i] + rads[i] > w) { px[i] = w - rads[i]; ox[i] = px[i] + vx * 0.5 }
+                else if (px[i] - rads[i] < 0) { px[i] = rads[i]; ox[i] = px[i] + vx * 0.5 }
+
+                // Sleep detection
+                if (Math.abs(vx) < 0.05 && Math.abs(vy) < 0.05 && py[i] > h - rads[i] - 2) {
+                    if (!ptrActive || (px[i] - ptrX) ** 2 + (py[i] - ptrY) ** 2 > repSq) sts[i] = STATUS_SLEEPING
                 }
             }
 
-            for (const p of particles.current) {
-                p.update(w, h)
-            }
+            // Align with Prototype: Run physics iterations multiple times for stability
+            solvePhysics()
+            solvePhysics()
 
-            solvePhysics()
-            solvePhysics()
+            // Final Sync: Move sprites AFTER all physics steps to ensure frame-perfect visual stability
+            for (let i = 0; i < count; i++) {
+                const s = sps[i]
+                if (s && sts[i] !== STATUS_DYING && sts[i] !== STATUS_SLEEPING) {
+                    s.x = px[i]; s.y = py[i]; s.rotation = ags[i]
+                }
+            }
         }
 
         app.ticker.add(ticker)
 
         if (process.env.TARO_ENV === 'h5' && typeof window !== 'undefined') {
-            window.PointsSystem = {
+            (window as any).PointsSystem = {
                 add: (count: number) => {
                     const delta = Math.floor(count || 0)
                     const next = Math.max(0, displayPointsRef.current + delta)
                     displayPointsRef.current = next
-                    setDisplayPoints(next)
+                    updatePointDisplay(next)
 
-                    const currentActive = particles.current.filter(p => !p.isDying).length
-                    const spaceLeft = Math.max(0, MAX_STARS - currentActive)
-                    const toAdd = Math.min(Math.max(0, delta), spaceLeft)
                     const w = app.screen.width
+                    const currentTotal = currentCount.current
+                    const toAdd = Math.min(delta, MAX_STARS - currentTotal)
 
                     for (let i = 0; i < toAdd; i++) {
+                        const idx = currentTotal + i
                         const x = Math.random() * w
                         const y = -20 - Math.random() * 100
-                        particles.current.push(createParticleLocal(x, y))
+                        createParticleAt(idx, x, y, pixi, particleContainer)
                     }
+                    currentCount.current += toAdd
                 },
                 consume: (count: number) => {
                     const delta = Math.floor(count || 0)
                     const next = Math.max(0, displayPointsRef.current - delta)
                     displayPointsRef.current = next
-                    setDisplayPoints(next)
+                    updatePointDisplay(next)
 
-                    const candidates = particles.current.filter(p => !p.isDying)
-                    for (let i = 0; i < delta; i++) {
-                        if (candidates.length > 0) {
-                            const idx = Math.floor(Math.random() * candidates.length)
-                            candidates[idx].isDying = true
+                    let killed = 0
+                    const total = currentCount.current
+                    for (let i = 0; i < total && killed < delta; i++) {
+                        if (statuses.current[i] !== STATUS_DYING) {
+                            statuses.current[i] = STATUS_DYING
+                            deathTimers.current[i] = 0
+                            killed++
                         }
                     }
                 },
                 explode: () => {
-                    for (const p of particles.current) {
+                    const n = currentCount.current
+                    for (let i = 0; i < n; i++) {
                         const force = 10 + Math.random() * 20
                         const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI
-                        p.oldX = p.x - Math.cos(angle) * force
-                        p.oldY = p.y - Math.sin(angle) * force
-                        p.isSleeping = false
+                        oldX.current[i] = posX.current[i] - Math.cos(angle) * force
+                        oldY.current[i] = posY.current[i] - Math.sin(angle) * force
+                        statuses.current[i] = STATUS_ACTIVE
                     }
                 }
             }
@@ -450,13 +477,12 @@ const PointsCard: FC<PointsCardProps> = ({
             if (app && app.ticker) {
                 app.ticker.remove(ticker)
             }
-            createParticle.current = null
             if (process.env.TARO_ENV === 'h5' && typeof window !== 'undefined') {
                 window.removeEventListener('mousemove', onMouseMove)
                 window.removeEventListener('blur', onBlur)
             }
             if (process.env.TARO_ENV === 'h5' && typeof window !== 'undefined') {
-                if (window.PointsSystem) delete window.PointsSystem
+                if ((window as any).PointsSystem) delete (window as any).PointsSystem
             }
             if (particleContainerRef.current) {
                 particleContainerRef.current.destroy({ children: true })
@@ -464,9 +490,9 @@ const PointsCard: FC<PointsCardProps> = ({
             if (starTexture.current) {
                 starTexture.current.destroy(true)
             }
-            particles.current = []
         }
     }, [app, pixi])
+
     const refreshCanvasRect = useCallback(() => {
         if (process.env.TARO_ENV !== 'weapp') return
         Taro.createSelectorQuery()
@@ -511,35 +537,43 @@ const PointsCard: FC<PointsCardProps> = ({
 
     const syncParticles = useCallback((target: number) => {
         const particleContainer = particleContainerRef.current
-        const createParticleLocal = createParticle.current
-        if (!app || !particleContainer || !createParticleLocal) return
+        if (!app || !particleContainer || !pixi) return
 
-        const currentActive = particles.current.filter(p => !p.isDying).length
+        const currentTotal = currentCount.current
+        let currentActive = 0
+        for (let i = 0; i < currentTotal; i++) {
+            if (statuses.current[i] !== STATUS_DYING) currentActive++
+        }
+
         const nextPoints = Math.max(0, Math.floor(target))
         const delta = nextPoints - currentActive
 
         if (delta > 0) {
-            const spaceLeft = Math.max(0, MAX_STARS - currentActive)
+            const spaceLeft = MAX_STARS - currentTotal
             const toAdd = Math.min(delta, spaceLeft)
             const w = app.screen.width
             for (let i = 0; i < toAdd; i++) {
+                const idx = currentTotal + i
                 const x = Math.random() * w
                 const y = -20 - Math.random() * 100
-                particles.current.push(createParticleLocal(x, y))
+                createParticleAt(idx, x, y, pixi, particleContainer)
             }
+            currentCount.current += toAdd
         } else if (delta < 0) {
-            const candidates = particles.current.filter(p => !p.isDying)
-            const toRemove = Math.min(candidates.length, Math.abs(delta))
-            for (let i = 0; i < toRemove; i++) {
-                const idx = Math.floor(Math.random() * candidates.length)
-                candidates[idx].isDying = true
+            let toRemove = Math.abs(delta)
+            for (let i = 0; i < currentTotal && toRemove > 0; i++) {
+                if (statuses.current[i] !== STATUS_DYING) {
+                    statuses.current[i] = STATUS_DYING
+                    deathTimers.current[i] = 0
+                    toRemove--
+                }
             }
         }
-    }, [app])
+    }, [app, pixi])
 
     useEffect(() => {
-        setDisplayPoints(points)
         displayPointsRef.current = points
+        updatePointDisplay(points)
         syncParticles(points)
     }, [points, syncParticles])
 
@@ -549,7 +583,6 @@ const PointsCard: FC<PointsCardProps> = ({
         const touch = (event && event.touches && event.touches[0]) || (event && event.changedTouches && event.changedTouches[0])
         if (!touch) return
 
-        // Weapp: prefer page/client coords minus canvas rect for accurate mapping
         if (process.env.TARO_ENV === 'weapp') {
             const pageX = touch && (touch.pageX !== undefined ? touch.pageX : touch.clientX)
             const pageY = touch && (touch.pageY !== undefined ? touch.pageY : touch.clientY)
@@ -571,7 +604,6 @@ const PointsCard: FC<PointsCardProps> = ({
             }
         }
 
-        // H5 fallback / Other
         const clientX = (touch && touch.clientX !== undefined) ? touch.clientX : ((touch && touch.pageX !== undefined) ? touch.pageX : ((event && event.clientX !== undefined) ? event.clientX : (event && event.pageX)))
         const clientY = (touch && touch.clientY !== undefined) ? touch.clientY : ((touch && touch.pageY !== undefined) ? touch.pageY : ((event && event.clientY !== undefined) ? event.clientY : (event && event.pageY)))
 
@@ -615,8 +647,11 @@ const PointsCard: FC<PointsCardProps> = ({
 
             <View className="relative z-10 pointer-events-none">
                 <LabelCaps className="block mb-2">当前可用积分</LabelCaps>
-                <View className="text-6xl font-black text-slate-900 tracking-tighter mix-blend-multiply">
-                    {formatNumber(displayPoints)}
+                <View
+                    ref={displayRef}
+                    className="text-6xl font-black text-slate-900 tracking-tighter mix-blend-multiply"
+                >
+                    {formatNumber(points)}
                 </View>
                 <View className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-amber-50/80 backdrop-blur-sm text-amber-700 rounded-full text-[10px] font-bold shadow-sm">
                     <Image src={SVG_THUNDER_AMBER} className="w-3 h-3" />
@@ -633,9 +668,3 @@ PointsCard.options = {
 }
 
 export default PointsCard
-
-
-
-
-
-
