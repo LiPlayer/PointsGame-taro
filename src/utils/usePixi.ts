@@ -186,12 +186,12 @@ export const usePixi = (canvasId: string) => {
                 view: (info as any).canvas,
                 width: (info as any).width,
                 height: (info as any).height,
-                resolution: (info as any).dpr,
+                resolution: Math.min((info as any).dpr || 1, 2),
                 backgroundColor: 0xffffff, // Set white as background to avoid black even if alpha fails
                 backgroundAlpha: 0,
                 transparent: true, // Legacy support/mobile compatibility
                 autoDensity: true,
-                antialias: process.env.TARO_ENV === 'weapp' ? false : true, // Disable antialias on mobile for speed
+                antialias: false,
                 stencil: true // Explicitly enable to suppress Pixi warnings
             } as any)
 
