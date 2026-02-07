@@ -73,20 +73,67 @@ const PointsCard: FC<PointsCardProps> = ({
     isActiveRef.current = isActive
 
     const createStarTexture = (pixi: PixiModule, app: PixiTypes.Application) => {
-        const g = new pixi.Graphics()
         const size = 64
+        let canvas: any | null = null
+        let ctx: CanvasRenderingContext2D | null = null
 
-        // Outer glow/shadow
+        try {
+            if (process.env.TARO_ENV === 'weapp') {
+                const wxAny = (globalThis as any).wx as { createOffscreenCanvas?: (opts: any) => any }
+                if (wxAny && typeof wxAny.createOffscreenCanvas === 'function') {
+                    canvas = wxAny.createOffscreenCanvas({ type: '2d', width: size, height: size })
+                }
+            } else if (typeof document !== 'undefined') {
+                canvas = document.createElement('canvas')
+                canvas.width = size
+                canvas.height = size
+            }
+
+            if (canvas && typeof canvas.getContext === 'function') {
+                ctx = canvas.getContext('2d')
+            }
+        } catch {
+            ctx = null
+        }
+
+        if (ctx && canvas) {
+            const cx = size / 2
+            const cy = size / 2
+            const r = 28
+
+            ctx.beginPath()
+            ctx.arc(cx, cy, r, 0, Math.PI * 2)
+            ctx.fillStyle = '#fde68a'
+            ctx.fill()
+
+            ctx.beginPath()
+            ctx.arc(cx, cy, r - 6, 0, Math.PI * 2)
+            ctx.fillStyle = '#ffffff'
+            ctx.fill()
+
+            ctx.translate(cx, cy)
+            ctx.beginPath()
+            ctx.fillStyle = '#f59e0b'
+            for (let i = 0; i < 5; i++) {
+                ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * 19, -Math.sin((18 + i * 72) * Math.PI / 180) * 19)
+                ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * 9, -Math.sin((54 + i * 72) * Math.PI / 180) * 9)
+            }
+            ctx.closePath()
+            ctx.fill()
+
+            return pixi.Texture.from(canvas)
+        }
+
+        // Fallback: Pixi Graphics (kept for environments without 2d canvas).
+        const g = new pixi.Graphics()
         g.beginFill(0xfde68a, 1)
         g.drawCircle(size / 2, size / 2, 28)
         g.endFill()
 
-        // White border
         g.beginFill(0xffffff, 1)
         g.drawCircle(size / 2, size / 2, 22)
         g.endFill()
 
-        // Amber star
         g.beginFill(0xf59e0b, 1)
         const cx = size / 2
         const cy = size / 2
@@ -421,7 +468,8 @@ const PointsCard: FC<PointsCardProps> = ({
                 id={canvasId}
                 canvasId={canvasId}
                 type="webgl"
-                className="absolute inset-0 w-full h-full z-0 opacity-90 pointer-events-none"
+                className="absolute inset-0 w-full h-full z-0 pointer-events-none rounded-[32px]"
+                style={{ borderRadius: '32px' }}
             />
 
             <View className="relative z-10 pointer-events-none">

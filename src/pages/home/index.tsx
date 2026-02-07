@@ -22,17 +22,22 @@ const Home: FC = () => {
     const [points, setPoints] = useState(0)
     const [dailyPlayCount, setDailyPlayCount] = useState(0)
     const [isActive, setIsActive] = useState(true)
+    const [isReady, setIsReady] = useState(false)
 
     const platformClass = useMemo(() => `platform-${process.env.TARO_ENV || 'unknown'}`, [])
 
     const syncUser = async () => {
         const existing = getUserData()
         const data = existing || (await initUserData())
-        if (!data) return
+        if (!data) {
+            setIsReady(true)
+            return
+        }
 
         const currentPoints = refreshPoints(false)
         setPoints(currentPoints)
         setDailyPlayCount(data.dailyPlayCount || 0)
+        setIsReady(true)
     }
 
     useEffect(() => {
@@ -51,8 +56,8 @@ const Home: FC = () => {
     return (
         <View className={`min-h-screen bg-slate-50 flex flex-col relative overflow-hidden ${platformClass} px-6 pt-[50px]`}>
             <PointsCard
-                points={points}
-                dailyPlayCount={dailyPlayCount}
+                points={isReady ? points : 1240}
+                dailyPlayCount={isReady ? dailyPlayCount : 0}
                 isActive={isActive}
             />
 

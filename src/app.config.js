@@ -20,5 +20,6 @@ export default defineAppConfig({
     navigationBarTitleText: 'WeChat',
     navigationBarTextStyle: 'black',
     navigationStyle: 'custom'
-  }
+  },
+  lazyCodeLoading: 'requiredComponents'
 })

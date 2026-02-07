@@ -102,8 +102,23 @@ const ensurePixiModule = async (canvas: any) => {
         const { createPIXI } = await import('pixi-miniprogram')
         const PIXI = createPIXI(canvas) as PixiModule
         if ((PIXI as any).settings && (PIXI as any).ENV) {
-            // WeChat devtools (Windows) does not support webgl2; force webgl1.
-            ;(PIXI as any).settings.PREFER_ENV = (PIXI as any).ENV.WEBGL
+            // Prefer WebGL2 if the runtime supports it; fallback to WebGL1.
+            let supportsWebgl2 = false
+            try {
+                const wxAny = wx as unknown as { createOffscreenCanvas?: (opts: any) => any }
+                if (typeof wxAny?.createOffscreenCanvas === 'function') {
+                    const testCanvas = wxAny.createOffscreenCanvas({ type: 'webgl', width: 1, height: 1 })
+                    if (testCanvas && typeof testCanvas.getContext === 'function') {
+                        const gl2 = testCanvas.getContext('webgl2')
+                        supportsWebgl2 = !!gl2
+                    }
+                }
+            } catch {
+                supportsWebgl2 = false
+            }
+            ;(PIXI as any).settings.PREFER_ENV = supportsWebgl2
+                ? (PIXI as any).ENV.WEBGL2
+                : (PIXI as any).ENV.WEBGL
         }
         await installUnsafeEval(PIXI)
         return PIXI
