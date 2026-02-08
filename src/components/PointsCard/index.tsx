@@ -31,6 +31,7 @@ const PointsCard: React.FC<PointsCardProps> = ({
 
     // UI State
     const [points, setPoints] = useState(initialPoints)
+    const [canvasOpacity, setCanvasOpacity] = useState(0) // Start transparent to hide black flash
     // Container layout info for input mapping
     const layoutRef = useRef({ left: 0, top: 0, width: 0, height: 0 })
 
@@ -166,6 +167,11 @@ const PointsCard: React.FC<PointsCardProps> = ({
                 addInitialStars(pointsRef.current)
 
                 gameLoopRef.current = loop
+
+                // Use robust callback instead of timeout
+                loop.onFirstFrameRendered = () => {
+                    if (isMounted) setCanvasOpacity(1)
+                }
             }
         }
 
@@ -224,13 +230,13 @@ const PointsCard: React.FC<PointsCardProps> = ({
                 <Canvas
                     type="webgl"
                     id={canvasId}
-                    style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
+                    style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, pointerEvents: 'none', opacity: canvasOpacity, transition: 'opacity 0.3s ease-out' }}
                 />
             ) : (
                 <canvas
                     id={canvasId}
                     ref={canvasRef}
-                    style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
+                    style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, pointerEvents: 'none', opacity: canvasOpacity, transition: 'opacity 0.3s ease-out' }}
                 />
             )}
 

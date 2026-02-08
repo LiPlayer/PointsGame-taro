@@ -10,6 +10,9 @@ export class GameLoop {
     private accumulator: number = 0
     private readonly params: { width: number; height: number; dpr: number; canvas: any }
 
+    // Callback for when the first frame is rendered
+    public onFirstFrameRendered?: () => void
+    private hasRenderedFirstFrame: boolean = false
 
     // Fixed time step (e.g. 1000 / 60 = 16.66ms)
     private readonly fixedDelta = 1000 / PHYSICS_CONFIG.frequency
@@ -139,6 +142,13 @@ export class GameLoop {
 
         this.syncRender(alpha)
         this.renderer.app.render()
+
+        if (!this.hasRenderedFirstFrame) {
+            this.hasRenderedFirstFrame = true
+            if (this.onFirstFrameRendered) {
+                this.onFirstFrameRendered()
+            }
+        }
 
         requestAnimationFrame(this.loop.bind(this))
     }
