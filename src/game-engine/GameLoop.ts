@@ -11,6 +11,12 @@ export class GameLoop {
     private accumulator: number = 0
     private readonly params: { width: number; height: number; dpr: number; canvas: any }
 
+    // FPS Calculation properties
+    private frameCount: number = 0
+    private lastFpsTime: number = 0
+    public fps: number = 60
+    public onFpsUpdate?: (fps: number) => void
+
     // Fixed time step (e.g. 1000 / 60 = 16.66ms)
     private readonly fixedDelta = 1000 / PHYSICS_CONFIG.frequency
 
@@ -27,6 +33,8 @@ export class GameLoop {
         this.isRunning = true
         this.lastTime = performance.now()
         this.accumulator = 0
+        this.frameCount = 0 // Reset frame count on start
+        this.lastFpsTime = this.lastTime // Initialize lastFpsTime
 
         requestAnimationFrame(this.loop.bind(this))
     }
@@ -80,19 +88,43 @@ export class GameLoop {
     private loop(time: number) {
         if (!this.isRunning) return
 
-        const deltaTime = time - this.lastTime
+        let deltaTime = time - this.lastTime
         this.lastTime = time
+
+        // FPS Calculation
+        this.frameCount++
+        if (time - this.lastFpsTime >= 1000) {
+            this.fps = Math.round((this.frameCount * 1000) / (time - this.lastFpsTime))
+            this.frameCount = 0
+            this.lastFpsTime = time
+            if (this.onFpsUpdate) {
+                this.onFpsUpdate(this.fps)
+            }
+        }
 
         // Apply interaction force EVERY FRAME if pointer is active (Match Prototype)
         if (this.pointer.active) {
             this.physics.applyRepulsion(this.pointer.x, this.pointer.y)
         }
 
+        // --- 60Hz Timestep Lock (Mobile Optimization) ---
+        // If detection suggests 60Hz screen (17ms or 16ms), snap to fixedDelta
+        // This eliminates "beat" jitter by forcing 1:1 Physics:Render ratio
+        let isLocked = false
+        if (Math.abs(deltaTime - this.fixedDelta) < 4) {
+            deltaTime = this.fixedDelta
+            isLocked = true
+        }
+
         // Clamp deltaTime to avoid "spiral of death" on lag spikes
-        // If lag > 100ms, we just process 100ms
         this.accumulator += Math.min(deltaTime, 100)
 
-        // Fixed Update Strategy with Safety Cap (allow 5 steps to catch up large hitches)
+        // Snap accumulator to avoid tiny float drifts causing dropped frames
+        if (Math.abs(this.accumulator - this.fixedDelta) < 2) {
+            this.accumulator = this.fixedDelta
+        }
+
+        // Fixed Update Strategy
         let steps = 0
         while (this.accumulator >= this.fixedDelta && steps < 5) {
             this.physics.update(this.fixedDelta)
@@ -100,13 +132,15 @@ export class GameLoop {
             steps++
         }
 
-        // Cleanup dead particles and their sprites
+        // Cleanup dead particles
         this.physics.cleanup((id) => {
             this.renderer.removeSprite(id)
         })
 
-        // Calculate alpha for interpolation
-        const alpha = this.accumulator / this.fixedDelta
+        // Interpolation
+        // isLocked ? 1.0 (Render Latest) : Calculated Alpha
+        const alpha = isLocked ? 1.0 : this.accumulator / this.fixedDelta
+
         this.syncRender(alpha)
         this.renderer.app.render()
 

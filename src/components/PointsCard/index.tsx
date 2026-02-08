@@ -18,14 +18,17 @@ const PointsCard: React.FC<PointsCardProps> = ({
     dailyPlayCount = 0,
     isActive = true
 }) => {
-    const containerRef = useRef<any>(null)
-    const gameLoopRef = useRef<GameLoop | null>(null)
-    const canvasRef = useRef<any>(null)
+    // Refs
+    // -------------------------------------------------------------------------
+    const containerRef = useRef<HTMLDivElement>(null) // Container for canvas
+    const gameLoopRef = useRef<GameLoop | null>(null) // Physics & Render Loop
+    const canvasRef = useRef<any>(null) // Canvas element ref (HTMLCanvas or Taro Canvas)
     const containerId = useRef(`container-${Math.random().toString(36).substr(2, 9)}`).current
     const canvasId = useRef(`canvas-${Math.random().toString(36).substr(2, 9)}`).current
 
     // UI State
     const [points, setPoints] = useState(initialPoints)
+    const [fps, setFps] = useState(60)
     // Container layout info for input mapping
     const layoutRef = useRef({ left: 0, top: 0, width: 0, height: 0 })
 
@@ -89,6 +92,7 @@ const PointsCard: React.FC<PointsCardProps> = ({
 
             if (canvas) {
                 const loop = new GameLoop(PIXI, canvas, width, height, dpr)
+                loop.onFpsUpdate = (f) => setFps(f)
                 loop.start()
                 gameLoopRef.current = loop
 
@@ -178,6 +182,11 @@ const PointsCard: React.FC<PointsCardProps> = ({
             onTouchEnd={handleTouchEnd}
             onTouchCancel={handleTouchEnd}
         >
+            {/* FPS Counter */}
+            <View style={{ position: 'absolute', top: 10, left: 10, zIndex: 100, color: '#ff4d4f', fontSize: '12px', fontWeight: 'bold', pointerEvents: 'none' }}>
+                FPS: {fps}
+            </View>
+
             {/* Canvas Background */}
             {process.env.TARO_ENV === 'weapp' ? (
                 <Canvas
