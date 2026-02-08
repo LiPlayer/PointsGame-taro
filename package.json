@@ -12,10 +12,10 @@
   "scripts": {
     "new": "taro new",
     "clean": "rimraf dist .taro node_modules/.cache",
-    "build:weapp": "npm run clean && cross-env TARO_PREBUNDLE=0 taro build --type weapp",
-    "build:h5": "npm run clean && cross-env TARO_PREBUNDLE=0 taro build --type h5",
-    "dev:weapp": "npm run clean && cross-env TARO_PREBUNDLE=0 taro build --type weapp --watch",
-    "dev:h5": "npm run clean && cross-env TARO_PREBUNDLE=0 taro build --type h5 --watch"
+    "build:weapp": "cross-env TARO_PREBUNDLE=0 taro build --type weapp",
+    "build:h5": "cross-env TARO_PREBUNDLE=0 taro build --type h5",
+    "dev:weapp": "cross-env TARO_PREBUNDLE=0 taro build --type weapp --watch",
+    "dev:h5": "cross-env TARO_PREBUNDLE=0 taro build --type h5 --watch"
   },
   "browserslist": [
     "last 3 versions",

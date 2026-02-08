@@ -68,7 +68,7 @@ const Home: FC = () => {
             >
                 <PointsCard
                     className="mt-0"
-                    points={isReady ? points : 1240}
+                    points={isReady ? points : 0}
                     dailyPlayCount={isReady ? dailyPlayCount : 0}
                     isActive={isActive}
                 />
