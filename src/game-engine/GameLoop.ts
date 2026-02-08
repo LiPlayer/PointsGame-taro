@@ -9,15 +9,15 @@ export class GameLoop {
     private isRunning: boolean = false
     private lastTime: number = 0
     private accumulator: number = 0
-    private readonly params: { width: number; height: number; dpr: number; canvas: HTMLCanvasElement }
+    private readonly params: { width: number; height: number; dpr: number; canvas: any }
 
     // Fixed time step (e.g. 1000 / 60 = 16.66ms)
     private readonly fixedDelta = 1000 / PHYSICS_CONFIG.frequency
 
-    constructor(canvas: HTMLCanvasElement, width: number, height: number, dpr: number) {
+    constructor(pixi: any, canvas: any, width: number, height: number, dpr: number) {
         this.params = { width, height, dpr, canvas }
         this.physics = new PhysicsSystem()
-        this.renderer = new RenderSystem(canvas, width, height, dpr)
+        this.renderer = new RenderSystem(pixi, canvas, width, height, dpr)
     }
 
     public start() {
@@ -51,17 +51,11 @@ export class GameLoop {
     }
 
     public removeStars(count: number) {
-        // Simple decrement in PhysicsSystem, but we need to cleanup sprites
-        const currentCount = this.physics.getStarCount()
-        const toRemove = Math.min(count, currentCount)
+        this.physics.consume(count)
+    }
 
-        // Remove sprites from the end
-        for (let i = 0; i < toRemove; i++) {
-            const id = currentCount - 1 - i
-            this.renderer.removeSprite(id)
-        }
-
-        this.physics.removeStars(toRemove)
+    public explode(power?: number) {
+        this.physics.applyExplosion(this.params.width / 2, this.params.height / 2, power)
     }
 
     public getStarCount(): number {
@@ -106,6 +100,11 @@ export class GameLoop {
             steps++
         }
 
+        // Cleanup dead particles and their sprites
+        this.physics.cleanup((id) => {
+            this.renderer.removeSprite(id)
+        })
+
         // Calculate alpha for interpolation
         const alpha = this.accumulator / this.fixedDelta
         this.syncRender(alpha)
@@ -121,12 +120,39 @@ export class GameLoop {
         const ox = this.physics.ox
         const oy = this.physics.oy
         const ids = this.physics.ids
+        const states = this.physics.states
+        const timers = this.physics.timers
+        const angles = this.physics.angles
 
         for (let i = 0; i < n; i++) {
             // Interpolate between previous (ox, oy) and current (px, py)
             const ix = px[i] * alpha + ox[i] * (1 - alpha)
             const iy = py[i] * alpha + oy[i] * (1 - alpha)
-            this.renderer.updateBody(ids[i], ix, iy, 0)
+            const ir = angles[i] // Simple rotation for now (could interpolate if needed)
+
+            let scale: number | undefined = undefined
+            let opacity: number | undefined = undefined
+
+            if (states[i] === 1) {
+                // Dying Animation: Shrink and Fade
+                // Progress is timers[i] (0 to 1)
+                const p = timers[i]
+                if (p < 0.4) {
+                    // Phase 1: Just floating up (handled in physics)
+                    opacity = 1
+                    scale = 1
+                } else {
+                    // Phase 2: Shrink and Fade
+                    const p2 = (p - 0.4) / 0.6
+                    opacity = 1 - p2
+                    scale = 1 - p2
+                }
+            } else {
+                scale = 1
+                opacity = 1
+            }
+
+            this.renderer.updateBody(ids[i], ix, iy, ir, scale, opacity)
         }
     }
 }

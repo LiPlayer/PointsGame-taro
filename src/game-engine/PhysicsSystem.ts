@@ -14,6 +14,13 @@ export class PhysicsSystem {
     public rads: Float32Array = new Float32Array(this.MAX_PARTICLES)
     public zs: Float32Array = new Float32Array(this.MAX_PARTICLES)
     public ids: Int32Array = new Int32Array(this.MAX_PARTICLES)
+    public states: Int8Array = new Int8Array(this.MAX_PARTICLES) // 0: active, 1: dying
+    public timers: Float32Array = new Float32Array(this.MAX_PARTICLES)
+    public angles: Float32Array = new Float32Array(this.MAX_PARTICLES)
+    public avs: Float32Array = new Float32Array(this.MAX_PARTICLES)
+    // ID池，用于管理稳定的渲染ID
+    private idPool: Int32Array = new Int32Array(this.MAX_PARTICLES)
+    private poolPtr: number = this.MAX_PARTICLES
     public particleCount: number = 0
 
     // 网格优化
@@ -35,6 +42,11 @@ export class PhysicsSystem {
         })
         this.world = this.engine.world
         this.engine.gravity.y = 0.15 // 匹配原型重力
+
+        // 初始化ID池 (倒序放入，从0开始取)
+        for (let i = 0; i < this.MAX_PARTICLES; i++) {
+            this.idPool[i] = this.MAX_PARTICLES - 1 - i
+        }
     }
 
     public init(w: number, h: number) {
@@ -59,8 +71,8 @@ export class PhysicsSystem {
     private updateParticles(dt: number) {
         const n = this.particleCount
         const w = this.width, h = this.height
-        const friction = 0.97 // Reduced drag for snappier feel
-        const gravity = 0.25 // Increased gravity for faster fall
+        const friction = 0.96 // Prototype value
+        const gravity = 0.15 // Prototype value
 
         // 网格重构
         const cols = this.gridCols
@@ -68,6 +80,22 @@ export class PhysicsSystem {
         this.heads.fill(-1) // Reset heads for new frame
 
         for (let i = 0; i < n; i++) {
+            // Animation state: Dying
+            if (this.states[i] === 1) {
+                this.timers[i] += 0.02
+                if (this.timers[i] < 0.4) {
+                    this.py[i] -= 2
+                    this.angles[i] += 0.1
+                } else {
+                    this.py[i] -= 1
+                    this.angles[i] += 0.2
+                    if (this.timers[i] >= 1.0) {
+                        this.states[i] = 2 // Marked for cleanup
+                    }
+                }
+                continue // Skip normal physics for dying stars
+            }
+
             // Verlet Integration
             const vx = (this.px[i] - this.ox[i]) * friction
             const vy = (this.py[i] - this.oy[i]) * friction + gravity
@@ -77,22 +105,9 @@ export class PhysicsSystem {
             this.px[i] += vx
             this.py[i] += vy
 
-            // Boundary
-            const r = this.rads[i]
-            if (this.px[i] < r) {
-                this.px[i] = r
-                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * 0.3 // Damped wall
-            }
-            if (this.px[i] > w - r) {
-                this.px[i] = w - r
-                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * 0.3 // Damped wall
-            }
-            if (this.py[i] > h - r) {
-                const vy = (this.py[i] - this.oy[i])
-                this.py[i] = h - r
-                this.oy[i] = this.py[i] + vy * 0.3 // Damped bounce (was 0.5)
-                this.ox[i] += (this.px[i] - this.ox[i]) * 0.5 // Ground friction to stop sliding
-            }
+            // Update rotation
+            this.angles[i] += this.avs[i]
+            this.avs[i] *= 0.99 // Subtle angular friction
 
             // Grid Insert
             const gx = Math.floor(this.px[i] / this.cellSize)
@@ -104,9 +119,11 @@ export class PhysicsSystem {
             }
         }
 
-        // Collision Solve (2 Passes match prototype for "hard" feel)
+        // Collision Solve (2 Passes)
         for (let pass = 0; pass < 2; pass++) {
             for (let i = 0; i < n; i++) {
+                if (this.states[i] !== 0) continue
+
                 const gx = Math.floor(this.px[i] / this.cellSize)
                 const gy = Math.floor(this.py[i] / this.cellSize)
                 const r = this.rads[i]
@@ -118,8 +135,7 @@ export class PhysicsSystem {
                         if (y < 0 || y >= rows) continue
                         let o = this.heads[x + y * cols]
                         while (o !== -1) {
-                            if (o > i) {
-                                // 深度过滤：深度差超过 0.1 不碰撞 (匹配原型)
+                            if (o > i && this.states[o] === 0) {
                                 if (Math.abs(zi - this.zs[o]) < 0.1) {
                                     const dx = this.px[i] - this.px[o]
                                     const dy = this.py[i] - this.py[o]
@@ -127,8 +143,7 @@ export class PhysicsSystem {
                                     const min = r + this.rads[o]
                                     if (distSq < min * min && distSq > 0) {
                                         const dist = Math.sqrt(distSq)
-                                        // 0.5 is perfectly hard. 0.47 adds subtle energy loss to stop jitters.
-                                        const push = (min - dist) * 0.47
+                                        const push = (min - dist) * 0.5 // prototype value
                                         const nx = (dx / dist) * push
                                         const ny = (dy / dist) * push
                                         this.px[i] += nx
@@ -143,49 +158,137 @@ export class PhysicsSystem {
                     }
                 }
             }
+            // Constraint Pass: Apply Boundary inside/after solve to prevent jitter
+            this.applyConstraints(n, w, h)
         }
     }
 
+    private applyConstraints(n: number, w: number, h: number) {
+        for (let i = 0; i < n; i++) {
+            if (this.states[i] !== 0) continue
+            const r = this.rads[i]
+            if (this.px[i] < r) {
+                this.px[i] = r
+                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * 0.3
+            }
+            if (this.px[i] > w - r) {
+                this.px[i] = w - r
+                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * 0.3
+            }
+            if (this.py[i] > h - r) {
+                const vy = (this.py[i] - this.oy[i])
+                this.py[i] = h - r
+                this.oy[i] = this.py[i] + vy * 0.3
+                this.ox[i] += (this.px[i] - this.ox[i]) * 0.5
+            }
+        }
+    }
     public addParticle(x: number, y: number): number {
-        if (this.particleCount >= this.MAX_PARTICLES) return -1
+        if (this.particleCount >= this.MAX_PARTICLES || this.poolPtr <= 0) return -1
 
         const i = this.particleCount
         this.px[i] = x
         this.py[i] = y
-        this.ox[i] = x + (Math.random() - 0.5) * 4 // 初始动力
-        this.oy[i] = y + (Math.random() - 0.5) * 4
+        this.ox[i] = x + (Math.random() - 0.5) * 6 // 恢复初始水平动力 (Match prototype)
+        this.oy[i] = y + (Math.random() - 0.5) * 2 // 恢复初始垂直动力
+
+        this.states[i] = 0
+        this.timers[i] = 0
 
         // 随机半径 (80% - 120%)
         this.rads[i] = PHYSICS_CONFIG.particle.radius * (0.8 + Math.random() * 0.4)
         // 随机深度 (0, 0.5, 1.0)
         this.zs[i] = Math.floor(Math.random() * 3) / 2
 
-        this.ids[i] = i
+        // 随机初始旋转和角速度
+        this.angles[i] = Math.random() * Math.PI * 2
+        this.avs[i] = (Math.random() - 0.5) * 0.1
+
+        const id = this.idPool[--this.poolPtr]
+        this.ids[i] = id
         this.particleCount++
-        return i
+        return id
+    }
+
+    public consume(count: number) {
+        const n = this.particleCount
+        let marked = 0
+        // Find random active particles and mark them as dying
+        const indices = Array.from({ length: n }, (_, i) => i)
+            .filter(i => this.states[i] === 0)
+
+        // Shuffle or pick random
+        for (let i = 0; i < count && indices.length > 0; i++) {
+            const idxIdx = Math.floor(Math.random() * indices.length)
+            const pIdx = indices.splice(idxIdx, 1)[0]
+            this.states[pIdx] = 1
+            this.timers[pIdx] = 0
+            marked++
+        }
+        return marked
+    }
+
+    public cleanup(onRemove: (id: number) => void) {
+        for (let i = this.particleCount - 1; i >= 0; i--) {
+            if (this.states[i] === 2) {
+                const id = this.ids[i]
+                onRemove(id)
+                // 回收ID
+                this.idPool[this.poolPtr++] = id
+
+                // Swap with last
+                const last = this.particleCount - 1
+                if (i !== last) {
+                    this.px[i] = this.px[last]; this.py[i] = this.py[last]
+                    this.ox[i] = this.ox[last]; this.oy[i] = this.oy[last]
+                    this.rads[i] = this.rads[last]; this.zs[i] = this.zs[last]
+                    this.ids[i] = this.ids[last]; this.states[i] = this.states[last]
+                    this.timers[i] = this.timers[last]
+                    this.angles[i] = this.angles[last]; this.avs[i] = this.avs[last]
+                }
+                this.particleCount--
+            }
+        }
     }
 
     public removeStars(count: number) {
-        this.particleCount = Math.max(0, this.particleCount - count)
+        this.consume(count)
     }
 
     public getStarCount(): number {
         return this.particleCount
     }
 
+    public applyExplosion(x: number, y: number, power: number = 15) {
+        const n = this.particleCount
+        for (let i = 0; i < n; i++) {
+            if (this.states[i] !== 0) continue
+            const dx = this.px[i] - x
+            const dy = this.py[i] - y
+            const distSq = dx * dx + dy * dy
+            const force = power + Math.random() * 10
+            const angle = Math.atan2(dy, dx)
+
+            // Modify oldX/oldY to create instant velocity away from center
+            this.ox[i] = this.px[i] - Math.cos(angle) * force
+            this.oy[i] = this.py[i] - Math.sin(angle) * force
+        }
+    }
+
     public applyRepulsion(x: number, y: number) {
         const n = this.particleCount
         const range = PHYSICS_CONFIG.interaction.repulsionRadius
         const rangeSq = range * range
-        const force = 0.8 // Match prototype (0.4 * 2)
+        const force = 0.4 // Prototype base
 
         for (let i = 0; i < n; i++) {
+            if (this.states[i] !== 0) continue
             const dx = this.px[i] - x
             const dy = this.py[i] - y
             const d2 = dx * dx + dy * dy
             if (d2 < rangeSq && d2 > 0) {
                 const dist = Math.sqrt(d2)
-                const f = (1 - dist / range) * force
+                const f = (1 - dist / range) * force * 2 // Force * 2 for intensity
                 const nx = (dx / dist) * f
                 const ny = (dy / dist) * f
 

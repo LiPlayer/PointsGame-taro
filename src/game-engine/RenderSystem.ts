@@ -8,23 +8,28 @@ import * as PIXI from 'pixi.js' // We need to import the whole namespace or spec
 import { RENDER_CONFIG, PHYSICS_CONFIG } from './Constants'
 
 export class RenderSystem {
+    private PIXI: any // Stored injected module
     public app: PIXI.Application
     public container: PIXI.ParticleContainer
     public texture: PIXI.Texture | null = null
 
     // 存储渲染实体数组: index -> PixiSprite
     public sprites: (PIXI.Sprite | null)[] = []
+    private baseScales: Float32Array = new Float32Array(5000)
+    private baseAlphas: Float32Array = new Float32Array(5000)
 
-    constructor(canvas: HTMLCanvasElement, width: number, height: number, dpr: number) {
+    constructor(pixi: any, canvas: any, width: number, height: number, dpr: number) {
+        this.PIXI = pixi
+        const PIXI = pixi // Keep local shadow for constructor logic
         this.app = new PIXI.Application({
             view: canvas,
             width,
             height,
             resolution: dpr,
             autoDensity: true,
-            backgroundAlpha: 0, // Changed from RENDER_CONFIG.backgroundAlpha
-            antialias: false, // 禁用抗锯齿提升性能
-            powerPreference: 'high-performance' // Added
+            backgroundAlpha: 0,
+            antialias: false,
+            powerPreference: 'high-performance'
         })
 
         this.texture = this.createTexture() // Moved and renamed property
@@ -46,21 +51,24 @@ export class RenderSystem {
     public addSprite(id: number, x: number, y: number, radius: number, z: number) {
         if (!this.texture) return
 
-        const sprite = new PIXI.Sprite(this.texture)
+        const sprite = new this.PIXI.Sprite(this.texture)
         sprite.anchor.set(0.5)
         sprite.position.set(x, y)
 
         // 匹配原型缩放公式
         const sizeScale = (radius * 2) / RENDER_CONFIG.particleTextureSize
         const depthScale = 0.5 + z * 0.7
-        sprite.scale.set(sizeScale * depthScale)
+        const finalScale = sizeScale * depthScale
+        sprite.scale.set(finalScale)
+        this.baseScales[id] = finalScale
 
         // 匹配原型透明度公式
-        if (z > 0.7) {
-            sprite.alpha = 1.0
-        } else {
-            sprite.alpha = 0.6 + z * 0.4
+        let finalAlpha = 1.0
+        if (z <= 0.7) {
+            finalAlpha = 0.6 + z * 0.4
         }
+        sprite.alpha = finalAlpha
+        this.baseAlphas[id] = finalAlpha
 
         this.container.addChild(sprite)
         this.sprites[id] = sprite
@@ -75,11 +83,18 @@ export class RenderSystem {
         }
     }
 
-    public updateBody(id: number, x: number, y: number, rotation: number) {
+    public updateBody(id: number, x: number, y: number, rotation: number, scaleMultiplier?: number, alphaMultiplier?: number) {
         const sprite = this.sprites[id]
         if (sprite) {
             sprite.position.set(x, y)
             sprite.rotation = rotation
+
+            if (scaleMultiplier !== undefined) {
+                sprite.scale.set(this.baseScales[id] * scaleMultiplier)
+            }
+            if (alphaMultiplier !== undefined) {
+                sprite.alpha = this.baseAlphas[id] * alphaMultiplier
+            }
         }
     }
 
@@ -98,37 +113,35 @@ export class RenderSystem {
 
     private createTexture(): PIXI.Texture {
         const size = RENDER_CONFIG.particleTextureSize
-        const canvas = document.createElement('canvas')
-        canvas.width = size
-        canvas.height = size
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return PIXI.Texture.WHITE
-
+        const graphics = new this.PIXI.Graphics()
         const cx = size / 2, cy = size / 2, r = size / 2 - 4
 
         // Ring
-        ctx.beginPath()
-        ctx.arc(cx, cy, r, 0, Math.PI * 2)
-        ctx.fillStyle = '#fde68a' // Amber 200
-        ctx.fill()
+        graphics.beginFill(0xFDE68A) // Amber 200
+        graphics.drawCircle(cx, cy, r)
+        graphics.endFill()
 
         // White Body
-        ctx.beginPath()
-        ctx.arc(cx, cy, r - 6, 0, Math.PI * 2)
-        ctx.fillStyle = '#ffffff'
-        ctx.fill()
+        graphics.beginFill(0xFFFFFF)
+        graphics.drawCircle(cx, cy, r - 6)
+        graphics.endFill()
 
         // Star Shape
-        ctx.translate(cx, cy)
-        ctx.beginPath()
-        ctx.fillStyle = '#f59e0b' // Amber 500
+        graphics.beginFill(0xF59E0B) // Amber 500
+        const points: number[] = []
         for (let i = 0; i < 5; i++) {
-            ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * 19, -Math.sin((18 + i * 72) * Math.PI / 180) * 19)
-            ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * 9, -Math.sin((54 + i * 72) * Math.PI / 180) * 9)
+            // Native canvas used 19 and 9 for inner/outer radii
+            const outerR = 19
+            const innerR = 9
+            const angle1 = (18 + i * 72) * Math.PI / 180
+            const angle2 = (54 + i * 72) * Math.PI / 180
+            points.push(cx + Math.cos(angle1) * outerR, cy - Math.sin(angle1) * outerR)
+            points.push(cx + Math.cos(angle2) * innerR, cy - Math.sin(angle2) * innerR)
         }
-        ctx.closePath()
-        ctx.fill()
+        graphics.drawPolygon(points)
+        graphics.endFill()
 
-        return PIXI.Texture.from(canvas)
+        // Generate texture from graphics
+        return this.app.renderer.generateTexture(graphics)
     }
 }

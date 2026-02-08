@@ -23,7 +23,7 @@ const getDpr = () => {
     return sys.pixelRatio || 1
 }
 
-const readCanvasInfo = async (id: string) => {
+export const readCanvasInfo = async (id: string) => {
     const dpr = getDpr()
 
     if (process.env.TARO_ENV === 'weapp') {
@@ -94,7 +94,7 @@ const installUnsafeEval = async (PIXI: PixiModule) => {
     await import('@pixi/unsafe-eval')
 }
 
-const ensurePixiModule = async (canvas: any) => {
+export const ensurePixiModule = async (canvas: any) => {
     if (process.env.TARO_ENV === 'weapp') {
         const { createPIXI } = await import('pixi-miniprogram')
         if (canvas) {
@@ -138,7 +138,7 @@ const ensurePixiModule = async (canvas: any) => {
     return mod as PixiModule
 }
 
-const nextTick = () =>
+export const nextTick = () =>
     new Promise<void>((resolve) => {
         if (typeof Taro.nextTick === 'function') {
             Taro.nextTick(() => resolve())

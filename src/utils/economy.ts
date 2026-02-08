@@ -29,7 +29,7 @@ export function calculateCurrentPoints(lastPoints: number, lastUpdatedAt: number
     // P_real(t) = P_last / sqrt(1 + 2 * lambda * P_last^2 * delta_h)
     const currentPoints = lastPoints / Math.sqrt(1 + 2 * LAMBDA * Math.pow(lastPoints, 2) * deltaHours)
 
-    return Math.floor(currentPoints)
+    return currentPoints
 }
 
 /**
