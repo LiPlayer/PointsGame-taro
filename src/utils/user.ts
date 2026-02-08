@@ -4,6 +4,7 @@ import { getDBUser, saveDBUser } from './db'
 import { UserData } from '../types/common'
 
 const DEFAULT_USER_DATA: UserData = {
+    _openid: Taro.getEnv() === Taro.ENV_TYPE.WEAPP ? undefined : 'MOCK_OPENID_12345',
     points: 1240,
     lastUpdatedAt: Date.now(),
     dailyPlayCount: 0,
@@ -17,6 +18,10 @@ export async function initUserData(): Promise<UserData> {
         const data = await getDBUser()
         if (data) {
             userData = data
+            // Guarantee _openid in non-weapp environments for QR generation
+            if (Taro.getEnv() !== Taro.ENV_TYPE.WEAPP && !userData._openid) {
+                userData._openid = 'MOCK_OPENID_12345'
+            }
             refreshPoints()
         } else {
             userData = { ...DEFAULT_USER_DATA, lastUpdatedAt: Date.now() }
@@ -84,4 +89,41 @@ export async function login(): Promise<{ success: boolean; userData?: UserData; 
 
 export function getUserData(): UserData | null {
     return userData
+}
+
+export async function transferPoints(amount: number, targetOpenid: string): Promise<{ success: boolean; error?: string }> {
+    if (!userData) await initUserData()
+    if (!userData) return { success: false, error: 'User data not initialized' }
+
+    try {
+        if (Taro.getEnv() !== Taro.ENV_TYPE.WEAPP) {
+            // H5 Mock transfer
+            console.log('[User] H5 Mock Transfer:', { amount, targetOpenid })
+            userData.points -= amount
+            userData.lastUpdatedAt = Date.now()
+            await saveUserData()
+            return { success: true }
+        }
+
+        const res = await Taro.cloud.callFunction({
+            name: 'updatePoints',
+            data: {
+                action: 'transfer',
+                points: amount,
+                targetOpenid
+            }
+        })
+
+        const result = res.result as any
+        if (result.success) {
+            // Refresh local points after transfer
+            await refreshPoints(true)
+            return { success: true }
+        } else {
+            return { success: false, error: result.error || 'Transfer failed' }
+        }
+    } catch (e: any) {
+        console.error('[User] Transfer failed:', e)
+        return { success: false, error: e.message || 'Network error' }
+    }
 }

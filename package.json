@@ -39,6 +39,7 @@
     "matter-js": "^0.20.0",
     "pixi-miniprogram": "latest",
     "pixi.js": "7",
+    "qrcode": "^1.5.4",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
   },
@@ -53,6 +54,7 @@
     "@tarojs/webpack5-runner": "4.1.11",
     "@types/minimatch": "^5",
     "@types/node": "^18",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18.0.0",
     "@types/webpack-env": "^1.13.6",
     "autoprefixer": "^10.4.24",
