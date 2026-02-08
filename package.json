@@ -35,6 +35,8 @@
     "@tarojs/runtime": "4.1.11",
     "@tarojs/shared": "4.1.11",
     "@tarojs/taro": "4.1.11",
+    "@types/matter-js": "^0.20.2",
+    "matter-js": "^0.20.0",
     "pixi-miniprogram": "latest",
     "pixi.js": "7",
     "react": "^18.0.0",

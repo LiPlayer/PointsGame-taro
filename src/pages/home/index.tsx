@@ -47,6 +47,8 @@ const Home: FC = () => {
 
     useEffect(() => {
         syncUser()
+        const timer = setInterval(syncUser, 1000)
+        return () => clearInterval(timer)
     }, [])
 
     useDidShow(() => {
