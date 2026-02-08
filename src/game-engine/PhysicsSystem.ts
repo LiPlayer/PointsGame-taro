@@ -1,12 +1,30 @@
 import { PHYSICS_CONFIG, RENDER_CONFIG } from './Constants'
 
+/**
+ * PBD (Position-Based Dynamics) Physics System
+ * 
+ * 性能优化:
+ * - 全部使用 TypedArray 预分配，运行时零GC
+ * - 空间网格碰撞检测 O(n) 复杂度
+ * - 只同深度层粒子碰撞，减少计算量
+ */
 export class PhysicsSystem {
     // --- 高性能粒子引擎 (Zero Allocation / Typed Arrays) ---
     public MAX_PARTICLES = PHYSICS_CONFIG.maxParticles
+
+    // Position (current frame)
     public px: Float32Array = new Float32Array(this.MAX_PARTICLES)
     public py: Float32Array = new Float32Array(this.MAX_PARTICLES)
+
+    // Position (previous frame) - for velocity calculation
     public ox: Float32Array = new Float32Array(this.MAX_PARTICLES)
     public oy: Float32Array = new Float32Array(this.MAX_PARTICLES)
+
+    // Velocity (explicit for PBD)
+    public vx: Float32Array = new Float32Array(this.MAX_PARTICLES)
+    public vy: Float32Array = new Float32Array(this.MAX_PARTICLES)
+
+    // Particle properties
     public rads: Float32Array = new Float32Array(this.MAX_PARTICLES)
     public zs: Float32Array = new Float32Array(this.MAX_PARTICLES)
     public ids: Int32Array = new Int32Array(this.MAX_PARTICLES)
@@ -15,12 +33,15 @@ export class PhysicsSystem {
     public angles: Float32Array = new Float32Array(this.MAX_PARTICLES)
     public avs: Float32Array = new Float32Array(this.MAX_PARTICLES)
 
-    // ID池，用于管理稳定的渲染ID
+    // ID Pool
     private idPool: Int32Array = new Int32Array(this.MAX_PARTICLES)
     private poolPtr: number = this.MAX_PARTICLES
     public particleCount: number = 0
 
-    // 网格优化
+    // Round-robin z-level counter for uniform distribution
+    private zCounter: number = 0
+
+    // Spatial Grid
     private cellSize = PHYSICS_CONFIG.cellSize
     private gridCols = 0
     private gridRows = 0
@@ -31,7 +52,6 @@ export class PhysicsSystem {
     private height: number = 0
 
     constructor() {
-        // 初始化ID池 (倒序放入，从0开始取)
         for (let i = 0; i < this.MAX_PARTICLES; i++) {
             this.idPool[i] = this.MAX_PARTICLES - 1 - i
         }
@@ -40,33 +60,34 @@ export class PhysicsSystem {
     public init(w: number, h: number) {
         this.width = w
         this.height = h
-
-        // 初始化网格
         this.gridCols = Math.ceil(w / this.cellSize)
         this.gridRows = Math.ceil(h / this.cellSize)
         this.heads = new Int32Array(this.gridCols * this.gridRows).fill(-1)
     }
 
     public update(dt: number) {
-        // 全自研 Verlet 更新 (不再依赖 Matter.js)
-        this.updateParticles(dt)
+        this.updatePBD()
     }
 
-    private updateParticles(dt: number) {
+    /**
+     * PBD Update Loop:
+     * 1. Apply gravity to velocity
+     * 2. Predict new positions
+     * 3. Solve constraints (multiple iterations)
+     * 4. Update velocity from position change
+     */
+    private updatePBD() {
         const n = this.particleCount
         const w = this.width, h = this.height
 
-        const friction = 1 - PHYSICS_CONFIG.particle.frictionAir
         const gravity = PHYSICS_CONFIG.gravity.y
+        const damping = PHYSICS_CONFIG.particle.damping || 0.98
         const consumption = PHYSICS_CONFIG.consumption
+        const constraintIterations = PHYSICS_CONFIG.bounds.collisionPasses
 
-        // 网格重构
-        const cols = this.gridCols
-        const rows = this.gridRows
-        this.heads.fill(-1)
-
+        // ========== Phase 1: Apply forces & predict positions ==========
         for (let i = 0; i < n; i++) {
-            // Animation state: Dying
+            // Skip dying particles
             if (this.states[i] === 1) {
                 this.timers[i] += consumption.speed
                 if (this.timers[i] < consumption.phase1Threshold) {
@@ -82,108 +103,124 @@ export class PhysicsSystem {
                 continue
             }
 
-            // Verlet Integration
-            let vx = (this.px[i] - this.ox[i]) * friction
-            let vy = (this.py[i] - this.oy[i]) * friction + gravity
+            // Apply gravity
+            this.vy[i] += gravity
 
+            // Apply damping
+            this.vx[i] *= damping
+            this.vy[i] *= damping
+
+            // Store old position
             this.ox[i] = this.px[i]
             this.oy[i] = this.py[i]
-            this.px[i] += vx
-            this.py[i] += vy
 
+            // Predict new position
+            this.px[i] += this.vx[i]
+            this.py[i] += this.vy[i]
+
+            // Update rotation
             this.angles[i] += this.avs[i]
-            // angularDamping: 0.0 -> *1.0 (No loss); 0.1 -> *0.9 (10% loss)
             this.avs[i] *= (1 - (PHYSICS_CONFIG.particle.angularDamping || 0.0))
+        }
 
+        // ========== Phase 2: Constraint solving (multiple iterations) ==========
+        for (let iter = 0; iter < constraintIterations; iter++) {
+            // Rebuild spatial grid each iteration
+            this.rebuildGrid(n)
+
+            // Solve particle-particle constraints
+            this.solveParticleConstraints(n)
+
+            // Solve boundary constraints
+            this.solveBoundaryConstraints(n, w, h)
+        }
+
+        // ========== Phase 3: Update velocity from position change ==========
+        for (let i = 0; i < n; i++) {
+            if (this.states[i] !== 0) continue
+            this.vx[i] = this.px[i] - this.ox[i]
+            this.vy[i] = this.py[i] - this.oy[i]
+        }
+    }
+
+    private rebuildGrid(n: number) {
+        const cols = this.gridCols
+        const rows = this.gridRows
+        this.heads.fill(-1)
+
+        for (let i = 0; i < n; i++) {
+            if (this.states[i] !== 0) continue
 
             const gx = Math.floor(this.px[i] / this.cellSize)
             const gy = Math.floor(this.py[i] / this.cellSize)
+
             if (gx >= 0 && gx < cols && gy >= 0 && gy < rows) {
                 const idx = gx + gy * cols
                 this.nexts[i] = this.heads[idx]
                 this.heads[idx] = i
             }
         }
+    }
 
-        // Collision Solve (Multi-Pass Relaxation)
-        const passes = (PHYSICS_CONFIG.bounds as any).collisionPasses || 2
-        for (let pass = 0; pass < passes; pass++) {
-            for (let i = 0; i < n; i++) {
-                if (this.states[i] !== 0) continue
+    /**
+     * PBD Distance Constraint:
+     * If two particles overlap, push them apart to exactly minDist
+     */
+    private solveParticleConstraints(n: number) {
+        const cols = this.gridCols
+        const rows = this.gridRows
 
-                const gx = Math.floor(this.px[i] / this.cellSize)
-                const gy = Math.floor(this.py[i] / this.cellSize)
-                const r = this.rads[i]
-                const zi = this.zs[i]
+        for (let i = 0; i < n; i++) {
+            if (this.states[i] !== 0) continue
 
-                for (let x = gx - 1; x <= gx + 1; x++) {
-                    if (x < 0 || x >= cols) continue
-                    for (let y = gy - 1; y <= gy + 1; y++) {
-                        if (y < 0 || y >= rows) continue
-                        let o = this.heads[x + y * cols]
-                        while (o !== -1) {
-                            if (o > i && this.states[o] === 0) {
-                                if (Math.abs(zi - this.zs[o]) < 0.1) {
-                                    const dx = this.px[i] - this.px[o]
-                                    const dy = this.py[i] - this.py[o]
-                                    const distSq = dx * dx + dy * dy
-                                    const min = r + this.rads[o]
-                                    if (distSq < min * min && distSq > 0) {
-                                        const dist = Math.sqrt(distSq)
-                                        const stiffness = PHYSICS_CONFIG.particle.stiffness
-                                        const overlap = (min - dist)
-                                        const nx = dx / dist
-                                        const ny = dy / dist
+            const gx = Math.floor(this.px[i] / this.cellSize)
+            const gy = Math.floor(this.py[i] / this.cellSize)
+            const ri = this.rads[i]
+            const zi = this.zs[i]
 
-                                        const maxPush = PHYSICS_CONFIG.particle.maxPush
-                                        const pushX = nx * Math.min(overlap * stiffness, maxPush)
-                                        const pushY = ny * Math.min(overlap * stiffness, maxPush)
+            // Check neighboring cells
+            for (let x = gx - 1; x <= gx + 1; x++) {
+                if (x < 0 || x >= cols) continue
+                for (let y = gy - 1; y <= gy + 1; y++) {
+                    if (y < 0 || y >= rows) continue
 
-                                        this.px[i] += pushX
-                                        this.py[i] += pushY
-                                        this.px[o] -= pushX
-                                        this.py[o] -= pushY
+                    let j = this.heads[x + y * cols]
+                    while (j !== -1) {
+                        if (j > i && this.states[j] === 0) {
+                            // Only collide same z-level (performance + visual)
+                            if (Math.abs(zi - this.zs[j]) < 0.1) {
+                                const dx = this.px[i] - this.px[j]
+                                const dy = this.py[i] - this.py[j]
+                                const distSq = dx * dx + dy * dy
+                                const minDist = ri + this.rads[j]
 
-                                        // 优化后的动能阻尼 (Stable Friction)
-                                        // 1. 计算相对速度
-                                        const vx_rel = (this.px[i] - this.ox[i]) - (this.px[o] - this.ox[o])
-                                        const vy_rel = (this.py[i] - this.oy[i]) - (this.py[o] - this.oy[o])
+                                if (distSq < minDist * minDist && distSq > 0.0001) {
+                                    const dist = Math.sqrt(distSq)
+                                    const overlap = minDist - dist
 
-                                        // 2. 计算切线方向 (Tangent) - 垂直于法线 (nx, ny)
-                                        const tx = -ny
-                                        const ty = nx
+                                    // PBD: Move each particle by half the overlap
+                                    const nx = dx / dist
+                                    const ny = dy / dist
+                                    const correction = overlap * 0.5
 
-                                        // 3. 投影相对速度到切线上 (Dot Product)
-                                        const vt = vx_rel * tx + vy_rel * ty
-
-                                        // 4. 应用切向摩擦力 (只减少切向速度，保留法向弹力)
-                                        // 限制最大修正量，防止超调
-                                        const cDamping = PHYSICS_CONFIG.particle.collisionDamping || 0.1
-                                        if (Math.abs(vt) > 0.001) {
-                                            const impulse = vt * cDamping * 0.5 // 0.5 分摊给两个粒子
-
-                                            // 作用于切线方向修改 ox/oy (间接修改速度)
-                                            this.ox[i] += tx * impulse
-                                            this.oy[i] += ty * impulse
-                                            this.ox[o] -= tx * impulse
-                                            this.oy[o] -= ty * impulse
-                                        }
-                                    }
+                                    this.px[i] += nx * correction
+                                    this.py[i] += ny * correction
+                                    this.px[j] -= nx * correction
+                                    this.py[j] -= ny * correction
                                 }
                             }
-                            o = this.nexts[o]
                         }
+                        j = this.nexts[j]
                     }
                 }
             }
-            // Constraint Pass: Apply Boundary Logic
-            this.applyConstraints(n, w, h)
         }
     }
 
-    private applyConstraints(n: number, w: number, h: number) {
+    private solveBoundaryConstraints(n: number, w: number, h: number) {
         const bounce = PHYSICS_CONFIG.bounds.bounce
         const ceilingMargin = PHYSICS_CONFIG.bounds.ceilingMargin
+
         for (let i = 0; i < n; i++) {
             if (this.states[i] !== 0) continue
             const r = this.rads[i]
@@ -191,21 +228,20 @@ export class PhysicsSystem {
             // Left Wall
             if (this.px[i] < r) {
                 this.px[i] = r
-                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * bounce
+                this.vx[i] *= -bounce
             }
             // Right Wall
             if (this.px[i] > w - r) {
                 this.px[i] = w - r
-                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * bounce
+                this.vx[i] *= -bounce
             }
             // Floor
             if (this.py[i] > h - r) {
-                const vy = (this.py[i] - this.oy[i])
                 this.py[i] = h - r
-                this.oy[i] = this.py[i] + vy * bounce
-                this.avs[i] *= 0.9 // Prototype: angularVelocity *= 0.9 on floor impact
+                this.vy[i] *= -bounce
+                this.avs[i] *= 0.9
             }
-            // Ceiling (Open)
+            // Ceiling (cleanup)
             if (this.py[i] < ceilingMargin) {
                 this.states[i] = 2
             }
@@ -216,22 +252,38 @@ export class PhysicsSystem {
         if (this.particleCount >= this.MAX_PARTICLES || this.poolPtr <= 0) return -1
 
         const i = this.particleCount
+
+        // Position
         this.px[i] = x
         this.py[i] = y
-        this.ox[i] = x + (Math.random() - 0.5) * 3
-        this.oy[i] = y + (Math.random() - 0.5) * 1
+        this.ox[i] = x
+        this.oy[i] = y
 
+        // Velocity (random horizontal drift for natural falling)
+        this.vx[i] = (Math.random() - 0.5) * 5.0  // -2.5 ~ 2.5 水平漂移
+        this.vy[i] = Math.random() * 0.5          // 0 ~ 0.5 轻微向下
+
+        // State
         this.states[i] = 0
         this.timers[i] = 0
-        // 使用 collisionRadius 并加入随机扰动 (0.8 ~ 1.2x)
-        this.rads[i] = PHYSICS_CONFIG.particle.collisionRadius * (0.8 + Math.random() * 0.4)
-        this.zs[i] = Math.floor(Math.random() * (RENDER_CONFIG.depth?.zLevels || 3)) / 2
-        this.angles[i] = Math.random() * Math.PI * 2
-        this.avs[i] = (Math.random() - 0.5) * 0.2 // Prototype: (Math.random() - 0.5) * 0.2
 
+        // Radius with small variance
+        this.rads[i] = PHYSICS_CONFIG.particle.collisionRadius * (0.9 + Math.random() * 0.2)
+
+        // Uniform z-level distribution (round-robin)
+        const zLevels = RENDER_CONFIG.depth?.zLevels || 3
+        this.zs[i] = (this.zCounter % zLevels) / (zLevels - 1 || 1)
+        this.zCounter++
+
+        // Rotation
+        this.angles[i] = Math.random() * Math.PI * 2
+        this.avs[i] = (Math.random() - 0.5) * 0.2
+
+        // Assign ID
         const id = this.idPool[--this.poolPtr]
         this.ids[i] = id
         this.particleCount++
+
         return id
     }
 
@@ -240,7 +292,6 @@ export class PhysicsSystem {
         let marked = 0
         const indices = Array.from({ length: n }, (_, i) => i)
             .filter(i => this.states[i] === 0)
-
 
         for (let i = 0; i < count && indices.length > 0; i++) {
             const idxIdx = Math.floor(Math.random() * indices.length)
@@ -263,6 +314,7 @@ export class PhysicsSystem {
                 if (i !== last) {
                     this.px[i] = this.px[last]; this.py[i] = this.py[last]
                     this.ox[i] = this.ox[last]; this.oy[i] = this.oy[last]
+                    this.vx[i] = this.vx[last]; this.vy[i] = this.vy[last]
                     this.rads[i] = this.rads[last]; this.zs[i] = this.zs[last]
                     this.ids[i] = this.ids[last]; this.states[i] = this.states[last]
                     this.timers[i] = this.timers[last]
@@ -287,11 +339,11 @@ export class PhysicsSystem {
             if (this.states[i] !== 0) continue
             const dx = this.px[i] - x
             const dy = this.py[i] - y
-            const force = power + Math.random() * 10
-            const angle = Math.atan2(dy, dx)
+            const dist = Math.sqrt(dx * dx + dy * dy) + 1
+            const force = power / dist
 
-            this.ox[i] = this.px[i] - Math.cos(angle) * force
-            this.oy[i] = this.py[i] - Math.sin(angle) * force
+            this.vx[i] += (dx / dist) * force
+            this.vy[i] += (dy / dist) * force
         }
     }
 
@@ -306,14 +358,12 @@ export class PhysicsSystem {
             const dx = this.px[i] - x
             const dy = this.py[i] - y
             const d2 = dx * dx + dy * dy
+
             if (d2 < rangeSq && d2 > 0) {
                 const dist = Math.sqrt(d2)
-                const f = (1 - dist / range) * force * 2
-                const nx = (dx / dist) * f
-                const ny = (dy / dist) * f
-
-                this.px[i] += nx
-                this.py[i] += ny
+                const f = (1 - dist / range) * force
+                this.vx[i] += (dx / dist) * f
+                this.vy[i] += (dy / dist) * f
             }
         }
     }
@@ -321,6 +371,7 @@ export class PhysicsSystem {
     public clear() {
         this.particleCount = 0
         this.poolPtr = this.MAX_PARTICLES
+        this.zCounter = 0
         for (let i = 0; i < this.MAX_PARTICLES; i++) {
             this.idPool[i] = this.MAX_PARTICLES - 1 - i
         }

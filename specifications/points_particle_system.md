@@ -1,8 +1,8 @@
 # 门店积分粒子系统技术规范 (Points Particle System Spec)
 
 **适用范围**：首页积分卡片 (Home Points Card) 粒子特效
-**技术栈**：PixiJS v7 + Custom Verlet Physics
-**最后更新**：V3.6
+**技术栈**：PixiJS v7 + Position-Based Dynamics (PBD)
+**最后更新**：V3.7 (2026-02-08)
 
 ---
 
@@ -11,7 +11,7 @@
 
 ### 0.1 核心准则 (Core Architecture)
 - **渲染层**：强制 `PixiJS (v7)` + `WebGL`。严禁 Canvas 2D 回退。
-- **物理层**：强制 **100% 自研 Verlet Integration** + **TypedArray**。彻底移除外部物理引擎（如 Matter.js）以实现零渲染循环开销。
+- **物理层**：强制 **100% 自研 Position-Based Dynamics (PBD)** + **TypedArray**。彻底移除外部物理引擎（如 Matter.js）以实现零渲染循环开销。
 - **循环层**：强制 **Fixed Timestep (60Hz)**，与屏幕刷新率解耦。
 - **纯净性**：游戏核心类 (`GameLoop`, `Physics`) **严禁引用 Taro/React**。
 
@@ -34,19 +34,51 @@
 
 ## 2. 物理引擎实现 (Physics Implementation)
 
-### 2.1 核心算法：Verlet Integration
-采用无速度衰减的韦尔莱积分，以获得比欧拉积分更稳定的物理表现。
-- **位置更新**：`x = x + (x - oldX) * friction + gravity`
-- **内存优化**：全量使用 `Float32Array` 存储 `x, y, oldX, oldY`，严禁使用对象 (`{x, y}`)。
+### 2.1 核心算法：Position-Based Dynamics (PBD)
+采用 PBD 约束求解方法，相比传统 Verlet 积分提供更稳定的碰撞处理和防挤压特性。
+
+**算法流程**：
+```typescript
+// 1. 应用外力（重力）
+velocity += gravity * dt
+
+// 2. 速度衰减
+velocity *= damping
+
+// 3. 预测位置
+position += velocity
+
+// 4. 约束求解（迭代 N 次）
+for (i = 0; i < constraintIterations; i++) {
+    // 距离约束：确保粒子间距 >= minDist
+    if (distance < minDist) {
+        // 直接修正位置，各移动 overlap/2
+        position += correction
+    }
+    // 边界约束
+}
+
+// 5. 更新速度（从位置变化反推）
+velocity = (position - oldPosition)
+```
+
+**优势**：
+- **硬性约束**：粒子不会被挤压，堆积密度均匀
+- **稳定性高**：适合大量粒子堆叠场景
+- **可调节性**：通过迭代次数控制约束强度
+
+**内存优化**：全量使用 `Float32Array` 存储位置、速度、旧位置，严禁使用对象 (`{x, y}`)。
 
 ### 2.2 碰撞检测：Grid Partitioning
-- **空间划分**：将屏幕划分为 `cellSize` (约 18px) 的网格。
+- **空间划分**：将屏幕划分为 `cellSize` (约 15px) 的网格。
 - **查询复杂度**：从 $O(N^2)$ 降低至 $O(N)$。
 - **数据结构**：使用 `Int32Array` 实现链表式网格索引 (`heads`, `nexts`)，避免数组分配开销。
+- **深度优化**：仅同 z-level 粒子进行碰撞检测，进一步降低计算量。
 
 ### 2.3 交互模型：Repulsion (斥力)
 - **触发机制**：用户手指触摸/拖拽时产生斥力场。
-- **力学模型**：基于距离的反比斥力，但在 **Fixed Update** 中施加，确保不同刷新率下总冲量一致。
+- **力学模型**：基于距离的反比斥力，直接修改速度而非位置。
+- **应用时机**：在 **Fixed Update** 中施加，确保不同刷新率下总冲量一致。
 
 ---
 

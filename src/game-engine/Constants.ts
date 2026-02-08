@@ -1,41 +1,32 @@
 export const PHYSICS_CONFIG = {
-    // 物理世界更新频率 (Hz)。
-    frequency: 60,
-    // 最大粒子数量
-    maxParticles: 5000,
-    // 物理世界重力
-    gravity: { x: 0, y: 0.5 }, // 调优: 降低重力 (0.35 -> 0.25) 减少挤压抖动
-    // 空间网格划分大小 (像素)
-    cellSize: 15,
-    // 墙壁厚度
-    wallThickness: 100,
-    // 边界与清理逻辑
+    frequency: 60,              // 物理世界更新频率 (Hz)
+    maxParticles: 5000,         // 最大粒子数量
+    gravity: { x: 0, y: 0.5 },  // 物理世界重力
+    cellSize: 15,               // 空间网格划分大小 (像素)
+
     bounds: {
-        bounce: 0.4,        // 调优: 降低反弹 (0.5 -> 0.4) 帮助静止
-        ceilingMargin: -2000,
-        collisionPasses: 3   // 调优: 增加解算次数 (2 -> 3) 提高稳定性
+        bounce: 0.4,            // 边界反弹系数
+        ceilingMargin: -2000,   // 天花板清理边界
+        collisionPasses: 5      // PBD约束求解次数
     },
-    // 粒子（星星）物理与展示属性
+
     particle: {
-        collisionRadius: 6,
-        visualRadius: 6,
-        frictionAir: 0.05,   // 调优: 增加阻力 (0.04 -> 0.12) 吸收震荡能量
-        collisionDamping: 0.2, // 碰撞阻尼: 粒子碰撞时动能损失系数 (0.0: 无损耗 ~ 1.0: 类似泥巴)
-        stiffness: 0.5,      // 调优: 降低硬度 (0.8 -> 0.6) 减少剧烈回弹
-        maxPush: 6,          // 调优: 降低最大推力 (8 -> 6) 防止穿模爆发
-        angularDamping: 0.0  // 旋转阻尾: 0.0(无阻力) ~ 1.0(完全静止)
+        collisionRadius: 6,     // 碰撞半径
+        visualRadius: 6,        // 视觉半径
+        damping: 0.95,          // PBD速度衰减 (0.95~0.99)
+        angularDamping: 0.0     // 旋转阻尼
     },
-    // 消耗/删除动画
+
     consumption: {
-        speed: 0.02,       // 缩放速度
-        floatForce1: -2,   // 阶段1上浮力
-        floatForce2: -1,   // 阶段2上浮力
-        phase1Threshold: 0.4 // 阶段1阈值
+        speed: 0.02,            // 消失动画速度
+        floatForce1: -2,        // 阶段1上浮力
+        floatForce2: -1,        // 阶段2上浮力
+        phase1Threshold: 0.4    // 阶段1阈值
     },
-    // 用户交互属性
+
     interaction: {
-        repulsionRadius: 40,   // 交互范围
-        repulsionForce: 12.0   // 调优: 大力出奇迹 (1.0 -> 12.0) 对抗高重力
+        repulsionRadius: 40,    // 交互范围
+        repulsionForce: 16.0    // 排斥力
     }
 }
 
