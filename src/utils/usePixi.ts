@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro'
 import { useEffect, useState } from 'react'
 import type * as PixiTypes from 'pixi.js'
-
+import { RENDER_CONFIG } from '../game-engine/Constants'
 export type PixiModule = typeof import('pixi.js')
 
 const getDpr = () => {
@@ -172,11 +172,13 @@ export const usePixi = (canvasId: string) => {
             const PIXI = await ensurePixiModule((info as any).canvas)
             if (!PIXI || cancelled) return
 
+            const finalDpr = Math.min((info as any).dpr || 1, RENDER_CONFIG.maxDPR)
+
             createdApp = new PIXI.Application({
                 view: (info as any).canvas,
                 width: (info as any).width,
                 height: (info as any).height,
-                resolution: process.env.TARO_ENV === 'weapp' ? 1.5 : Math.min((info as any).dpr || 1, 2),
+                resolution: finalDpr,
                 backgroundColor: 0xffffff,
                 backgroundAlpha: 0,
                 autoDensity: true,

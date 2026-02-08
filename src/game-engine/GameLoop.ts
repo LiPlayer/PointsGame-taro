@@ -1,7 +1,6 @@
 import { PhysicsSystem } from './PhysicsSystem'
 import { RenderSystem } from './RenderSystem'
 import { PHYSICS_CONFIG } from './Constants'
-import Matter from 'matter-js'
 
 export class GameLoop {
     private physics: PhysicsSystem

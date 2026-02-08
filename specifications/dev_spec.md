@@ -96,17 +96,11 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
 - **实例管理**：游戏音效统一使用 `Taro.createInnerAudioContext`，严禁使用 HTML5 `<audio>` 标签。
 - **交互诱导**：H5 环境下，浏览器禁止自动播放。必须在用户首次点击（如“开始”按钮）的事件回调中执行一次 `audio.play()` (即使是播放静音片段) 以解锁音频上下文。
 
-### 4.4 渲染引擎与 GPU 加速 (Rendering & Acceleration)
-为确保小程序端在大规模粒子运动下的极致流畅度，项目采用 WebGL 方案实施高频动画。
-- **核心引擎**：`PixiJS` (v7+) + 平台适配层。
-- **渲染标准**：
-    - **H5**: 原生 WebGL 渲染。
-    - **Weapp**: 企业级 WebGL 模式，必须使用小程序专用适配器处理 Canvas 实例。
-- **性能红线**：即便使用 GPU，也应严格控制纹理（Texture）大小，优先使用 `Graphics` 或合成 Sprite。
-- **降级策略**：若环境不支持 WebGL，应平滑回退至基础 Canvas 2D 或静态图片展示。
+### 4.4 游戏引擎规范 (Game Engine Spec)
+本项目采用自研高性能游戏架构，详细的技术实现规范、物理算法与渲染约束已整理至独立文档。
 
-### 4.5 内存与性能防护 (Performance)
-- **资源释放**：在页面/组件的 `onUnload` 或 `useEffect` 清理函数中，必须显式调用 `cancelAnimationFrame` 并将大型对象（如粒子数组）置为 `null`，防止 Canvas 上下文无法回收导致的崩溃。
+> [!IMPORTANT]
+> **核心规范文档**：[points_particle_system.md](file:///d:/Repositories/PointsGame-taro/specifications/points_particle_system.md)
 
 ---
 

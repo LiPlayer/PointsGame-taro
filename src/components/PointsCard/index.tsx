@@ -3,6 +3,7 @@ import Taro from '@tarojs/taro'
 import { View, Canvas } from '@tarojs/components'
 import { GameLoop } from '../../game-engine/GameLoop'
 import { readCanvasInfo, ensurePixiModule } from '../../utils/usePixi'
+import { RENDER_CONFIG } from '../../game-engine/Constants'
 import './index.scss'
 
 interface PointsCardProps {
@@ -115,7 +116,8 @@ const PointsCard: React.FC<PointsCardProps> = ({
             }
 
             if (canvas && isMounted) {
-                const loop = new GameLoop(PIXI, canvas, width, height, dpr)
+                const finalDpr = Math.min(dpr, RENDER_CONFIG.maxDPR)
+                const loop = new GameLoop(PIXI, canvas, width, height, finalDpr)
                 loop.onFpsUpdate = (f) => setFps(f)
                 loop.start()
                 gameLoopRef.current = loop

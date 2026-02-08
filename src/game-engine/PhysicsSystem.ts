@@ -1,10 +1,6 @@
-import Matter from 'matter-js'
 import { PHYSICS_CONFIG } from './Constants'
 
 export class PhysicsSystem {
-    public engine: Matter.Engine
-    public world: Matter.World
-
     // --- 高性能粒子引擎 (Zero Allocation / Typed Arrays) ---
     public MAX_PARTICLES = 5000
     public px: Float32Array = new Float32Array(this.MAX_PARTICLES)
@@ -14,35 +10,27 @@ export class PhysicsSystem {
     public rads: Float32Array = new Float32Array(this.MAX_PARTICLES)
     public zs: Float32Array = new Float32Array(this.MAX_PARTICLES)
     public ids: Int32Array = new Int32Array(this.MAX_PARTICLES)
-    public states: Int8Array = new Int8Array(this.MAX_PARTICLES) // 0: active, 1: dying
+    public states: Int8Array = new Int8Array(this.MAX_PARTICLES) // 0: active, 1: dying, 2: cleanup
     public timers: Float32Array = new Float32Array(this.MAX_PARTICLES)
     public angles: Float32Array = new Float32Array(this.MAX_PARTICLES)
     public avs: Float32Array = new Float32Array(this.MAX_PARTICLES)
+
     // ID池，用于管理稳定的渲染ID
     private idPool: Int32Array = new Int32Array(this.MAX_PARTICLES)
     private poolPtr: number = this.MAX_PARTICLES
     public particleCount: number = 0
 
     // 网格优化
-    private cellSize = 18 // Slightly larger for random radius
+    private cellSize = 18
     private gridCols = 0
     private gridRows = 0
     private heads: Int32Array = new Int32Array(0)
     private nexts: Int32Array = new Int32Array(this.MAX_PARTICLES)
 
-    private walls: Matter.Body[] = []
     private width: number = 0
     private height: number = 0
 
     constructor() {
-        this.engine = Matter.Engine.create({
-            positionIterations: 2,
-            velocityIterations: 2,
-            enableSleeping: true
-        })
-        this.world = this.engine.world
-        this.engine.gravity.y = 0.32 // Reduced slightly to lower pressure
-
         // 初始化ID池 (倒序放入，从0开始取)
         for (let i = 0; i < this.MAX_PARTICLES; i++) {
             this.idPool[i] = this.MAX_PARTICLES - 1 - i
@@ -52,7 +40,6 @@ export class PhysicsSystem {
     public init(w: number, h: number) {
         this.width = w
         this.height = h
-        this.createWalls(w, h)
 
         // 初始化网格
         this.gridCols = Math.ceil(w / this.cellSize)
@@ -61,23 +48,22 @@ export class PhysicsSystem {
     }
 
     public update(dt: number) {
-        // 1. Matter.js 更新 (边界和复杂物体)
-        Matter.Engine.update(this.engine, dt)
-
-        // 2. 高性能粒子更新 (Verlet Integration)
+        // 全自研 Verlet 更新 (不再依赖 Matter.js)
         this.updateParticles(dt)
     }
 
     private updateParticles(dt: number) {
         const n = this.particleCount
         const w = this.width, h = this.height
-        const friction = 0.95 // Increased air resistance (was 0.97) for quicker settling
-        const gravity = 0.32 // Reduced from 0.35 to lower pile pressure
+
+        // 从 Constants.ts 读取参数，根治“名存实亡”
+        const friction = 1 - PHYSICS_CONFIG.particle.frictionAir
+        const gravity = PHYSICS_CONFIG.gravity.y
 
         // 网格重构
         const cols = this.gridCols
         const rows = this.gridRows
-        this.heads.fill(-1) // Reset heads for new frame
+        this.heads.fill(-1)
 
         for (let i = 0; i < n; i++) {
             // Animation state: Dying
@@ -90,10 +76,10 @@ export class PhysicsSystem {
                     this.py[i] -= 1
                     this.angles[i] += 0.2
                     if (this.timers[i] >= 1.0) {
-                        this.states[i] = 2 // Marked for cleanup
+                        this.states[i] = 2
                     }
                 }
-                continue // Skip normal physics for dying stars
+                continue
             }
 
             // Verlet Integration
@@ -105,17 +91,9 @@ export class PhysicsSystem {
             this.px[i] += vx
             this.py[i] += vy
 
-            // Update rotation
             this.angles[i] += this.avs[i]
-            this.avs[i] *= 0.99 // Subtle angular friction
+            this.avs[i] *= 0.99
 
-            // Ground Friction (Damping)
-            if (this.py[i] > h - 1 - this.rads[i]) {
-                const groundFriction = 0.2
-                this.px[i] = this.px[i] + (this.px[i] - this.ox[i]) * (1 - groundFriction) - (this.px[i] - this.ox[i])
-            }
-
-            // Grid Insert
             const gx = Math.floor(this.px[i] / this.cellSize)
             const gy = Math.floor(this.py[i] / this.cellSize)
             if (gx >= 0 && gx < cols && gy >= 0 && gy < rows) {
@@ -125,7 +103,7 @@ export class PhysicsSystem {
             }
         }
 
-        // Collision Solve (2 Passes - Balanced performance and stability)
+        // Collision Solve (2 Passes)
         for (let pass = 0; pass < 2; pass++) {
             for (let i = 0; i < n; i++) {
                 if (this.states[i] !== 0) continue
@@ -149,8 +127,6 @@ export class PhysicsSystem {
                                     const min = r + this.rads[o]
                                     if (distSq < min * min && distSq > 0) {
                                         const dist = Math.sqrt(distSq)
-                                        // Resolve collision (Verlet integration compatible)
-                                        // Use a softer response (0.2) instead of full hard shell (0.5) to avoid "balloon" jitter
                                         const stiffness = 0.2
                                         const overlap = (min - dist)
                                         const nx = dx / dist
@@ -169,49 +145,53 @@ export class PhysicsSystem {
                     }
                 }
             }
-            // Constraint Pass: Apply Boundary inside/after solve to prevent jitter
+            // Constraint Pass: Apply Boundary Logic (Refactored to Pure Math)
             this.applyConstraints(n, w, h)
         }
     }
 
     private applyConstraints(n: number, w: number, h: number) {
+        const bounce = 0.5 // Match prototype bounce
         for (let i = 0; i < n; i++) {
             if (this.states[i] !== 0) continue
             const r = this.rads[i]
+
+            // Left Wall
             if (this.px[i] < r) {
                 this.px[i] = r
-                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * 0.5 // Match prototype bounce
+                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * bounce
             }
+            // Right Wall
             if (this.px[i] > w - r) {
                 this.px[i] = w - r
-                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * 0.5 // Match prototype bounce
+                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * bounce
             }
+            // Floor
             if (this.py[i] > h - r) {
                 const vy = (this.py[i] - this.oy[i])
                 this.py[i] = h - r
-                this.oy[i] = this.py[i] + vy * 0.5 // Match prototype floor bounce
-                // Removed ground friction to allow natural sliding
+                this.oy[i] = this.py[i] + vy * bounce
+            }
+            // Ceiling (Open)
+            if (this.py[i] < -500) { // Safety cleanup for rogue particles
+                this.states[i] = 2
             }
         }
     }
+
     public addParticle(x: number, y: number): number {
         if (this.particleCount >= this.MAX_PARTICLES || this.poolPtr <= 0) return -1
 
         const i = this.particleCount
         this.px[i] = x
         this.py[i] = y
-        this.ox[i] = x + (Math.random() - 0.5) * 3 // Reduced horizontal kick for 'rain' feel
-        this.oy[i] = y + (Math.random() - 0.5) * 1 // Minimal vertical kick
+        this.ox[i] = x + (Math.random() - 0.5) * 3
+        this.oy[i] = y + (Math.random() - 0.5) * 1
 
         this.states[i] = 0
         this.timers[i] = 0
-
-        // 随机半径 (80% - 120%)
         this.rads[i] = PHYSICS_CONFIG.particle.radius * (0.8 + Math.random() * 0.4)
-        // 随机深度 (0, 0.5, 1.0)
         this.zs[i] = Math.floor(Math.random() * 3) / 2
-
-        // 随机初始旋转和角速度 (Match prototype 0.2)
         this.angles[i] = Math.random() * Math.PI * 2
         this.avs[i] = (Math.random() - 0.5) * 0.2
 
@@ -224,11 +204,9 @@ export class PhysicsSystem {
     public consume(count: number) {
         const n = this.particleCount
         let marked = 0
-        // Find random active particles and mark them as dying
         const indices = Array.from({ length: n }, (_, i) => i)
             .filter(i => this.states[i] === 0)
 
-        // Shuffle or pick random
         for (let i = 0; i < count && indices.length > 0; i++) {
             const idxIdx = Math.floor(Math.random() * indices.length)
             const pIdx = indices.splice(idxIdx, 1)[0]
@@ -244,10 +222,8 @@ export class PhysicsSystem {
             if (this.states[i] === 2) {
                 const id = this.ids[i]
                 onRemove(id)
-                // 回收ID
                 this.idPool[this.poolPtr++] = id
 
-                // Swap with last
                 const last = this.particleCount - 1
                 if (i !== last) {
                     this.px[i] = this.px[last]; this.py[i] = this.py[last]
@@ -276,11 +252,9 @@ export class PhysicsSystem {
             if (this.states[i] !== 0) continue
             const dx = this.px[i] - x
             const dy = this.py[i] - y
-            const distSq = dx * dx + dy * dy
             const force = power + Math.random() * 10
             const angle = Math.atan2(dy, dx)
 
-            // Modify oldX/oldY to create instant velocity away from center
             this.ox[i] = this.px[i] - Math.cos(angle) * force
             this.oy[i] = this.py[i] - Math.sin(angle) * force
         }
@@ -290,7 +264,7 @@ export class PhysicsSystem {
         const n = this.particleCount
         const range = PHYSICS_CONFIG.interaction.repulsionRadius
         const rangeSq = range * range
-        const force = 1.2 // Boosted from 0.8 for snappy 60Hz response
+        const force = PHYSICS_CONFIG.interaction.repulsionForce
 
         for (let i = 0; i < n; i++) {
             if (this.states[i] !== 0) continue
@@ -299,11 +273,10 @@ export class PhysicsSystem {
             const d2 = dx * dx + dy * dy
             if (d2 < rangeSq && d2 > 0) {
                 const dist = Math.sqrt(d2)
-                const f = (1 - dist / range) * force * 2 // Force * 2 for intensity
+                const f = (1 - dist / range) * force * 2
                 const nx = (dx / dist) * f
                 const ny = (dy / dist) * f
 
-                // Direct modification (Explosive feel)
                 this.px[i] += nx
                 this.py[i] += ny
             }
@@ -311,31 +284,18 @@ export class PhysicsSystem {
     }
 
     public clear() {
-        Matter.World.clear(this.world, false)
         this.particleCount = 0
+        this.poolPtr = this.MAX_PARTICLES
+        for (let i = 0; i < this.MAX_PARTICLES; i++) {
+            this.idPool[i] = this.MAX_PARTICLES - 1 - i
+        }
     }
 
     public resize(w: number, h: number) {
         this.width = w
         this.height = h
-        this.createWalls(w, h)
-        // Re-init grid heads
         this.gridCols = Math.ceil(w / this.cellSize)
         this.gridRows = Math.ceil(h / this.cellSize)
         this.heads = new Int32Array(this.gridCols * this.gridRows).fill(-1)
-    }
-
-    private createWalls(w: number, h: number) {
-        if (this.walls.length > 0) {
-            Matter.World.remove(this.world, this.walls)
-        }
-
-        const th = 100
-        this.walls = [
-            Matter.Bodies.rectangle(w / 2, h + th / 2, w + th * 2, th, { isStatic: true }),
-            Matter.Bodies.rectangle(-th / 2, h / 2, th, h + th * 2, { isStatic: true }),
-            Matter.Bodies.rectangle(w + th / 2, h / 2, th, h + th * 2, { isStatic: true })
-        ]
-        Matter.World.add(this.world, this.walls)
     }
 }
