@@ -97,10 +97,18 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
 - **交互诱导**：H5 环境下，浏览器禁止自动播放。必须在用户首次点击（如“开始”按钮）的事件回调中执行一次 `audio.play()` (即使是播放静音片段) 以解锁音频上下文。
 
 ### 4.4 游戏引擎规范 (Game Engine Spec)
-本项目采用自研高性能游戏架构，详细的技术实现规范、物理算法与渲染约束已整理至独立文档。
+本项目采用“逻辑-渲染分体”架构，确保复杂游戏逻辑与 Taro/React UI 完全解耦，彻底避免 React Re-render 导致的掉帧。
 
-> [!IMPORTANT]
-> **核心规范文档**：[points_particle_system.md](file:///d:/Repositories/PointsGame-taro/specifications/points_particle_system.md)
+#### A. 选型标准 (Approved Frameworks)
+- **2D 游戏**：强制 `PixiJS (v7)`。优点：轻量、Webapp 支持成熟。
+- **3D 游戏**：强制 `Three.js` (Weapp 适配版)。若场景极端复杂需采用 `PlayCanvas`。
+- **UI 融合**：Taro 只负责游戏外围 UI（按钮、分数显示）；游戏内部所有图形、文字必须在 Canvas 内部绘制。
+
+#### B. 跨端性能准则 (Performance & Compatibility)
+1. **单向数据通信**：Taro UI 通过 `Ref` 或 `window` 单向调用引擎 API；引擎严禁通过 `setState` 驱动游戏逻辑（仅限在游戏结束等低频时点回调 React）。
+2. **内存预分配 (Pool Logic)**：所有 2D Sprite 或 3D Object 必须在预加载阶段创建，运行时严禁频繁 `new` 或销毁对象。
+3. **分辨率隔离**：必须遵循 `maxDPR` 限制。3D 游戏在微信小程序中强制限制 `resolution <= 1.2` 以保散热稳定。
+4. **资源池化**：Texture 和 Geometry 必须全局共享，避免重复解析导致的内存溢出。
 
 ---
 
