@@ -10,11 +10,6 @@ export class GameLoop {
     private accumulator: number = 0
     private readonly params: { width: number; height: number; dpr: number; canvas: any }
 
-    // FPS Calculation properties
-    private frameCount: number = 0
-    private lastFpsTime: number = 0
-    public fps: number = 60
-    public onFpsUpdate?: (fps: number) => void
 
     // Fixed time step (e.g. 1000 / 60 = 16.66ms)
     private readonly fixedDelta = 1000 / PHYSICS_CONFIG.frequency
@@ -37,8 +32,6 @@ export class GameLoop {
         this.isRunning = true
         this.lastTime = performance.now()
         this.accumulator = 0
-        this.frameCount = 0 // Reset frame count on start
-        this.lastFpsTime = this.lastTime // Initialize lastFpsTime
 
         requestAnimationFrame(this.loop.bind(this))
     }
@@ -102,16 +95,6 @@ export class GameLoop {
         let deltaTime = time - this.lastTime
         this.lastTime = time
 
-        // FPS Calculation
-        this.frameCount++
-        if (time - this.lastFpsTime >= 1000) {
-            this.fps = Math.round((this.frameCount * 1000) / (time - this.lastFpsTime))
-            this.frameCount = 0
-            this.lastFpsTime = time
-            if (this.onFpsUpdate) {
-                this.onFpsUpdate(this.fps)
-            }
-        }
 
         // Apply interaction force EVERY FRAME if pointer is active (Match Prototype)
         // MOVED TO FIXED UPDATE

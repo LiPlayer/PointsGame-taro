@@ -31,7 +31,6 @@ const PointsCard: React.FC<PointsCardProps> = ({
 
     // UI State
     const [points, setPoints] = useState(initialPoints)
-    const [fps, setFps] = useState(60)
     // Container layout info for input mapping
     const layoutRef = useRef({ left: 0, top: 0, width: 0, height: 0 })
 
@@ -122,7 +121,6 @@ const PointsCard: React.FC<PointsCardProps> = ({
             if (canvas && isMounted) {
                 const finalDpr = Math.min(dpr, RENDER_CONFIG.maxDPR)
                 const loop = new GameLoop(PIXI, canvas, width, height, finalDpr)
-                loop.onFpsUpdate = (f) => setFps(f)
                 loop.start()
 
                 const addStarsAtTop = (count: number) => {
