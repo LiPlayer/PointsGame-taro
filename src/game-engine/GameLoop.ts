@@ -28,6 +28,9 @@ export class GameLoop {
         this.renderer = new RenderSystem(pixi, canvas, width, height, dpr)
     }
 
+    public get width() { return this.params.width }
+    public get height() { return this.params.height }
+
     public start() {
         if (this.isRunning) return
 

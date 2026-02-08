@@ -37,19 +37,23 @@ const PointsCard: React.FC<PointsCardProps> = ({
 
     // Sync Props to Game State and Physics
     useEffect(() => {
-        setPoints(initialPoints)
+        const targetPoints = Math.floor(initialPoints)
+        setPoints(targetPoints)
 
         // If engine is ready, sync physical stars
-        if (gameLoopRef.current && (window as any).PointsSystem) {
-            const current = gameLoopRef.current.getStarCount()
-            const target = Math.floor(initialPoints)
-            const diff = target - current
-
+        if (gameLoopRef.current) {
+            const currentStars = gameLoopRef.current.getStarCount()
+            const diff = targetPoints - currentStars
 
             if (diff > 0) {
-                (window as any).PointsSystem.add(diff)
+                // Add missing physical stars
+                const width = gameLoopRef.current.width
+                for (let i = 0; i < diff; i++) {
+                    gameLoopRef.current.addStar(Math.random() * width, -20 - Math.random() * 100)
+                }
             } else if (diff < 0) {
-                (window as any).PointsSystem.consume(-diff)
+                // Remove excess physical stars
+                gameLoopRef.current.removeStars(-diff)
             }
         }
     }, [initialPoints])
