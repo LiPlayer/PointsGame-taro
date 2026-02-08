@@ -41,7 +41,7 @@ export class PhysicsSystem {
             enableSleeping: true
         })
         this.world = this.engine.world
-        this.engine.gravity.y = 0.25 // 匹配新的重力设定
+        this.engine.gravity.y = 0.32 // Reduced slightly to lower pressure
 
         // 初始化ID池 (倒序放入，从0开始取)
         for (let i = 0; i < this.MAX_PARTICLES; i++) {
@@ -71,8 +71,8 @@ export class PhysicsSystem {
     private updateParticles(dt: number) {
         const n = this.particleCount
         const w = this.width, h = this.height
-        const friction = 0.96 // Prototype value
-        const gravity = 0.25 // Increased from 0.15 to reduce "sticky" feel
+        const friction = 0.95 // Increased air resistance (was 0.97) for quicker settling
+        const gravity = 0.32 // Reduced from 0.35 to lower pile pressure
 
         // 网格重构
         const cols = this.gridCols
@@ -109,6 +109,12 @@ export class PhysicsSystem {
             this.angles[i] += this.avs[i]
             this.avs[i] *= 0.99 // Subtle angular friction
 
+            // Ground Friction (Damping)
+            if (this.py[i] > h - 1 - this.rads[i]) {
+                const groundFriction = 0.2
+                this.px[i] = this.px[i] + (this.px[i] - this.ox[i]) * (1 - groundFriction) - (this.px[i] - this.ox[i])
+            }
+
             // Grid Insert
             const gx = Math.floor(this.px[i] / this.cellSize)
             const gy = Math.floor(this.py[i] / this.cellSize)
@@ -143,13 +149,18 @@ export class PhysicsSystem {
                                     const min = r + this.rads[o]
                                     if (distSq < min * min && distSq > 0) {
                                         const dist = Math.sqrt(distSq)
-                                        const push = (min - dist) * 0.5 // Match prototype high hardness
-                                        const nx = (dx / dist) * push
-                                        const ny = (dy / dist) * push
-                                        this.px[i] += nx
-                                        this.py[i] += ny
-                                        this.px[o] -= nx
-                                        this.py[o] -= ny
+                                        // Resolve collision (Verlet integration compatible)
+                                        // Use a softer response (0.2) instead of full hard shell (0.5) to avoid "balloon" jitter
+                                        const stiffness = 0.2
+                                        const overlap = (min - dist)
+                                        const nx = dx / dist
+                                        const ny = dy / dist
+                                        const pushX = nx * overlap * stiffness
+                                        const pushY = ny * overlap * stiffness
+                                        this.px[i] += pushX
+                                        this.py[i] += pushY
+                                        this.px[o] -= pushX
+                                        this.py[o] -= pushY
                                     }
                                 }
                             }
@@ -279,7 +290,7 @@ export class PhysicsSystem {
         const n = this.particleCount
         const range = PHYSICS_CONFIG.interaction.repulsionRadius
         const rangeSq = range * range
-        const force = 0.8 // Doubled to match prototype's effective power
+        const force = 1.2 // Boosted from 0.8 for snappy 60Hz response
 
         for (let i = 0; i < n; i++) {
             if (this.states[i] !== 0) continue

@@ -15,7 +15,7 @@ export const PHYSICS_CONFIG = {
     },
     // 交互属性
     interaction: {
-        repulsionRadius: 80,
+        repulsionRadius: 40,
         repulsionForce: 0.01 // Matter.js force application is different, needs tuning
     }
 }
