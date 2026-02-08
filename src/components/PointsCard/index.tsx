@@ -50,15 +50,19 @@ const PointsCard: React.FC<PointsCardProps> = ({
     }, [initialPoints])
 
     useEffect(() => {
+        let isMounted = true
+
         const initGame = async () => {
             // Use specialized utility for robust canvas discovery
             let info = await readCanvasInfo(canvasId)
 
             // On some platforms, query might fail immediately on mount
-            if (!info) {
+            if (!info && isMounted) {
                 await new Promise(r => setTimeout(r, 100))
                 info = await readCanvasInfo(canvasId)
             }
+
+            if (!isMounted) return // Cancelled
 
             if (!info) {
                 console.error('PointsCard: Could not find canvas info', canvasId)
@@ -67,30 +71,50 @@ const PointsCard: React.FC<PointsCardProps> = ({
 
             // Get platform-aware PIXI module
             const PIXI = await ensurePixiModule((info as any).canvas)
-            if (!PIXI) {
-                console.error('PointsCard: Could not initialize PIXI module')
-                return
-            }
+            if (!PIXI || !isMounted) return
 
             const { canvas, width, height, dpr } = info as any
 
             // Update layout ref for input mapping (use container query for better accuracy)
-            Taro.createSelectorQuery()
-                .select(`#${containerId}`)
-                .boundingClientRect()
-                .exec((res) => {
-                    const rect = res[0]
-                    if (rect) {
-                        layoutRef.current = {
-                            left: rect.left,
-                            top: rect.top,
-                            width: rect.width,
-                            height: rect.height
+            if (process.env.TARO_ENV === 'weapp') {
+                Taro.createSelectorQuery()
+                    .select(`#${containerId}`)
+                    .boundingClientRect()
+                    .exec((res) => {
+                        if (!isMounted) return
+                        const rect = res[0]
+                        if (rect) {
+                            layoutRef.current = {
+                                left: rect.left,
+                                top: rect.top,
+                                width: rect.width,
+                                height: rect.height
+                            }
                         }
-                    }
-                })
+                    })
+            } else {
+                // For H5, we can just use layoutRef (it might be updated via other means or just rely on clientX correctness)
+                // But actually createSelectorQuery works in H5 via Taro too.
+                // Keeping existing block but wrapping in isMounted check if needed,
+                // or just leaving as is since the callback is safe enough (ref update).
+                Taro.createSelectorQuery()
+                    .select(`#${containerId}`)
+                    .boundingClientRect()
+                    .exec((res) => {
+                        if (!isMounted) return
+                        const rect = res && res[0]
+                        if (rect) {
+                            layoutRef.current = {
+                                left: rect.left,
+                                top: rect.top,
+                                width: rect.width,
+                                height: rect.height
+                            }
+                        }
+                    })
+            }
 
-            if (canvas) {
+            if (canvas && isMounted) {
                 const loop = new GameLoop(PIXI, canvas, width, height, dpr)
                 loop.onFpsUpdate = (f) => setFps(f)
                 loop.start()
@@ -142,6 +166,7 @@ const PointsCard: React.FC<PointsCardProps> = ({
         initGame()
 
         return () => {
+            isMounted = false
             if (gameLoopRef.current) {
                 gameLoopRef.current.destroy()
                 gameLoopRef.current = null
