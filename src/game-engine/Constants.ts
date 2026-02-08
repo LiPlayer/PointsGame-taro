@@ -20,6 +20,7 @@ export const PHYSICS_CONFIG = {
         collisionRadius: 6.5,
         visualRadius: 6,
         frictionAir: 0.05,   // 调优: 增加阻力 (0.04 -> 0.12) 吸收震荡能量
+        collisionFriction: 0.5, // 碰撞摩擦力: 粒子相互碰撞时损失的动能 (0.0 ~ 1.0)
         stiffness: 0.5,      // 调优: 降低硬度 (0.8 -> 0.6) 减少剧烈回弹
         maxPush: 6,          // 调优: 降低最大推力 (8 -> 6) 防止穿模爆发
         angularFriction: 1.0 // 旋转阻尼

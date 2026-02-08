@@ -144,13 +144,13 @@ export class PhysicsSystem {
                                         this.py[o] -= pushY
 
                                         // 动能分摊阻尼：有助于平息大面积晃动
-                                        const damping = 0.1
+                                        const cFriction = PHYSICS_CONFIG.particle.collisionFriction || 0.1
                                         const vx_diff = (this.px[i] - this.ox[i]) - (this.px[o] - this.ox[o])
                                         const vy_diff = (this.py[i] - this.oy[i]) - (this.py[o] - this.oy[o])
-                                        this.ox[i] += vx_diff * damping
-                                        this.oy[i] += vy_diff * damping
-                                        this.ox[o] -= vx_diff * damping
-                                        this.oy[o] -= vy_diff * damping
+                                        this.ox[i] += vx_diff * cFriction
+                                        this.oy[i] += vy_diff * cFriction
+                                        this.ox[o] -= vx_diff * cFriction
+                                        this.oy[o] -= vy_diff * cFriction
                                     }
                                 }
                             }
