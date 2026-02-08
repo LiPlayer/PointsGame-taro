@@ -4,6 +4,7 @@ import { useState, FC } from 'react'
 
 import LabelCaps from '../../components/LabelCaps'
 import NavClose from '../../components/NavClose'
+import { getWeappContentPaddingTopPx, isWeapp } from '../../utils/weappLayout'
 
 const SVG_REPLAY = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%222.5%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M4%204v5h.582m15.356%202A8.001%208.001%200%20004.582%209m0%200H9m11%2011v-5h-.581m0%200a8.003%208.003%200%2001-15.357-2m15.357%202H15%22%2F%3E%3C%2Fsvg%3E"
 const SVG_BOOK = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%222.5%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M19%2011H5m14%200a2%202%200%20012%202v6a2%202%200%2001-2%202H5a2%202%200%2001-2-2v-6a2%202%200%20012-2m14%200V9a2%202%200%2000-2-2M5%2011V9a2%202%200%20012-2m0%200V5a2%202%200%20012-2h6a2%202%200%20012%202v2M7%207h10%22%2F%3E%3C%2Fsvg%3E"
@@ -25,8 +26,13 @@ const ResultReplay: FC = () => {
         Taro.redirectTo({ url: '/pages/collection/index' })
     }
 
+    const contentPaddingTop = isWeapp() ? getWeappContentPaddingTopPx(50, 12) : 50
+
     return (
-        <View className="flex flex-col h-screen box-border px-6 pt-[50px] pb-[calc(24px+env(safe-area-inset-bottom))] bg-white">
+        <View
+            className={`flex flex-col h-screen box-border px-6 pb-[calc(24px+env(safe-area-inset-bottom))] bg-white relative ${isWeapp() ? '' : 'pt-[50px]'}`}
+            style={isWeapp() ? { paddingTop: `${contentPaddingTop}px` } : undefined}
+        >
             <NavClose onClick={goHome} />
 
             <View className="flex-1 flex flex-col items-center justify-center pt-10">

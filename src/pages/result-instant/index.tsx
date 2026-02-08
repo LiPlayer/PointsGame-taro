@@ -6,6 +6,7 @@ import BtnPrimary from '../../components/BtnPrimary'
 import LabelCaps from '../../components/LabelCaps'
 import NavClose from '../../components/NavClose'
 import { getUserData, updatePoints } from '../../utils/user'
+import { getWeappContentPaddingTopPx, isWeapp } from '../../utils/weappLayout'
 
 const SVG_GIFT_GOLD = "data:image/svg+xml,%3Csvg%20fill%3D%22%23f59e0b%22%20viewBox%3D%220%200%2024%2024%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M12%202l2.4%207.2h7.6l-6%204.8%202.4%207.2-6-4.8-6%204.8%202.4-7.2-6-4.8h7.6z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E"
 const SVG_NEXT = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22white%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%222.5%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22M13%205l7%207-7%207M5%205l7%207-7%207%22%2F%3E%3C%2Fsvg%3E"
@@ -30,8 +31,13 @@ const ResultInstant: FC = () => {
         Taro.redirectTo({ url: '/pages/earn-entry/index?autoStart=true' })
     }
 
+    const contentPaddingTop = isWeapp() ? getWeappContentPaddingTopPx(50, 12) : 50
+
     return (
-        <View className="flex flex-col h-screen box-border p-6 pt-[50px] bg-white">
+        <View
+            className={`flex flex-col h-screen box-border px-6 pb-[calc(24px+env(safe-area-inset-bottom))] bg-white relative ${isWeapp() ? '' : 'pt-[50px]'}`}
+            style={isWeapp() ? { paddingTop: `${contentPaddingTop}px` } : undefined}
+        >
             <NavClose onClick={goHome} />
 
             <View className="flex-1 flex flex-col items-center justify-center pt-10">
