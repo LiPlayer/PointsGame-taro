@@ -14,10 +14,6 @@ export class GameLoop {
     public onFirstFrameRendered?: () => void
     private hasRenderedFirstFrame: boolean = false
 
-    // FPS tracking
-    private frameCount: number = 0
-    private fpsLastTime: number = 0
-
     // Fixed time step (e.g. 1000 / 60 = 16.66ms)
     private readonly fixedDelta = 1000 / PHYSICS_CONFIG.frequency
 
@@ -41,8 +37,6 @@ export class GameLoop {
         this.physics.init(this.params.width, this.params.height)
         this.isRunning = true
         this.lastTime = performance.now()
-        this.fpsLastTime = this.lastTime
-        this.frameCount = 0
         this.accumulator = 0
 
         requestAnimationFrame(this.loop.bind(this))
@@ -157,15 +151,6 @@ export class GameLoop {
             if (this.onFirstFrameRendered) {
                 this.onFirstFrameRendered()
             }
-        }
-
-        // FPS tracking
-        this.frameCount++
-        if (time - this.fpsLastTime >= 1000) {
-            const fps = Math.round(this.frameCount * 1000 / (time - this.fpsLastTime))
-            console.log(`[GameLoop] FPS: ${fps} | Particles: ${this.physics.particleCount}`)
-            this.frameCount = 0
-            this.fpsLastTime = time
         }
 
         requestAnimationFrame(this.loop.bind(this))
