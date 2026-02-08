@@ -94,20 +94,24 @@ const PointsCard: React.FC<PointsCardProps> = ({
 
                 const addStarsAtTop = (count: number) => {
                     for (let i = 0; i < count; i++) {
-                        loop.addStar(Math.random() * width, -10 - Math.random() * height * 0.5)
+                        // Match prototype: -20 to -120 y
+                        loop.addStar(Math.random() * width, -20 - Math.random() * 100)
                     }
                 }
 
                 const addInitialStars = (count: number) => {
                     const radius = 6
-                    const cols = Math.floor(width / (radius * 2.2))
+                    const spacing = radius * 2.0 // Exact prototype spacing
+
+                    const cols = Math.floor(width / spacing)
 
                     for (let i = 0; i < count; i++) {
                         const col = i % cols
                         const row = Math.floor(i / cols)
 
-                        const x = (col + 0.5) * (radius * 2.2) + (Math.random() - 0.5) * 2
-                        const y = height - (row + 0.5) * (radius * 2.2) - 20
+                        // Match prototype: (col + 0.5) * spacing + random jitter 5
+                        const x = (col + 0.5) * spacing + (Math.random() - 0.5) * 5
+                        const y = height - (row + 0.5) * spacing - 20
 
                         loop.addStar(x, y)
                     }

@@ -41,7 +41,7 @@ export class PhysicsSystem {
             enableSleeping: true
         })
         this.world = this.engine.world
-        this.engine.gravity.y = 0.15 // 匹配原型重力
+        this.engine.gravity.y = 0.25 // 匹配新的重力设定
 
         // 初始化ID池 (倒序放入，从0开始取)
         for (let i = 0; i < this.MAX_PARTICLES; i++) {
@@ -72,7 +72,7 @@ export class PhysicsSystem {
         const n = this.particleCount
         const w = this.width, h = this.height
         const friction = 0.96 // Prototype value
-        const gravity = 0.15 // Prototype value
+        const gravity = 0.25 // Increased from 0.15 to reduce "sticky" feel
 
         // 网格重构
         const cols = this.gridCols
@@ -119,7 +119,7 @@ export class PhysicsSystem {
             }
         }
 
-        // Collision Solve (2 Passes)
+        // Collision Solve (2 Passes - Balanced performance and stability)
         for (let pass = 0; pass < 2; pass++) {
             for (let i = 0; i < n; i++) {
                 if (this.states[i] !== 0) continue
@@ -143,7 +143,7 @@ export class PhysicsSystem {
                                     const min = r + this.rads[o]
                                     if (distSq < min * min && distSq > 0) {
                                         const dist = Math.sqrt(distSq)
-                                        const push = (min - dist) * 0.5 // prototype value
+                                        const push = (min - dist) * 0.5 // Match prototype high hardness
                                         const nx = (dx / dist) * push
                                         const ny = (dy / dist) * push
                                         this.px[i] += nx
@@ -169,17 +169,17 @@ export class PhysicsSystem {
             const r = this.rads[i]
             if (this.px[i] < r) {
                 this.px[i] = r
-                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * 0.3
+                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * 0.5 // Match prototype bounce
             }
             if (this.px[i] > w - r) {
                 this.px[i] = w - r
-                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * 0.3
+                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * 0.5 // Match prototype bounce
             }
             if (this.py[i] > h - r) {
                 const vy = (this.py[i] - this.oy[i])
                 this.py[i] = h - r
-                this.oy[i] = this.py[i] + vy * 0.3
-                this.ox[i] += (this.px[i] - this.ox[i]) * 0.5
+                this.oy[i] = this.py[i] + vy * 0.5 // Match prototype floor bounce
+                // Removed ground friction to allow natural sliding
             }
         }
     }
@@ -189,8 +189,8 @@ export class PhysicsSystem {
         const i = this.particleCount
         this.px[i] = x
         this.py[i] = y
-        this.ox[i] = x + (Math.random() - 0.5) * 6 // 恢复初始水平动力 (Match prototype)
-        this.oy[i] = y + (Math.random() - 0.5) * 2 // 恢复初始垂直动力
+        this.ox[i] = x + (Math.random() - 0.5) * 3 // Reduced horizontal kick for 'rain' feel
+        this.oy[i] = y + (Math.random() - 0.5) * 1 // Minimal vertical kick
 
         this.states[i] = 0
         this.timers[i] = 0
@@ -200,9 +200,9 @@ export class PhysicsSystem {
         // 随机深度 (0, 0.5, 1.0)
         this.zs[i] = Math.floor(Math.random() * 3) / 2
 
-        // 随机初始旋转和角速度
+        // 随机初始旋转和角速度 (Match prototype 0.2)
         this.angles[i] = Math.random() * Math.PI * 2
-        this.avs[i] = (Math.random() - 0.5) * 0.1
+        this.avs[i] = (Math.random() - 0.5) * 0.2
 
         const id = this.idPool[--this.poolPtr]
         this.ids[i] = id
@@ -279,7 +279,7 @@ export class PhysicsSystem {
         const n = this.particleCount
         const range = PHYSICS_CONFIG.interaction.repulsionRadius
         const rangeSq = range * range
-        const force = 0.4 // Prototype base
+        const force = 0.8 // Doubled to match prototype's effective power
 
         for (let i = 0; i < n; i++) {
             if (this.states[i] !== 0) continue
