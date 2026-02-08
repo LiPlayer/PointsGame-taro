@@ -60,15 +60,34 @@ const PointsCard: React.FC<PointsCardProps> = ({
                 gameLoopRef.current = loop
 
                 // 4. Expose Global API
-                const addStarsDirect = (count: number) => {
+                const addStarsAtTop = (count: number) => {
                     for (let i = 0; i < count; i++) {
                         loop.addStar(Math.random() * width, -10 - Math.random() * height * 0.5)
                     }
                 }
 
+                // Initial Placement (Grid Packed at Bottom - Match Prototype)
+                const addInitialStars = (count: number) => {
+                    const radius = 6 // Approx radius
+                    const cols = Math.floor(width / (radius * 2.2))
+
+                    for (let i = 0; i < count; i++) {
+                        const col = i % cols
+                        const row = Math.floor(i / cols)
+
+                        // X: Centered in column with slight jitter
+                        const x = (col + 0.5) * (radius * 2.2) + (Math.random() - 0.5) * 2
+
+                        // Y: Stacked from bottom up
+                        const y = height - (row + 0.5) * (radius * 2.2) - 20
+
+                        loop.addStar(x, y)
+                    }
+                }
+
                     ; (window as any).PointsSystem = {
                         add: (count: number) => {
-                            addStarsDirect(count)
+                            addStarsAtTop(count)
                             setPoints(p => p + count)
                         },
                         consume: (count: number) => {
@@ -81,7 +100,7 @@ const PointsCard: React.FC<PointsCardProps> = ({
                     }
 
                 // Initial Stars (Directly to engine, state is already set)
-                addStarsDirect(initialPoints)
+                addInitialStars(initialPoints)
             }
         }
 

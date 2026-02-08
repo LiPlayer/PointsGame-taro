@@ -59,8 +59,8 @@ export class PhysicsSystem {
     private updateParticles(dt: number) {
         const n = this.particleCount
         const w = this.width, h = this.height
-        const friction = 0.96 // 匹配原型
-        const gravity = 0.15 // 匹配原型
+        const friction = 0.97 // Reduced drag for snappier feel
+        const gravity = 0.25 // Increased gravity for faster fall
 
         // 网格重构
         const cols = this.gridCols
@@ -81,16 +81,17 @@ export class PhysicsSystem {
             const r = this.rads[i]
             if (this.px[i] < r) {
                 this.px[i] = r
-                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * 0.5
+                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * 0.3 // Damped wall
             }
             if (this.px[i] > w - r) {
                 this.px[i] = w - r
-                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * 0.5
+                this.ox[i] = this.px[i] + (this.px[i] - this.ox[i]) * 0.3 // Damped wall
             }
             if (this.py[i] > h - r) {
                 const vy = (this.py[i] - this.oy[i])
                 this.py[i] = h - r
-                this.oy[i] = this.py[i] + vy * 0.5 // Damped bounce up
+                this.oy[i] = this.py[i] + vy * 0.3 // Damped bounce (was 0.5)
+                this.ox[i] += (this.px[i] - this.ox[i]) * 0.5 // Ground friction to stop sliding
             }
 
             // Grid Insert
@@ -103,39 +104,42 @@ export class PhysicsSystem {
             }
         }
 
-        // Collision Solve (1 Pass for speed)
-        for (let i = 0; i < n; i++) {
-            const gx = Math.floor(this.px[i] / this.cellSize)
-            const gy = Math.floor(this.py[i] / this.cellSize)
-            const r = this.rads[i]
-            const zi = this.zs[i]
+        // Collision Solve (2 Passes match prototype for "hard" feel)
+        for (let pass = 0; pass < 2; pass++) {
+            for (let i = 0; i < n; i++) {
+                const gx = Math.floor(this.px[i] / this.cellSize)
+                const gy = Math.floor(this.py[i] / this.cellSize)
+                const r = this.rads[i]
+                const zi = this.zs[i]
 
-            for (let x = gx - 1; x <= gx + 1; x++) {
-                if (x < 0 || x >= cols) continue
-                for (let y = gy - 1; y <= gy + 1; y++) {
-                    if (y < 0 || y >= rows) continue
-                    let o = this.heads[x + y * cols]
-                    while (o !== -1) {
-                        if (o > i) {
-                            // 深度过滤：深度差超过 0.1 不碰撞 (匹配原型)
-                            if (Math.abs(zi - this.zs[o]) < 0.1) {
-                                const dx = this.px[i] - this.px[o]
-                                const dy = this.py[i] - this.py[o]
-                                const distSq = dx * dx + dy * dy
-                                const min = r + this.rads[o]
-                                if (distSq < min * min && distSq > 0) {
-                                    const dist = Math.sqrt(distSq)
-                                    const push = (min - dist) * 0.5
-                                    const nx = (dx / dist) * push
-                                    const ny = (dy / dist) * push
-                                    this.px[i] += nx
-                                    this.py[i] += ny
-                                    this.px[o] -= nx
-                                    this.py[o] -= ny
+                for (let x = gx - 1; x <= gx + 1; x++) {
+                    if (x < 0 || x >= cols) continue
+                    for (let y = gy - 1; y <= gy + 1; y++) {
+                        if (y < 0 || y >= rows) continue
+                        let o = this.heads[x + y * cols]
+                        while (o !== -1) {
+                            if (o > i) {
+                                // 深度过滤：深度差超过 0.1 不碰撞 (匹配原型)
+                                if (Math.abs(zi - this.zs[o]) < 0.1) {
+                                    const dx = this.px[i] - this.px[o]
+                                    const dy = this.py[i] - this.py[o]
+                                    const distSq = dx * dx + dy * dy
+                                    const min = r + this.rads[o]
+                                    if (distSq < min * min && distSq > 0) {
+                                        const dist = Math.sqrt(distSq)
+                                        // 0.5 is perfectly hard. 0.47 adds subtle energy loss to stop jitters.
+                                        const push = (min - dist) * 0.47
+                                        const nx = (dx / dist) * push
+                                        const ny = (dy / dist) * push
+                                        this.px[i] += nx
+                                        this.py[i] += ny
+                                        this.px[o] -= nx
+                                        this.py[o] -= ny
+                                    }
                                 }
                             }
+                            o = this.nexts[o]
                         }
-                        o = this.nexts[o]
                     }
                 }
             }
