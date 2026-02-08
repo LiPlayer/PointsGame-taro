@@ -56,9 +56,9 @@ export class PhysicsSystem {
         const n = this.particleCount
         const w = this.width, h = this.height
 
-        // 从 Constants.ts 读取参数，根治“名存实亡”
         const friction = 1 - PHYSICS_CONFIG.particle.frictionAir
         const gravity = PHYSICS_CONFIG.gravity.y
+        const consumption = PHYSICS_CONFIG.consumption
 
         // 网格重构
         const cols = this.gridCols
@@ -68,12 +68,12 @@ export class PhysicsSystem {
         for (let i = 0; i < n; i++) {
             // Animation state: Dying
             if (this.states[i] === 1) {
-                this.timers[i] += 0.02
-                if (this.timers[i] < 0.4) {
-                    this.py[i] -= 2
+                this.timers[i] += consumption.speed
+                if (this.timers[i] < consumption.phase1Threshold) {
+                    this.py[i] += consumption.floatForce1
                     this.angles[i] += 0.1
                 } else {
-                    this.py[i] -= 1
+                    this.py[i] += consumption.floatForce2
                     this.angles[i] += 0.2
                     if (this.timers[i] >= 1.0) {
                         this.states[i] = 2
@@ -83,8 +83,8 @@ export class PhysicsSystem {
             }
 
             // Verlet Integration
-            const vx = (this.px[i] - this.ox[i]) * friction
-            const vy = (this.py[i] - this.oy[i]) * friction + gravity
+            let vx = (this.px[i] - this.ox[i]) * friction
+            let vy = (this.py[i] - this.oy[i]) * friction + gravity
 
             this.ox[i] = this.px[i]
             this.oy[i] = this.py[i]
@@ -92,7 +92,11 @@ export class PhysicsSystem {
             this.py[i] += vy
 
             this.angles[i] += this.avs[i]
-            this.avs[i] *= 0.99
+            this.avs[i] *= PHYSICS_CONFIG.particle.angularFriction
+
+            if (i === 0 && Math.random() < 0.01) {
+                console.log(`[Physics] P0 Angle: ${this.angles[i].toFixed(2)}, AV: ${this.avs[i].toFixed(4)}`)
+            }
 
             const gx = Math.floor(this.px[i] / this.cellSize)
             const gy = Math.floor(this.py[i] / this.cellSize)
@@ -103,8 +107,9 @@ export class PhysicsSystem {
             }
         }
 
-        // Collision Solve (2 Passes)
-        for (let pass = 0; pass < 2; pass++) {
+        // Collision Solve (Multi-Pass Relaxation)
+        const passes = (PHYSICS_CONFIG.bounds as any).collisionPasses || 2
+        for (let pass = 0; pass < passes; pass++) {
             for (let i = 0; i < n; i++) {
                 if (this.states[i] !== 0) continue
 
@@ -127,13 +132,12 @@ export class PhysicsSystem {
                                     const min = r + this.rads[o]
                                     if (distSq < min * min && distSq > 0) {
                                         const dist = Math.sqrt(distSq)
-                                        const stiffness = (PHYSICS_CONFIG.particle as any).stiffness || 0.1
+                                        const stiffness = PHYSICS_CONFIG.particle.stiffness
                                         const overlap = (min - dist)
                                         const nx = dx / dist
                                         const ny = dy / dist
 
-                                        // 核心：给排斥力加一个上限，防止在极端重叠下产生瞬间爆炸速度导致星星飞出
-                                        const maxPush = 5
+                                        const maxPush = PHYSICS_CONFIG.particle.maxPush
                                         const pushX = nx * Math.min(overlap * stiffness, maxPush)
                                         const pushY = ny * Math.min(overlap * stiffness, maxPush)
 
@@ -141,6 +145,15 @@ export class PhysicsSystem {
                                         this.py[i] += pushY
                                         this.px[o] -= pushX
                                         this.py[o] -= pushY
+
+                                        // 动能分摊阻尼：有助于平息大面积晃动
+                                        const damping = 0.1
+                                        const vx_diff = (this.px[i] - this.ox[i]) - (this.px[o] - this.ox[o])
+                                        const vy_diff = (this.py[i] - this.oy[i]) - (this.py[o] - this.oy[o])
+                                        this.ox[i] += vx_diff * damping
+                                        this.oy[i] += vy_diff * damping
+                                        this.ox[o] -= vx_diff * damping
+                                        this.oy[o] -= vy_diff * damping
                                     }
                                 }
                             }
@@ -149,7 +162,7 @@ export class PhysicsSystem {
                     }
                 }
             }
-            // Constraint Pass: Apply Boundary Logic (Refactored to Pure Math)
+            // Constraint Pass: Apply Boundary Logic
             this.applyConstraints(n, w, h)
         }
     }
@@ -176,6 +189,7 @@ export class PhysicsSystem {
                 const vy = (this.py[i] - this.oy[i])
                 this.py[i] = h - r
                 this.oy[i] = this.py[i] + vy * bounce
+                this.avs[i] *= 0.9 // Prototype: angularVelocity *= 0.9 on floor impact
             }
             // Ceiling (Open)
             if (this.py[i] < ceilingMargin) {
@@ -199,7 +213,7 @@ export class PhysicsSystem {
         this.rads[i] = PHYSICS_CONFIG.particle.collisionRadius * (0.8 + Math.random() * 0.4)
         this.zs[i] = Math.floor(Math.random() * (RENDER_CONFIG.depth?.zLevels || 3)) / 2
         this.angles[i] = Math.random() * Math.PI * 2
-        this.avs[i] = (Math.random() - 0.5) * 0.2
+        this.avs[i] = (Math.random() - 0.5) * 0.2 // Prototype: (Math.random() - 0.5) * 0.2
 
         const id = this.idPool[--this.poolPtr]
         this.ids[i] = id

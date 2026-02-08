@@ -137,7 +137,7 @@ const PointsCard: React.FC<PointsCardProps> = ({
                     // Ensure we start fresh
                     loop.clear()
 
-                    const radius = PHYSICS_CONFIG.particle.visualRadius
+                    const radius = PHYSICS_CONFIG.particle.collisionRadius
                     const spacing = radius * 2.0
                     const cols = Math.floor(width / spacing)
 

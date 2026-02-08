@@ -1,37 +1,40 @@
 export const PHYSICS_CONFIG = {
-    // 物理世界更新频率 (Hz)。推荐 60。
+    // 物理世界更新频率 (Hz)。
     frequency: 60,
     // 最大粒子数量
     maxParticles: 5000,
-    // 物理世界重力坐标。
-    gravity: { x: 0, y: 0.5 },
-    // 空间网格划分大小 (像素)。影响碰撞检测性能。
-    cellSize: 18,
-    // 边界与清理
+    // 物理世界重力
+    gravity: { x: 0, y: 0.15 },
+    // 空间网格划分大小 (像素)
+    cellSize: 14,
+    // 墙壁厚度
+    wallThickness: 100,
+    // 边界与清理逻辑
     bounds: {
-        bounce: 0.5,       // 墙壁/地面反弹系数
-        ceilingMargin: -2000 // 星星飞出此高度后将被清理
+        bounce: 0.5,        // 边界反弹系数
+        ceilingMargin: -2000, // 上方清理边界
+        collisionPasses: 2   // 碰撞解算次数
     },
-    // 粒子（星星）属性
+    // 粒子（星星）物理与展示属性
     particle: {
-        collisionRadius: 8, // 星星的基础碰撞半径 (从 7 增加到 8)
-        visualRadius: 10,   // 星星的基础显示半径 (从 7 增加到 10，产生适度视觉重叠)
-        frictionAir: 0.1,  // 空气阻力
-        stiffness: 0.3,    // 碰撞硬度
-        maxPush: 2,        // 单帧最大碰撞位移偏移
-        angularFriction: 0.99 // 自转衰减
+        collisionRadius: 6,
+        visualRadius: 6,
+        frictionAir: 0.04,   // 空气阻力
+        stiffness: 0.5,      // 碰撞硬度
+        maxPush: 8,          // 防爆炸安全上限
+        angularFriction: 1.0 // 旋转阻尼 (1.0 = 不减速)
     },
     // 消耗/删除动画
     consumption: {
-        speed: 0.02,       // 缩放演变速度
+        speed: 0.02,       // 缩放速度
         floatForce1: -2,   // 阶段1上浮力
         floatForce2: -1,   // 阶段2上浮力
         phase1Threshold: 0.4 // 阶段1阈值
     },
     // 用户交互属性
     interaction: {
-        repulsionRadius: 50,   // 手指排斥范围
-        repulsionForce: 2.4    // 触摸推开力度
+        repulsionRadius: 80,   // 交互范围
+        repulsionForce: 0.4    // 交互力度
     }
 }
 
