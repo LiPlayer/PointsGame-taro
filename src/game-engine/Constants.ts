@@ -4,25 +4,25 @@ export const PHYSICS_CONFIG = {
     // 最大粒子数量
     maxParticles: 5000,
     // 物理世界重力
-    gravity: { x: 0, y: 0.15 },
+    gravity: { x: 0, y: 0.5 }, // 调优: 降低重力 (0.35 -> 0.25) 减少挤压抖动
     // 空间网格划分大小 (像素)
-    cellSize: 14,
+    cellSize: 15,
     // 墙壁厚度
     wallThickness: 100,
     // 边界与清理逻辑
     bounds: {
-        bounce: 0.5,        // 边界反弹系数
-        ceilingMargin: -2000, // 上方清理边界
-        collisionPasses: 2   // 碰撞解算次数
+        bounce: 0.4,        // 调优: 降低反弹 (0.5 -> 0.4) 帮助静止
+        ceilingMargin: -2000,
+        collisionPasses: 3   // 调优: 增加解算次数 (2 -> 3) 提高稳定性
     },
     // 粒子（星星）物理与展示属性
     particle: {
-        collisionRadius: 6,
+        collisionRadius: 6.5,
         visualRadius: 6,
-        frictionAir: 0.04,   // 空气阻力
-        stiffness: 0.5,      // 碰撞硬度
-        maxPush: 8,          // 防爆炸安全上限
-        angularFriction: 1.0 // 旋转阻尼 (1.0 = 不减速)
+        frictionAir: 0.05,   // 调优: 增加阻力 (0.04 -> 0.12) 吸收震荡能量
+        stiffness: 0.5,      // 调优: 降低硬度 (0.8 -> 0.6) 减少剧烈回弹
+        maxPush: 6,          // 调优: 降低最大推力 (8 -> 6) 防止穿模爆发
+        angularFriction: 1.0 // 旋转阻尼
     },
     // 消耗/删除动画
     consumption: {
@@ -33,8 +33,8 @@ export const PHYSICS_CONFIG = {
     },
     // 用户交互属性
     interaction: {
-        repulsionRadius: 80,   // 交互范围
-        repulsionForce: 0.4    // 交互力度
+        repulsionRadius: 40,   // 交互范围
+        repulsionForce: 12.0   // 调优: 大力出奇迹 (1.0 -> 12.0) 对抗高重力
     }
 }
 

@@ -45,7 +45,6 @@ const PointsCard: React.FC<PointsCardProps> = ({
             const target = Math.floor(initialPoints)
             const diff = target - current
 
-            console.log(`[PointsCard] Sync Effect: target=${target}, current=${current}, diff=${diff}`)
 
             if (diff > 0) {
                 (window as any).PointsSystem.add(diff)
@@ -71,7 +70,7 @@ const PointsCard: React.FC<PointsCardProps> = ({
             if (!isMounted) return // Cancelled
 
             if (!info) {
-                console.error('PointsCard: Could not find canvas info', canvasId)
+                // console.error('PointsCard: Could not find canvas info', canvasId)
                 return
             }
 
@@ -133,7 +132,6 @@ const PointsCard: React.FC<PointsCardProps> = ({
                 }
 
                 const addInitialStars = (count: number) => {
-                    console.log(`[PointsCard] addInitialStars: Placing ${count} stars at bottom`)
                     // Ensure we start fresh
                     loop.clear()
 
@@ -162,7 +160,6 @@ const PointsCard: React.FC<PointsCardProps> = ({
                         setPoints(p => Math.max(0, p - count))
                     },
                     explode: () => {
-                        console.log('Explode trigger')
                     }
                 }
 
@@ -170,7 +167,6 @@ const PointsCard: React.FC<PointsCardProps> = ({
                 // Always use the LATEST points from ref to avoid stale closure disappearance
                 addInitialStars(pointsRef.current)
 
-                console.log('[PointsCard] initGame: Initial stars added, setting gameLoopRef')
                 gameLoopRef.current = loop
             }
         }
@@ -205,7 +201,6 @@ const PointsCard: React.FC<PointsCardProps> = ({
 
         // Debug Input
         if (active && Math.random() < 0.05) { // Sample log
-            console.log(`[Input] x=${x.toFixed(1)}, y=${y.toFixed(1)}, Layout w=${layoutRef.current.width}`)
         }
 
         gameLoopRef.current.setPointer(x, y, active)
@@ -225,10 +220,6 @@ const PointsCard: React.FC<PointsCardProps> = ({
             onTouchEnd={handleTouchEnd}
             onTouchCancel={handleTouchEnd}
         >
-            {/* FPS Counter */}
-            <View style={{ position: 'absolute', top: 10, left: 10, zIndex: 100, color: '#ff4d4f', fontSize: '12px', fontWeight: 'bold', pointerEvents: 'none' }}>
-                FPS: {fps}
-            </View>
 
             {/* Canvas Background */}
             {process.env.TARO_ENV === 'weapp' ? (
@@ -265,10 +256,6 @@ const PointsCard: React.FC<PointsCardProps> = ({
                     今日已玩 {dailyPlayCount}/3 次
                 </View>
 
-                {/* Debug Info (Optional) */}
-                <View className="absolute bottom-4 left-0 w-full opacity-30 text-[10px] text-slate-500 text-center">
-                    Engine: Hybrid Cross-Platform
-                </View>
             </View>
         </View>
     )

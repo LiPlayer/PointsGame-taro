@@ -94,9 +94,6 @@ export class PhysicsSystem {
             this.angles[i] += this.avs[i]
             this.avs[i] *= PHYSICS_CONFIG.particle.angularFriction
 
-            if (i === 0 && Math.random() < 0.01) {
-                console.log(`[Physics] P0 Angle: ${this.angles[i].toFixed(2)}, AV: ${this.avs[i].toFixed(4)}`)
-            }
 
             const gx = Math.floor(this.px[i] / this.cellSize)
             const gy = Math.floor(this.py[i] / this.cellSize)
@@ -227,7 +224,6 @@ export class PhysicsSystem {
         const indices = Array.from({ length: n }, (_, i) => i)
             .filter(i => this.states[i] === 0)
 
-        console.log(`[PhysicsSystem] consume requested: ${count}, available active: ${indices.length}, total: ${n}`)
 
         for (let i = 0; i < count && indices.length > 0; i++) {
             const idxIdx = Math.floor(Math.random() * indices.length)
@@ -236,7 +232,6 @@ export class PhysicsSystem {
             this.timers[pIdx] = 0
             marked++
         }
-        console.log(`[PhysicsSystem] consume finished: marked ${marked} for removal`)
         return marked
     }
 
