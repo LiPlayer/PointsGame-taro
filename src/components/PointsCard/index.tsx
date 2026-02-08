@@ -165,6 +165,12 @@ const PointsCard: React.FC<PointsCardProps> = ({
         const touch = e.touches ? e.touches[0] : (e.changedTouches ? e.changedTouches[0] : e)
         const x = touch.clientX - layoutRef.current.left
         const y = touch.clientY - layoutRef.current.top
+
+        // Debug Input
+        if (active && Math.random() < 0.05) { // Sample log
+            console.log(`[Input] x=${x.toFixed(1)}, y=${y.toFixed(1)}, Layout w=${layoutRef.current.width}`)
+        }
+
         gameLoopRef.current.setPointer(x, y, active)
     }, [])
 

@@ -46,7 +46,11 @@ export const readCanvasInfo = async (id: string) => {
                     }
 
                     const canvas = info.node as any
-                    resolve({ canvas, width, height, dpr })
+                    // Weapp 'size: true' returns CSS Pixels (327 not 981). Correct.
+                    // So we do NOT divide by DPR.
+                    const logicalW = width
+                    const logicalH = height
+                    resolve({ canvas, width: logicalW, height: logicalH, dpr })
                 })
         })
     }

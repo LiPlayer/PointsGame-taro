@@ -17,9 +17,11 @@ export class RenderSystem {
     public sprites: (PIXI.Sprite | null)[] = []
     private baseScales: Float32Array = new Float32Array(5000)
     private baseAlphas: Float32Array = new Float32Array(5000)
+    private dpr: number
 
     constructor(pixi: any, canvas: any, width: number, height: number, dpr: number) {
         this.PIXI = pixi
+        this.dpr = dpr
         const PIXI = pixi // Keep local shadow for constructor logic
         this.app = new PIXI.Application({
             view: canvas,

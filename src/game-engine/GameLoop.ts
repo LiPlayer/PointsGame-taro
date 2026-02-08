@@ -20,9 +20,14 @@ export class GameLoop {
     // Fixed time step (e.g. 1000 / 60 = 16.66ms)
     private readonly fixedDelta = 1000 / PHYSICS_CONFIG.frequency
 
+    // Physics runs in Logical Pixels (CSS Pixels)
+    // Renderer runs in Physical Pixels (Device Pixels)
     constructor(pixi: any, canvas: any, width: number, height: number, dpr: number) {
+        // width/height passed here are LOGICAL pixels from usePixi
+
         this.params = { width, height, dpr, canvas }
         this.physics = new PhysicsSystem()
+        // Renderer takes LOGICAL dimensions + dpr to handle resolution
         this.renderer = new RenderSystem(pixi, canvas, width, height, dpr)
     }
 
@@ -79,8 +84,10 @@ export class GameLoop {
     }
 
     public resize(width: number, height: number) {
+        // update with new logical dimensions
         this.params.width = width
         this.params.height = height
+
         this.physics.resize(width, height)
         this.renderer.app.renderer.resize(width, height)
     }
@@ -103,9 +110,7 @@ export class GameLoop {
         }
 
         // Apply interaction force EVERY FRAME if pointer is active (Match Prototype)
-        if (this.pointer.active) {
-            this.physics.applyRepulsion(this.pointer.x, this.pointer.y)
-        }
+        // MOVED TO FIXED UPDATE
 
         // --- 60Hz Timestep Lock (Mobile Optimization) ---
         // If detection suggests 60Hz screen (17ms or 16ms), snap to fixedDelta
@@ -127,6 +132,10 @@ export class GameLoop {
         // Fixed Update Strategy
         let steps = 0
         while (this.accumulator >= this.fixedDelta && steps < 5) {
+            // Apply interaction force EVERY FRAME if pointer is active (Match Prototype)
+            if (this.pointer.active) {
+                this.physics.applyRepulsion(this.pointer.x, this.pointer.y)
+            }
             this.physics.update(this.fixedDelta)
             this.accumulator -= this.fixedDelta
             steps++
