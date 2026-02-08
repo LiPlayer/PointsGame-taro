@@ -1,8 +1,8 @@
-import { PHYSICS_CONFIG } from './Constants'
+import { PHYSICS_CONFIG, RENDER_CONFIG } from './Constants'
 
 export class PhysicsSystem {
     // --- 高性能粒子引擎 (Zero Allocation / Typed Arrays) ---
-    public MAX_PARTICLES = 5000
+    public MAX_PARTICLES = PHYSICS_CONFIG.maxParticles
     public px: Float32Array = new Float32Array(this.MAX_PARTICLES)
     public py: Float32Array = new Float32Array(this.MAX_PARTICLES)
     public ox: Float32Array = new Float32Array(this.MAX_PARTICLES)
@@ -21,7 +21,7 @@ export class PhysicsSystem {
     public particleCount: number = 0
 
     // 网格优化
-    private cellSize = 18
+    private cellSize = PHYSICS_CONFIG.cellSize
     private gridCols = 0
     private gridRows = 0
     private heads: Int32Array = new Int32Array(0)
@@ -127,12 +127,16 @@ export class PhysicsSystem {
                                     const min = r + this.rads[o]
                                     if (distSq < min * min && distSq > 0) {
                                         const dist = Math.sqrt(distSq)
-                                        const stiffness = 0.2
+                                        const stiffness = (PHYSICS_CONFIG.particle as any).stiffness || 0.1
                                         const overlap = (min - dist)
                                         const nx = dx / dist
                                         const ny = dy / dist
-                                        const pushX = nx * overlap * stiffness
-                                        const pushY = ny * overlap * stiffness
+
+                                        // 核心：给排斥力加一个上限，防止在极端重叠下产生瞬间爆炸速度导致星星飞出
+                                        const maxPush = 5
+                                        const pushX = nx * Math.min(overlap * stiffness, maxPush)
+                                        const pushY = ny * Math.min(overlap * stiffness, maxPush)
+
                                         this.px[i] += pushX
                                         this.py[i] += pushY
                                         this.px[o] -= pushX
@@ -151,7 +155,8 @@ export class PhysicsSystem {
     }
 
     private applyConstraints(n: number, w: number, h: number) {
-        const bounce = 0.5 // Match prototype bounce
+        const bounce = PHYSICS_CONFIG.bounds.bounce
+        const ceilingMargin = PHYSICS_CONFIG.bounds.ceilingMargin
         for (let i = 0; i < n; i++) {
             if (this.states[i] !== 0) continue
             const r = this.rads[i]
@@ -173,7 +178,7 @@ export class PhysicsSystem {
                 this.oy[i] = this.py[i] + vy * bounce
             }
             // Ceiling (Open)
-            if (this.py[i] < -500) { // Safety cleanup for rogue particles
+            if (this.py[i] < ceilingMargin) {
                 this.states[i] = 2
             }
         }
@@ -190,8 +195,9 @@ export class PhysicsSystem {
 
         this.states[i] = 0
         this.timers[i] = 0
-        this.rads[i] = PHYSICS_CONFIG.particle.radius * (0.8 + Math.random() * 0.4)
-        this.zs[i] = Math.floor(Math.random() * 3) / 2
+        // 使用 collisionRadius 并加入随机扰动 (0.8 ~ 1.2x)
+        this.rads[i] = PHYSICS_CONFIG.particle.collisionRadius * (0.8 + Math.random() * 0.4)
+        this.zs[i] = Math.floor(Math.random() * (RENDER_CONFIG.depth?.zLevels || 3)) / 2
         this.angles[i] = Math.random() * Math.PI * 2
         this.avs[i] = (Math.random() - 0.5) * 0.2
 
@@ -207,6 +213,8 @@ export class PhysicsSystem {
         const indices = Array.from({ length: n }, (_, i) => i)
             .filter(i => this.states[i] === 0)
 
+        console.log(`[PhysicsSystem] consume requested: ${count}, available active: ${indices.length}, total: ${n}`)
+
         for (let i = 0; i < count && indices.length > 0; i++) {
             const idxIdx = Math.floor(Math.random() * indices.length)
             const pIdx = indices.splice(idxIdx, 1)[0]
@@ -214,6 +222,7 @@ export class PhysicsSystem {
             this.timers[pIdx] = 0
             marked++
         }
+        console.log(`[PhysicsSystem] consume finished: marked ${marked} for removal`)
         return marked
     }
 

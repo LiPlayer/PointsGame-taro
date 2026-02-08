@@ -57,17 +57,19 @@ export class RenderSystem {
         sprite.anchor.set(0.5)
         sprite.position.set(x, y)
 
-        // 匹配原型缩放公式
+        // 匹配配置中的缩放公式
         const sizeScale = (radius * 2) / RENDER_CONFIG.particleTextureSize
-        const depthScale = 0.5 + z * 0.7
+        const scaleRange = RENDER_CONFIG.depth.scaleRange
+        const depthScale = scaleRange[0] + z * (scaleRange[1] - scaleRange[0])
         const finalScale = sizeScale * depthScale
         sprite.scale.set(finalScale)
         this.baseScales[id] = finalScale
 
-        // 匹配原型透明度公式
+        // 匹配配置中的透明度公式
         let finalAlpha = 1.0
+        const alphaRange = RENDER_CONFIG.depth.alphaRange
         if (z <= 0.7) {
-            finalAlpha = 0.6 + z * 0.4
+            finalAlpha = alphaRange[0] + z * (alphaRange[1] - alphaRange[0])
         }
         sprite.alpha = finalAlpha
         this.baseAlphas[id] = finalAlpha
@@ -115,8 +117,9 @@ export class RenderSystem {
 
     private createTexture(): PIXI.Texture {
         const size = RENDER_CONFIG.particleTextureSize
+        const shape = RENDER_CONFIG.shape
         const graphics = new this.PIXI.Graphics()
-        const cx = size / 2, cy = size / 2, r = size / 2 - 4
+        const cx = size / 2, cy = size / 2, r = size / 2 - shape.ringPadding
 
         // Ring
         graphics.beginFill(0xFDE68A) // Amber 200
@@ -125,16 +128,15 @@ export class RenderSystem {
 
         // White Body
         graphics.beginFill(0xFFFFFF)
-        graphics.drawCircle(cx, cy, r - 6)
+        graphics.drawCircle(cx, cy, r - shape.bodyPadding)
         graphics.endFill()
 
         // Star Shape
-        graphics.beginFill(0xF59E0B) // Amber 500
+        graphics.beginFill(RENDER_CONFIG.particleColor)
         const points: number[] = []
         for (let i = 0; i < 5; i++) {
-            // Native canvas used 19 and 9 for inner/outer radii
-            const outerR = 19
-            const innerR = 9
+            const outerR = shape.outerRadius
+            const innerR = shape.innerRadius
             const angle1 = (18 + i * 72) * Math.PI / 180
             const angle2 = (54 + i * 72) * Math.PI / 180
             points.push(cx + Math.cos(angle1) * outerR, cy - Math.sin(angle1) * outerR)

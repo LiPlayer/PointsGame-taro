@@ -3,7 +3,7 @@ import Taro from '@tarojs/taro'
 import { View, Canvas } from '@tarojs/components'
 import { GameLoop } from '../../game-engine/GameLoop'
 import { readCanvasInfo, ensurePixiModule } from '../../utils/usePixi'
-import { RENDER_CONFIG } from '../../game-engine/Constants'
+import { RENDER_CONFIG, PHYSICS_CONFIG } from '../../game-engine/Constants'
 import './index.scss'
 
 interface PointsCardProps {
@@ -15,12 +15,14 @@ interface PointsCardProps {
 
 const PointsCard: React.FC<PointsCardProps> = ({
     className = '',
-    points: initialPoints = 1240,
+    points: initialPoints = 0, // Changed from 1240 to 0 to prevent accidental star rain
     dailyPlayCount = 0,
     isActive = true
 }) => {
     // Refs
     // -------------------------------------------------------------------------
+    const pointsRef = useRef(initialPoints)
+    pointsRef.current = initialPoints // Always keep the latest value
     const containerRef = useRef<HTMLDivElement>(null) // Container for canvas
     const gameLoopRef = useRef<GameLoop | null>(null) // Physics & Render Loop
     const canvasRef = useRef<any>(null) // Canvas element ref (HTMLCanvas or Taro Canvas)
@@ -42,6 +44,9 @@ const PointsCard: React.FC<PointsCardProps> = ({
             const current = gameLoopRef.current.getStarCount()
             const target = Math.floor(initialPoints)
             const diff = target - current
+
+            console.log(`[PointsCard] Sync Effect: target=${target}, current=${current}, diff=${diff}`)
+
             if (diff > 0) {
                 (window as any).PointsSystem.add(diff)
             } else if (diff < 0) {
@@ -120,48 +125,53 @@ const PointsCard: React.FC<PointsCardProps> = ({
                 const loop = new GameLoop(PIXI, canvas, width, height, finalDpr)
                 loop.onFpsUpdate = (f) => setFps(f)
                 loop.start()
-                gameLoopRef.current = loop
 
                 const addStarsAtTop = (count: number) => {
                     for (let i = 0; i < count; i++) {
-                        // Match prototype: -20 to -120 y
                         loop.addStar(Math.random() * width, -20 - Math.random() * 100)
                     }
                 }
 
                 const addInitialStars = (count: number) => {
-                    const radius = 6
-                    const spacing = radius * 2.0 // Exact prototype spacing
+                    console.log(`[PointsCard] addInitialStars: Placing ${count} stars at bottom`)
+                    // Ensure we start fresh
+                    loop.clear()
 
+                    const radius = PHYSICS_CONFIG.particle.visualRadius
+                    const spacing = radius * 2.0
                     const cols = Math.floor(width / spacing)
 
                     for (let i = 0; i < count; i++) {
                         const col = i % cols
                         const row = Math.floor(i / cols)
-
-                        // Match prototype: (col + 0.5) * spacing + random jitter 5
                         const x = (col + 0.5) * spacing + (Math.random() - 0.5) * 5
                         const y = height - (row + 0.5) * spacing - 20
-
                         loop.addStar(x, y)
                     }
                 }
 
-                    ; (window as any).PointsSystem = {
-                        add: (count: number) => {
-                            addStarsAtTop(count)
-                            setPoints(p => p + count)
-                        },
-                        consume: (count: number) => {
-                            loop.removeStars(count)
-                            setPoints(p => Math.max(0, p - count))
-                        },
-                        explode: () => {
-                            console.log('Explode trigger')
-                        }
+                // IMPORTANT: Define the system before adding initial stars
+                // so that the initial adds don't trigger external sync
+                (window as any).PointsSystem = {
+                    add: (count: number) => {
+                        addStarsAtTop(count)
+                        setPoints(p => p + count)
+                    },
+                    consume: (count: number) => {
+                        loop.removeStars(count)
+                        setPoints(p => Math.max(0, p - count))
+                    },
+                    explode: () => {
+                        console.log('Explode trigger')
                     }
+                }
 
-                addInitialStars(initialPoints)
+                // Always use the latest initialPoints available in this render's scope
+                // Always use the LATEST points from ref to avoid stale closure disappearance
+                addInitialStars(pointsRef.current)
+
+                console.log('[PointsCard] initGame: Initial stars added, setting gameLoopRef')
+                gameLoopRef.current = loop
             }
         }
 

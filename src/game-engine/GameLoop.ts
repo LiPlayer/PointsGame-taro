@@ -47,6 +47,11 @@ export class GameLoop {
         this.isRunning = false
     }
 
+    public clear() {
+        this.physics.clear()
+        this.renderer.clear()
+    }
+
     public destroy() {
         this.stop()
         this.physics.clear()
@@ -56,7 +61,7 @@ export class GameLoop {
     public addStar(x: number, y: number) {
         const id = this.physics.addParticle(x, y)
         if (id !== -1) {
-            const rad = this.physics.rads[id]
+            const rad = PHYSICS_CONFIG.particle.visualRadius // Pass visual radius to renderer
             const z = this.physics.zs[id]
             this.renderer.addSprite(id, x, y, rad, z)
         }
