@@ -19,7 +19,7 @@ const PayScan: FC = () => {
 
     useDidShow(() => {
         if (process.env.TARO_ENV === 'weapp') {
-            Taro.setScreenBrightness({ value: 1 })
+            // No need to set brightness when scanning others
         }
     })
 
