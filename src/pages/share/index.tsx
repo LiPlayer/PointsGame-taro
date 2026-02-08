@@ -32,7 +32,7 @@ const Share: FC = () => {
 
     return (
         <View
-            className={`flex flex-col h-screen bg-[#f8fafc] pb-[calc(24px+env(safe-area-inset-bottom))] ${isWeapp() ? '' : 'pt-[50px]'}`}
+            className={`flex flex-col h-screen bg-[#f8fafc] pb-[calc(24px+env(safe-area-inset-bottom))] relative ${isWeapp() ? '' : 'pt-[50px]'}`}
             style={isWeapp() ? { paddingTop: `${contentPaddingTop}px` } : undefined}
         >
             <NavClose onClick={goHome} />

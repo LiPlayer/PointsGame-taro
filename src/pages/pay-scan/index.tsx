@@ -3,6 +3,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { FC } from 'react'
 
 import NavClose from '../../components/NavClose'
+import { getWeappContentPaddingTopPx, isWeapp } from '../../utils/weappLayout'
 
 const PayScan: FC = () => {
     const goHome = () => {
@@ -23,8 +24,13 @@ const PayScan: FC = () => {
         }
     })
 
+    const contentPaddingTop = isWeapp() ? getWeappContentPaddingTopPx(50, 12) : 50
+
     return (
-        <View className="flex flex-col h-screen box-border bg-black relative pt-[50px]">
+        <View
+            className={`flex flex-col h-screen box-border bg-black relative ${isWeapp() ? '' : 'pt-[50px]'}`}
+            style={isWeapp() ? { paddingTop: `${contentPaddingTop}px` } : undefined}
+        >
             <NavClose className="bg-black/40 text-white active:bg-black/60" onClick={goHome} theme="reverse" />
 
             <View className="absolute inset-0 bg-slate-800">
