@@ -92,7 +92,8 @@ export class PhysicsSystem {
             this.py[i] += vy
 
             this.angles[i] += this.avs[i]
-            this.avs[i] *= PHYSICS_CONFIG.particle.angularFriction
+            // angularDamping: 0.0 -> *1.0 (No loss); 0.1 -> *0.9 (10% loss)
+            this.avs[i] *= (1 - (PHYSICS_CONFIG.particle.angularDamping || 0.0))
 
 
             const gx = Math.floor(this.px[i] / this.cellSize)
@@ -143,14 +144,30 @@ export class PhysicsSystem {
                                         this.px[o] -= pushX
                                         this.py[o] -= pushY
 
-                                        // 动能分摊阻尼：有助于平息大面积晃动
-                                        const cFriction = PHYSICS_CONFIG.particle.collisionFriction || 0.1
-                                        const vx_diff = (this.px[i] - this.ox[i]) - (this.px[o] - this.ox[o])
-                                        const vy_diff = (this.py[i] - this.oy[i]) - (this.py[o] - this.oy[o])
-                                        this.ox[i] += vx_diff * cFriction
-                                        this.oy[i] += vy_diff * cFriction
-                                        this.ox[o] -= vx_diff * cFriction
-                                        this.oy[o] -= vy_diff * cFriction
+                                        // 优化后的动能阻尼 (Stable Friction)
+                                        // 1. 计算相对速度
+                                        const vx_rel = (this.px[i] - this.ox[i]) - (this.px[o] - this.ox[o])
+                                        const vy_rel = (this.py[i] - this.oy[i]) - (this.py[o] - this.oy[o])
+
+                                        // 2. 计算切线方向 (Tangent) - 垂直于法线 (nx, ny)
+                                        const tx = -ny
+                                        const ty = nx
+
+                                        // 3. 投影相对速度到切线上 (Dot Product)
+                                        const vt = vx_rel * tx + vy_rel * ty
+
+                                        // 4. 应用切向摩擦力 (只减少切向速度，保留法向弹力)
+                                        // 限制最大修正量，防止超调
+                                        const cDamping = PHYSICS_CONFIG.particle.collisionDamping || 0.1
+                                        if (Math.abs(vt) > 0.001) {
+                                            const impulse = vt * cDamping * 0.5 // 0.5 分摊给两个粒子
+
+                                            // 作用于切线方向修改 ox/oy (间接修改速度)
+                                            this.ox[i] += tx * impulse
+                                            this.oy[i] += ty * impulse
+                                            this.ox[o] -= tx * impulse
+                                            this.oy[o] -= ty * impulse
+                                        }
                                     }
                                 }
                             }

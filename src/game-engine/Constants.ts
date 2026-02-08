@@ -17,13 +17,13 @@ export const PHYSICS_CONFIG = {
     },
     // 粒子（星星）物理与展示属性
     particle: {
-        collisionRadius: 6.5,
+        collisionRadius: 6,
         visualRadius: 6,
         frictionAir: 0.05,   // 调优: 增加阻力 (0.04 -> 0.12) 吸收震荡能量
-        collisionFriction: 0.5, // 碰撞摩擦力: 粒子相互碰撞时损失的动能 (0.0 ~ 1.0)
+        collisionDamping: 0.2, // 碰撞阻尼: 粒子碰撞时动能损失系数 (0.0: 无损耗 ~ 1.0: 类似泥巴)
         stiffness: 0.5,      // 调优: 降低硬度 (0.8 -> 0.6) 减少剧烈回弹
         maxPush: 6,          // 调优: 降低最大推力 (8 -> 6) 防止穿模爆发
-        angularFriction: 1.0 // 旋转阻尼
+        angularDamping: 0.0  // 旋转阻尾: 0.0(无阻力) ~ 1.0(完全静止)
     },
     // 消耗/删除动画
     consumption: {
