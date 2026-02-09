@@ -1,6 +1,6 @@
-import { PhysicsSystem } from './PhysicsSystem'
-import { RenderSystem } from './RenderSystem'
-import { PHYSICS_CONFIG } from './Constants'
+import { PhysicsSystem } from './PointsPhysics'
+import { RenderSystem } from './PointsRender'
+import { PHYSICS_CONFIG } from './constants'
 
 export class GameLoop {
     private physics: PhysicsSystem

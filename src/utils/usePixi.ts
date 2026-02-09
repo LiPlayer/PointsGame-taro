@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro'
 import { useEffect, useState } from 'react'
 import type * as PixiTypes from 'pixi.js'
-import { RENDER_CONFIG } from '../game-engine/Constants'
+import { RENDER_CONFIG } from '../effects/constants'
 export type PixiModule = typeof import('pixi.js')
 
 const getDpr = () => {

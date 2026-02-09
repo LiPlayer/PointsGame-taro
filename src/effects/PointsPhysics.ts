@@ -1,4 +1,4 @@
-import { PHYSICS_CONFIG, RENDER_CONFIG } from './Constants'
+import { PHYSICS_CONFIG, RENDER_CONFIG } from './constants'
 
 /**
  * PBD (Position-Based Dynamics) Physics System

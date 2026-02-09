@@ -5,7 +5,7 @@ import * as PIXI from 'pixi.js' // We need to import the whole namespace or spec
 // Checking `usePixi.ts`, it uses `import { Application } from '@pixi/app'` etc, but also `import * as PIXI`.
 // I will use `import * as PIXI` to be safe and compatible with v7.
 
-import { RENDER_CONFIG, PHYSICS_CONFIG } from './Constants'
+import { RENDER_CONFIG, PHYSICS_CONFIG } from './constants'
 
 export class RenderSystem {
     private PIXI: any // Stored injected module

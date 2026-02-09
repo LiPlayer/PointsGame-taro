@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Canvas } from '@tarojs/components'
-import { GameLoop } from '../../game-engine/GameLoop'
+import { GameLoop } from '../../effects/PointsGameLoop'
 import { readCanvasInfo, ensurePixiModule } from '../../utils/usePixi'
-import { RENDER_CONFIG, PHYSICS_CONFIG } from '../../game-engine/Constants'
+import { RENDER_CONFIG, PHYSICS_CONFIG } from '../../effects/constants'
 import './index.scss'
 
 interface PointsCardProps {
