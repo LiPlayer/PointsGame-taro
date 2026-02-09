@@ -184,6 +184,13 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
     -   ❌ **严禁状态耦合**: 禁止在 `IPhysicsWorld` 中直接操作 React State 或 DOM/Taro 节点。
     -   ❌ **严禁引擎污染**: `src/engine/` 目录仅限存放**绝对通用**的代码（如数学库、音频只有底层管理）。任何特定游戏的逻辑（如“消除音效”、“方块纹理”）必须存放于 `src/games/{GameName}/` 目录下。
 
+    6.  **输入交互规范 (Input Handling Spec)**
+        为确保在 H5 (Mobile/Desktop) 和 WeApp 环境下行为一致，同时也支持 Chrome Emulation 调试：
+        
+        -   ✅ **Touch First**: 游戏内的点击交互**必须且只能**绑定 `onTouchStart` (或 `PointerEvent` 的 `pointerdown`)。
+        -   ❌ **严禁 Click**: 严禁使用 `onClick` 处理游戏逻辑（会有 300ms 延迟，且在 Emulation 模式下会造成双重触发）。
+        -   ❌ **无视 Mouse**: 严禁绑定 `onMouseDown`，除非你明确知道自己在做什么（Chrome Emulation 会在 touch 后模拟 mouse 事件，导致由“松开”引发的误触）。
+
 
 ### 4.5 分包与云端资源 (Subpackage & Cloud Assets)
 

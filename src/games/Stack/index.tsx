@@ -83,7 +83,7 @@ const StackGame = () => {
     }, [ready]);
 
     const handleTap = useCallback(() => {
-        console.log('[StackGame] Tap detected');
+        console.log('[StackGame] Tap detected (Touch)');
         loopRef.current?.handleTap();
     }, []);
 
@@ -91,7 +91,6 @@ const StackGame = () => {
         <View
             className="relative w-full h-full bg-slate-50 rounded-3xl overflow-hidden shadow-xl"
             onTouchStart={handleTap}
-            onClick={handleTap}
         >
             {process.env.TARO_ENV === 'h5' ? (
                 <canvas
