@@ -52,7 +52,12 @@ const ResultEarn: FC = () => {
     }
 
     const handleAgain = () => {
-        Taro.redirectTo({ url: '/pages/game/index' })
+        const id = router.params.id
+        if (id === 'stack') {
+            Taro.redirectTo({ url: '/packages/games/Stack/index' })
+        } else {
+            Taro.redirectTo({ url: '/pages/game/index' })
+        }
     }
 
     const handleNextChallenge = () => {

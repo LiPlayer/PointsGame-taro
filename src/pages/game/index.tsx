@@ -2,7 +2,7 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { FC, useMemo } from 'react'
 import NavClose from '../../components/NavClose'
-import StackGame from '../../games/Stack'
+// import StackGame from '../../games/Stack' (Moved to subpackage)
 
 const Game: FC = () => {
     const router = Taro.useRouter()
@@ -34,7 +34,8 @@ const Game: FC = () => {
     const renderGame = useMemo(() => {
         switch (id) {
             case 'stack':
-                return <StackGame />
+                // Subpackage redirect handled in navigation
+                return <View className="flex items-center justify-center h-full"><Text className="text-white">Redirecting...</Text></View>;
             default:
                 return (
                     <View className="absolute inset-0 bg-slate-800 flex items-center justify-center overflow-hidden" onClick={handleGameOver}>

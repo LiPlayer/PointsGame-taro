@@ -36,12 +36,15 @@
     "@tarojs/shared": "4.1.11",
     "@tarojs/taro": "4.1.11",
     "@types/matter-js": "^0.20.2",
+    "@types/three": "^0.182.0",
     "matter-js": "^0.20.0",
     "pixi-miniprogram": "latest",
     "pixi.js": "7",
     "qrcode-generator": "^2.0.4",
     "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.0.0",
+    "three": "^0.182.0",
+    "three-platformize": "^1.133.3"
   },
   "devDependencies": {
     "@babel/core": "^7.24.4",

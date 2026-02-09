@@ -13,6 +13,14 @@ export default defineAppConfig({
     'pages/pay-confirm/index',
     'pages/collection/index'
   ],
+  subpackages: [
+    {
+      root: 'packages/games',
+      pages: [
+        'Stack/index'
+      ]
+    }
+  ],
   entryPagePath: 'pages/home/index',
   window: {
     backgroundTextStyle: 'light',
