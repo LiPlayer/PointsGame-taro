@@ -100,7 +100,9 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
     - **CSS 规范**：全局样式必须包含完整的 Fallback 序列，优先匹配原生 UI 字体。
 
 ### 4.3 音频与多媒体 (Audio & Multimedia)
-- **实例管理**：游戏音效统一使用 `Taro.createInnerAudioContext`，严禁使用 HTML5 `<audio>` 标签。
+- **实例管理**：
+    - **音频文件**：统一使用 `Taro.createInnerAudioContext`。
+    - **程序化音频**：允许使用 `Taro.createWebAudioContext` (若支持) 生成简单波形音效 (Oscillator)，以减少对外部素材的依赖。
 - **交互诱导**：H5 环境下，浏览器禁止自动播放。必须在用户首次点击（如“开始”按钮）的事件回调中执行一次 `audio.play()` (即使是播放静音片段) 以解锁音频上下文。
 
 ### 4.4 游戏引擎规范 (Game Engine Spec)
@@ -118,95 +120,69 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
 4. **资源池化**：Texture 和 Geometry 必须全局共享，避免重复解析导致的内存溢出。
 
 
-#### C. 坐标系统与分辨率 (Coordinate System & Resolution)
-**核心原则**：物理/逻辑计算使用**逻辑像素 (Logical Pixels)**，渲染层自动处理 DPR 转换。
+#### C. 通用游戏核心架构 (Core Engine Architecture)
+**SSOT**: `src/engine/` 目录下的核心类 (`GameLoop`, `Resolution`) 是架构的唯一真理实现。
 
-1. **逻辑像素主导**：
-   - 所有游戏逻辑（物理计算、碰撞检测、交互判定）必须基于**逻辑像素**（CSS Pixels）
-   - 逻辑像素与设备无关，确保跨设备一致的游戏体验
-   
-2. **分辨率安全网 (maxDPR)**：
-   - H5 环境：`resolution = min(devicePixelRatio, 2.0)`
-   - WeApp 环境：`resolution = min(devicePixelRatio, 1.5)`
-   
-3. **坐标转换规则**：
-   - **物理坐标 → 渲染坐标**：由渲染引擎（PixiJS/Three.js）根据 `resolution` 属性自动处理
-   - **触摸输入 → 逻辑坐标**：直接使用容器相对坐标，无需 DPR 转换
-   - **禁止手动缩放**：严禁在物理层手动乘以 DPR，所有缩放由渲染层统一处理
+1.  **架构总览 (Architecture Overview)**
+    -   **逻辑-渲染分离**: 游戏逻辑 (`IPhysicsWorld`) 与渲染表现 (`IRenderPipeline`) 严格解耦。
+    -   **单向数据流**: 逻辑层只处理状态更新，渲染层只负责绘制，`GameLoop` 负责协调两者。
+    -   **分辨率托管**: 开发者无需手动计算 DPR，`GameLoop` 自动通过 `Resolution` 模块处理物理/逻辑像素转换。
 
-4. **一致性保证**：
-   - 相同的物理参数（速度、力、半径）在不同 DPR 设备上产生相同的视觉效果
+2.  **坐标与分辨率 (Resolution System)**
+    -   **逻辑像素主导**: 所有业务逻辑（速度、位置、碰撞体积）必须基于 **逻辑像素 (CSS Pixels)**。
+    -   **自动 DPR 处理**: `GameLoop` 构造函数不再接受外部 `dpr`，内部通过 `Resolution.getInfo(width, height)` 自动计算物理尺寸。
+    -   **安全网 (maxDPR)**: 强制限制最大像素比，防止过热：
+        -   H5 环境：`resolution = min(devicePixelRatio, 2.0)`
+        -   WeApp 环境：`resolution = min(devicePixelRatio, 1.5)`
 
-#### D. 游戏循环与帧率 (Game Loop & Frame Rate)
-**核心原则**：采用 **Fixed Timestep (60Hz)** 确保物理模拟的确定性和跨设备一致性。
+3.  **时间步长 (Time Step)**
+    -   **Fixed Timestep (60Hz)**: 物理更新强制锁定 `16.66ms`，确保确定性。
+    -   **渲染插值 (Interpolation)**: `render(alpha)` 接收插值因子 `alpha`，用于在逻辑帧之间平滑过渡，消除高刷屏抖动。
+    -   **60Hz 锁定优化**: 对原生 60Hz 屏幕自动锁定 `deltaTime`，消除浮点误差。
 
-1. **固定时间步长 (Fixed Timestep)**：
-   - 物理更新必须使用固定步长 `16.66ms` (60Hz)
-   - 使用累加器模式处理可变帧间隔
-   - 限制最大 deltaTime 防止"死亡螺旋"（建议 100ms）
+4.  **标准化接口 (Standard Interfaces)**
 
-2. **60Hz 锁定优化**：
-   - 检测 60Hz 屏幕时自动锁定 deltaTime 为固定值
-   - 容差范围：`|deltaTime - 16.66| < 4ms`
-   - 消除浮点误差导致的微小抖动
+    所有游戏/特效必须实现以下接口：
 
-3. **渲染插值 (Interpolation)**：
-   - 渲染位置必须在当前帧和前一帧之间线性插值
-   - 插值因子 `alpha = accumulator / fixedDelta`
-   - 消除高刷新率屏幕（120Hz+）的视觉抖动
+    ```typescript
+    // src/engine/IPhysicsWorld.ts
+    interface IPhysicsWorld {
+      init(width: number, height: number): void // 接收逻辑宽高
+      update(dt: number): void // 固定步长 dt (ms)
+      resize(w: number, h: number): void
+      destroy(): void
+    }
 
-4. **帧率目标**：
-   - **目标**：稳定 60 FPS
-   - **最低**：不低于 30 FPS（低端设备）
-   - **监控**：开发模式下每秒打印 FPS 到控制台
+    // src/engine/IRenderPipeline.ts
+    interface IRenderPipeline {
+      init(canvas: any, width: number, height: number, dpr: number): void
+      render(physics: IPhysicsWorld, alpha: number): void // alpha 用于插值
+      destroy(): void
+    }
+    ```
 
-5. **跨刷新率兼容**：
-   - 60Hz 设备：1:1 物理/渲染同步
-   - 120Hz+ 设备：物理 60Hz，渲染 120Hz（插值）
-   - 低于 60Hz：允许跳帧，但物理步长不变
+    **通用 GameLoop 使用模式**:
+    ```typescript
+    // src/engine/GameLoop.ts
+    class MyGameLoop extends GameLoop {
+      constructor(pixi, canvas, w, h) {
+        // GameLoop 自动处理 DPR，无需手动传递
+        super(new MyPhysics(), new MyRenderer(pixi), canvas, w, h)
+      }
+      
+      protected onFixedUpdate() { 
+        // 可选：处理点击事件/输入
+      }
+    }
+    ```
 
-#### E. 通用游戏引擎框架 (Generic Game Engine Framework)
-
-所有游戏/特效必须实现以下接口，配合通用 `GameLoop` 使用：
-
-```typescript
-// src/engine/IPhysicsWorld.ts
-interface IPhysicsWorld {
-  init(width: number, height: number): void
-  update(dt: number): void
-  resize(w: number, h: number): void
-  destroy(): void
-}
-
-// src/engine/IRenderPipeline.ts
-interface IRenderPipeline {
-  init(canvas: any, width: number, height: number, dpr: number): void
-  render(physics: IPhysicsWorld, alpha: number): void
-  destroy(): void
-}
-```
-
-**通用 GameLoop (src/engine/GameLoop.ts)**：
-- Fixed Timestep 60Hz 物理更新
-- 渲染插值消除高刷新率抖动
-- `onFixedUpdate()` 钩子供子类覆写
-
-**使用模式**：
-```typescript
-// 1. 实现接口
-class MyPhysics implements IPhysicsWorld { ... }
-class MyRenderer implements IRenderPipeline { ... }
-
-// 2. 继承 GameLoop
-class MyGameLoop extends GameLoop {
-  constructor(pixi, canvas, w, h, dpr) {
-    super(new MyPhysics(), new MyRenderer(pixi), canvas, w, h, dpr)
-  }
-  protected onFixedUpdate() { /* 自定义逻辑 */ }
-}
-```
-
-**示例**：`src/effects/` 首页积分粒子系统完整实现了此框架。
+5.  **强制合规与禁手 (Compliance & Forbidden Patterns)**
+    **违反以下规则的代码审核将不予通过 (Zero Tolerance)**：
+    
+    -   ❌ **严禁绕过 GameLoop**: 禁止手动调用 `requestAnimationFrame` 或自定义计时器循环。
+    -   ❌ **严禁手动缩放**: 禁止在游戏逻辑中乘以 `dpr`，或手动修改 Canvas 宽高（必须委托给 `GameLoop`）。
+    -   ❌ **严禁状态耦合**: 禁止在 `IPhysicsWorld` 中直接操作 React State 或 DOM/Taro 节点。
+    -   ❌ **严禁引擎污染**: `src/engine/` 目录仅限存放**绝对通用**的代码（如数学库、音频只有底层管理）。任何特定游戏的逻辑（如“消除音效”、“方块纹理”）必须存放于 `src/games/{GameName}/` 目录下。
 
 
 ### 4.5 分包与云端资源 (Subpackage & Cloud Assets)

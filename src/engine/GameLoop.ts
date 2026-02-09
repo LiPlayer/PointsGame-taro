@@ -1,5 +1,6 @@
 import { IPhysicsWorld } from './IPhysicsWorld'
 import { IRenderPipeline } from './IRenderPipeline'
+import { Resolution } from './Resolution'
 
 /**
  * 通用游戏循环 (Generic Game Loop)
@@ -27,9 +28,20 @@ export class GameLoop {
         renderer: IRenderPipeline,
         canvas: any,
         width: number,
-        height: number,
-        dpr: number
+        height: number
     ) {
+        // Centralized Resolution Handling
+        const { dpr, physicalWidth, physicalHeight } = Resolution.getInfo(width, height);
+
+        // Auto-resize canvas to physical pixels
+        if (canvas) {
+            // Check if canvas is a DOM element (H5) or WeApp node
+            if (canvas.width !== undefined) {
+                canvas.width = physicalWidth;
+                canvas.height = physicalHeight;
+            }
+        }
+
         this.params = { width, height, dpr, canvas }
         this.physics = physics
         this.renderer = renderer

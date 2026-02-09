@@ -15,11 +15,11 @@ export class GameLoop extends BaseGameLoop {
     private get pointsPhysics(): PhysicsSystem { return this.physics as PhysicsSystem }
     private get pointsRenderer(): RenderSystem { return this.renderer as RenderSystem }
 
-    constructor(pixi: any, canvas: any, width: number, height: number, dpr: number) {
+    constructor(pixi: any, canvas: any, width: number, height: number) {
         const physics = new PhysicsSystem()
         const renderer = new RenderSystem(pixi)
 
-        super(physics, renderer, canvas, width, height, dpr)
+        super(physics, renderer, canvas, width, height)
     }
 
     // ========== 积分粒子专用方法 ==========

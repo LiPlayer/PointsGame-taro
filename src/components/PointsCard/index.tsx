@@ -124,8 +124,8 @@ const PointsCard: React.FC<PointsCardProps> = ({
             }
 
             if (canvas && isMounted) {
-                const finalDpr = Math.min(dpr, RENDER_CONFIG.maxDPR)
-                const loop = new GameLoop(PIXI, canvas, width, height, finalDpr)
+                // GameLoop handles resolution internally now
+                const loop = new GameLoop(PIXI, canvas, width, height)
                 loop.start()
 
                 const addStarsAtTop = (count: number) => {
