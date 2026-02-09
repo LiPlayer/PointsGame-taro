@@ -4,6 +4,7 @@ import { FC } from 'react'
 
 import NavClose from '../../components/NavClose'
 import { getWeappContentPaddingTopPx, isWeapp } from '../../utils/weappLayout'
+import { setEvaporationPaused } from '../../utils/user'
 
 const PayScan: FC = () => {
     const goHome = () => {
@@ -19,9 +20,19 @@ const PayScan: FC = () => {
     }
 
     useDidShow(() => {
+        setEvaporationPaused(true)
         if (process.env.TARO_ENV === 'weapp') {
             // No need to set brightness when scanning others
         }
+    })
+
+    Taro.useDidHide(() => {
+        setEvaporationPaused(false)
+    })
+
+    // Also handle unmount just in case
+    Taro.useUnload(() => {
+        setEvaporationPaused(false)
     })
 
     const contentPaddingTop = isWeapp() ? getWeappContentPaddingTopPx(50, 12) : 50

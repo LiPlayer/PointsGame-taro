@@ -5,6 +5,7 @@ import { FC, useMemo } from 'react'
 import BtnPrimary from '../../components/BtnPrimary'
 import LabelCaps from '../../components/LabelCaps'
 import { getWeappContentPaddingTopPx, isWeapp } from '../../utils/weappLayout'
+import { setEvaporationPaused } from '../../utils/user'
 
 const SVG_CLOSE = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%222.5%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M6%2018L18%206M6%206l12%2012%22%2F%3E%3C%2Fsvg%3E"
 const SVG_STORE = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%222.5%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M16%2011V7a4%204%200%2000-8%200v4M5%209h14l1%2012H4L5%209z%22%2F%3E%3C%2Fsvg%3E"
@@ -12,6 +13,17 @@ const SVG_THUNDER = "data:image/svg+xml,%3Csvg%20fill%3D%22currentColor%22%20vie
 const SVG_CHECK = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%222.5%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22M9%2012l2%202%204-4m6%202a9%209%200%2011-18%200%209%209%200%200118%200z%22%20%2F%3E%3C%2Fsvg%3E"
 
 const PayConfirm: FC = () => {
+    Taro.useDidShow(() => {
+        setEvaporationPaused(true)
+    })
+
+    Taro.useDidHide(() => {
+        setEvaporationPaused(false)
+    })
+
+    Taro.useUnload(() => {
+        setEvaporationPaused(false)
+    })
     const handlePay = () => {
         Taro.showToast({ title: '支付成功', icon: 'success' })
         setTimeout(() => {

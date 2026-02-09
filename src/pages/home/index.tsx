@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, FC } from 'react'
 
 import BtnPrimary from '../../components/BtnPrimary'
 import PointsCard from '../../components/PointsCard'
-import { getUserData, initUserData, refreshPoints } from '../../utils/user'
+import { getUserData, initUserData, refreshPoints, startPointsListener } from '../../utils/user'
 import { getWeappContentPaddingTopPx, isWeapp } from '../../utils/weappLayout'
 
 const SVG_THUNDER_WHITE =
@@ -40,7 +40,13 @@ const Home: FC = () => {
         }
 
         const currentPoints = refreshPoints(false)
-        setPoints(currentPoints)
+
+        // Only update UI if integer part changes or if first load (points=0)
+        // Check against current state 'points'
+        if (Math.floor(currentPoints) !== Math.floor(points)) {
+            setPoints(currentPoints)
+        }
+
         setDailyPlayCount(data.dailyPlayCount || 0)
         setIsReady(true)
     }
@@ -48,7 +54,17 @@ const Home: FC = () => {
     useEffect(() => {
         syncUser()
         const timer = setInterval(syncUser, 1000)
-        return () => clearInterval(timer)
+
+        // Start Real-time Listener (WeChat only)
+        const unsubscribe = startPointsListener((newPoints) => {
+            console.log('[Home] Real-time points update:', newPoints)
+            setPoints(newPoints)
+        })
+
+        return () => {
+            clearInterval(timer)
+            unsubscribe()
+        }
     }, [])
 
     useDidShow(() => {

@@ -185,10 +185,11 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
 - **操作**：换个运气 / 再玩一次。
 
 ### 5.5 Share（积分分享）
-- **功能**：展示收款码 / 输入金额转赠。
+- **功能**：展示收款码 / 扫码转积分。
+- **限制**：**仅限面对面扫码 (Face-to-Face Only)**，严禁线上分享。
 - **Taro 实现**：
-    - **Weapp**: `Taro.useShareAppMessage` + Canvas 海报。
-    - **H5**: 提示截图或复制链接。
+    - **Weapp**: 禁用 `ShareAppMessage`，扫码接口强制 `onlyFromCamera: true`。
+    - **H5**: 仅展示二维码，不提供复制链接功能。
 
 ### 5.6 StorePay（门店支付）
 - **流程**：Scan -> Confirm。

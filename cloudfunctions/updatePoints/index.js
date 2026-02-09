@@ -29,13 +29,13 @@ exports.main = async (event, context) => {
         if (deltaH <= 0) return lastPoints;
 
         const denominator = Math.sqrt(1 + 2 * LAMBDA * Math.pow(lastPoints, 2) * deltaH);
-        return lastPoints / denominator;
+        return Math.round(lastPoints / denominator);
     };
     // --- Evaporation Logic End ---
 
     try {
         // 1. Get current user data to apply evaporation
-        const userRes = await db.collection('users').where({ openid }).get();
+        const userRes = await db.collection('users').where({ _openid: openid }).get();
         let user = null;
 
         if (userRes.data.length > 0) {
@@ -56,8 +56,8 @@ exports.main = async (event, context) => {
         switch (action) {
             case 'add':
                 // 增加积分: Evaporated + New
-                const newPointsAdd = user.points + points;
-                await db.collection('users').where({ openid }).update({
+                const newPointsAdd = Math.floor(user.points + points);
+                await db.collection('users').where({ _openid: openid }).update({
                     data: {
                         points: newPointsAdd,
                         lastUpdatedAt: db.serverDate()
@@ -73,7 +73,7 @@ exports.main = async (event, context) => {
                 // OR update points alongside? Let's stick to updating points ONLY when points change to minimize writes/complexity
                 // unless spec "Update (Use/Earn)" implies ANY update. 
                 // Let's safe-keep: Only update collection here.
-                await db.collection('users').where({ openid }).update({
+                await db.collection('users').where({ _openid: openid }).update({
                     data: { collection: _.addToSet(gameId) }
                 });
                 break;
@@ -81,27 +81,44 @@ exports.main = async (event, context) => {
             case 'transfer':
                 // 积分转移
                 // 1. Sender: Evaporated - Points
-                const newPointsSender = user.points - points;
-                if (newPointsSender < 0) return { error: 'Insufficient points' };
+                const newPointsSender = Math.floor(user.points - points);
+                if (newPointsSender < 0) return { error: 'Points insufficient' };
 
-                await db.collection('users').where({ openid }).update({
+                // Validate: Use _openid to match system field
+                const senderRes = await db.collection('users').where({ _openid: openid }).update({
                     data: {
                         points: newPointsSender,
                         lastUpdatedAt: db.serverDate()
                     }
                 });
 
-                // 2. Receiver: Add directly (or trigger their evaporation? Complexity!)
-                // Simplicity: Just add to receiver. Receiver will evaporate on their next action.
-                // This is slightly "advantageous" to receiver (delaying evaporation), but acceptable.
-                await db.collection('users').where({ openid: targetOpenid }).update({
+                if (senderRes.stats.updated === 0) {
+                    return { error: 'Sender update failed' };
+                }
+
+                // 2. Receiver: Add directly
+                // Use _openid to match system field
+                // Ensure receiver exists or fail? For now, if receiver not found, sender already deducted.
+                // Ideally this should be a transaction. But for simple impl, we try to update receiver.
+                // If receiver fails, points are lost (burned). This is acceptable for now vs complexity.
+                const receiverRes = await db.collection('users').where({ _openid: targetOpenid }).update({
                     data: { points: _.inc(points) }
                 });
+
+                if (receiverRes.stats.updated === 0) {
+                    // Start Rollback (Optional but good) or just Warning
+                    console.warn(`Receiver [${targetOpenid}] not found, points burned.`);
+                    // Recover sender?
+                    await db.collection('users').where({ _openid: openid }).update({
+                        data: { points: _.inc(points) }
+                    });
+                    return { error: 'Receiver not found' };
+                }
                 break;
 
             case 'deduct':
                 // 扣除积分: Evaporated - Points
-                const newPointsDeduct = user.points - points;
+                const newPointsDeduct = Math.floor(user.points - points);
                 if (newPointsDeduct < 0) return { error: 'Insufficient points' };
 
                 await db.collection('users').where({ openid }).update({

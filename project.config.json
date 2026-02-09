@@ -1,5 +1,6 @@
 {
   "miniprogramRoot": "dist/",
+  "cloudfunctionRoot": "cloudfunctions/",
   "projectname": "points-game-taro",
   "description": "Points Game",
   "appid": "wx91dfdbf2cf1d2be1",
