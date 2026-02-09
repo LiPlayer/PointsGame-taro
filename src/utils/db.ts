@@ -35,11 +35,18 @@ export async function getDBUser(): Promise<UserData | null> {
     if (isWeapp) {
         try {
             const db = Taro.cloud.database()
-            const { data } = await db.collection(COLLECTION_NAME).limit(1).get()
+            const { data } = await db.collection(COLLECTION_NAME)
+                .where({
+                    _openid: '{openid}' // Explicitly query current user's data
+                })
+                .limit(1)
+                .get()
+
             const cloudData = (data[0] || null) as UserData | null
 
-            // Merge Logic: Use the one with the latest timestamp
+            // Sync/Merge logic
             if (cloudData && localData) {
+                // If cloud data is same or newer, sync to local
                 if ((cloudData.lastUpdatedAt || 0) >= (localData.lastUpdatedAt || 0)) {
                     Taro.setStorageSync(LOCAL_STORAGE_KEY, cloudData)
                     return cloudData
@@ -55,7 +62,7 @@ export async function getDBUser(): Promise<UserData | null> {
 
             return null
         } catch (e) {
-            console.error('[DB] Cloud fetch failed, using local fallback:', e)
+            console.error('[DB] Fetch failed:', e)
             return localData || null
         }
     } else {

@@ -5,33 +5,59 @@ import { UserData } from '../types/common'
 
 const DEFAULT_USER_DATA: UserData = {
     _openid: Taro.getEnv() === Taro.ENV_TYPE.WEAPP ? undefined : 'MOCK_OPENID_12345',
-    points: 1240,
+    points: 0, // Reset to 0 as requested
     lastUpdatedAt: Date.now(),
     dailyPlayCount: 0,
     bestScores: {}
 }
 
 let userData: UserData | null = null
+let initPromise: Promise<UserData> | null = null
 
 export async function initUserData(): Promise<UserData> {
-    try {
-        const data = await getDBUser()
-        if (data) {
-            userData = data
-            // Guarantee _openid in non-weapp environments for QR generation
-            if (Taro.getEnv() !== Taro.ENV_TYPE.WEAPP && !userData._openid) {
-                userData._openid = 'MOCK_OPENID_12345'
-            }
-            refreshPoints()
-        } else {
-            userData = { ...DEFAULT_USER_DATA, lastUpdatedAt: Date.now() }
-            await saveUserData()
-        }
-    } catch (e) {
-        console.error('[User] Data init failed:', e)
-        userData = { ...DEFAULT_USER_DATA, lastUpdatedAt: Date.now() }
+    // 1. If data exists, return immediately
+    if (userData) return userData
+
+    // 2. If initialization is in progress, wait for it (Concurrency Lock)
+    if (initPromise) {
+        return await initPromise
     }
-    return userData as UserData
+
+    // 3. Start initialization
+    initPromise = (async () => {
+        try {
+            const data = await getDBUser()
+            if (data) {
+                userData = data
+                // Guarantee _openid in non-weapp environments for QR generation
+                if (Taro.getEnv() !== Taro.ENV_TYPE.WEAPP && !userData._openid) {
+                    userData._openid = 'MOCK_OPENID_12345'
+                }
+                refreshPoints()
+            } else {
+                // New user: Create and Save
+                userData = { ...DEFAULT_USER_DATA, lastUpdatedAt: Date.now() }
+                await saveUserData()
+
+                // CRITICAL: Fetch again to get the system-generated _openid
+                if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
+                    const savedData = await getDBUser()
+                    if (savedData) {
+                        userData = savedData
+                        console.log('[User] New user created, synced openid:', userData._openid)
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('[User] Data init failed:', e)
+            userData = { ...DEFAULT_USER_DATA, lastUpdatedAt: Date.now() }
+        } finally {
+            initPromise = null // Reset lock
+        }
+        return userData as UserData
+    })()
+
+    return await initPromise
 }
 
 export async function saveUserData(): Promise<void> {
@@ -70,7 +96,7 @@ export async function updatePoints(delta: number): Promise<number> {
     return userData.points
 }
 
-export async function login(): Promise<{ success: boolean; userData?: UserData; error?: any }> {
+export async function login(): Promise<{ success: boolean; error?: any }> {
     try {
         if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
             const { code } = await Taro.login()
@@ -79,8 +105,9 @@ export async function login(): Promise<{ success: boolean; userData?: UserData; 
             console.log('[Login] H5 Mock success')
         }
 
-        const data = await initUserData()
-        return { success: true, userData: data }
+        // Note: We deliberately DO NOT call initUserData() here anymore.
+        // Data fetching is deferred until the home page or specific features need it.
+        return { success: true }
     } catch (e) {
         console.error('[Login] Failed:', e)
         return { success: false, error: e }
