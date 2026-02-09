@@ -110,6 +110,7 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
 3. **分辨率隔离**：必须遵循 `maxDPR` 限制。3D 游戏在微信小程序中强制限制 `resolution <= 1.2` 以保散热稳定。
 4. **资源池化**：Texture 和 Geometry 必须全局共享，避免重复解析导致的内存溢出。
 
+
 #### C. 坐标系统与分辨率 (Coordinate System & Resolution)
 **核心原则**：物理/逻辑计算使用**逻辑像素 (Logical Pixels)**，渲染层自动处理 DPR 转换。
 
@@ -156,6 +157,50 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
    - 60Hz 设备：1:1 物理/渲染同步
    - 120Hz+ 设备：物理 60Hz，渲染 120Hz（插值）
    - 低于 60Hz：允许跳帧，但物理步长不变
+
+#### E. 通用游戏引擎框架 (Generic Game Engine Framework)
+
+所有游戏/特效必须实现以下接口，配合通用 `GameLoop` 使用：
+
+```typescript
+// src/engine/IPhysicsWorld.ts
+interface IPhysicsWorld {
+  init(width: number, height: number): void
+  update(dt: number): void
+  resize(w: number, h: number): void
+  destroy(): void
+}
+
+// src/engine/IRenderPipeline.ts
+interface IRenderPipeline {
+  init(canvas: any, width: number, height: number, dpr: number): void
+  render(physics: IPhysicsWorld, alpha: number): void
+  destroy(): void
+}
+```
+
+**通用 GameLoop (src/engine/GameLoop.ts)**：
+- Fixed Timestep 60Hz 物理更新
+- 渲染插值消除高刷新率抖动
+- `onFixedUpdate()` 钩子供子类覆写
+
+**使用模式**：
+```typescript
+// 1. 实现接口
+class MyPhysics implements IPhysicsWorld { ... }
+class MyRenderer implements IRenderPipeline { ... }
+
+// 2. 继承 GameLoop
+class MyGameLoop extends GameLoop {
+  constructor(pixi, canvas, w, h, dpr) {
+    super(new MyPhysics(), new MyRenderer(pixi), canvas, w, h, dpr)
+  }
+  protected onFixedUpdate() { /* 自定义逻辑 */ }
+}
+```
+
+**示例**：`src/effects/` 首页积分粒子系统完整实现了此框架。
+
 
 ### 4.5 分包与云端资源 (Subpackage & Cloud Assets)
 

@@ -1,4 +1,5 @@
 import { PHYSICS_CONFIG, RENDER_CONFIG } from './constants'
+import { IPhysicsWorld } from '../engine/IPhysicsWorld'
 
 /**
  * PBD (Position-Based Dynamics) Physics System
@@ -8,7 +9,7 @@ import { PHYSICS_CONFIG, RENDER_CONFIG } from './constants'
  * - 空间网格碰撞检测 O(n) 复杂度
  * - 只同深度层粒子碰撞，减少计算量
  */
-export class PhysicsSystem {
+export class PhysicsSystem implements IPhysicsWorld {
     // --- 高性能粒子引擎 (Zero Allocation / Typed Arrays) ---
     public MAX_PARTICLES = PHYSICS_CONFIG.maxParticles
 
@@ -403,5 +404,9 @@ export class PhysicsSystem {
         this.gridCols = Math.ceil(w / this.cellSize)
         this.gridRows = Math.ceil(h / this.cellSize)
         this.heads = new Int32Array(this.gridCols * this.gridRows).fill(-1)
+    }
+
+    public destroy(): void {
+        this.clear()
     }
 }

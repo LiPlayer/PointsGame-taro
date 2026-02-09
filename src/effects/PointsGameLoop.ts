@@ -1,201 +1,71 @@
+import { GameLoop as BaseGameLoop } from '../engine/GameLoop'
 import { PhysicsSystem } from './PointsPhysics'
 import { RenderSystem } from './PointsRender'
 import { PHYSICS_CONFIG } from './constants'
 
-export class GameLoop {
-    private physics: PhysicsSystem
-    private renderer: RenderSystem
-    private isRunning: boolean = false
-    private lastTime: number = 0
-    private accumulator: number = 0
-    private readonly params: { width: number; height: number; dpr: number; canvas: any }
+/**
+ * 积分粒子游戏循环 (Points Particle Game Loop)
+ * 继承通用 GameLoop，添加粒子专用方法
+ */
+export class GameLoop extends BaseGameLoop {
+    // Pointer interaction
+    private pointer = { x: 0, y: 0, active: false }
 
-    // Callback for when the first frame is rendered
-    public onFirstFrameRendered?: () => void
-    private hasRenderedFirstFrame: boolean = false
+    // Typed getters for particle-specific access
+    private get pointsPhysics(): PhysicsSystem { return this.physics as PhysicsSystem }
+    private get pointsRenderer(): RenderSystem { return this.renderer as RenderSystem }
 
-    // Fixed time step (e.g. 1000 / 60 = 16.66ms)
-    private readonly fixedDelta = 1000 / PHYSICS_CONFIG.frequency
-
-    // Physics runs in Logical Pixels (CSS Pixels)
-    // Renderer runs in Physical Pixels (Device Pixels)
     constructor(pixi: any, canvas: any, width: number, height: number, dpr: number) {
-        // width/height passed here are LOGICAL pixels from usePixi
+        const physics = new PhysicsSystem()
+        const renderer = new RenderSystem(pixi)
 
-        this.params = { width, height, dpr, canvas }
-        this.physics = new PhysicsSystem()
-        // Renderer takes LOGICAL dimensions + dpr to handle resolution
-        this.renderer = new RenderSystem(pixi, canvas, width, height, dpr)
+        super(physics, renderer, canvas, width, height, dpr)
     }
 
-    public get width() { return this.params.width }
-    public get height() { return this.params.height }
+    // ========== 积分粒子专用方法 ==========
 
-    public start() {
-        if (this.isRunning) return
-
-        this.physics.init(this.params.width, this.params.height)
-        this.isRunning = true
-        this.lastTime = performance.now()
-        this.accumulator = 0
-
-        requestAnimationFrame(this.loop.bind(this))
-    }
-
-    public stop() {
-        this.isRunning = false
-    }
-
-    public clear() {
-        this.physics.clear()
-        this.renderer.clear()
-    }
-
-    public destroy() {
-        this.stop()
-        this.physics.clear()
-        this.renderer.destroy()
-    }
-
-    public addStar(x: number, y: number) {
-        const id = this.physics.addParticle(x, y)
+    public addStar(x: number, y: number): void {
+        const id = this.pointsPhysics.addParticle(x, y)
         if (id !== -1) {
-            const rad = PHYSICS_CONFIG.particle.visualRadius // Pass visual radius to renderer
-            const z = this.physics.zs[id]
-            this.renderer.addSprite(id, x, y, rad, z)
+            const rad = PHYSICS_CONFIG.particle.visualRadius
+            const z = this.pointsPhysics.zs[id]
+            this.pointsRenderer.addSprite(id, x, y, rad, z)
         }
     }
 
-    public removeStars(count: number) {
-        this.physics.consume(count)
+    public removeStars(count: number): void {
+        this.pointsPhysics.consume(count)
     }
 
-    public explode(power?: number) {
-        this.physics.applyExplosion(this.params.width / 2, this.params.height / 2, power)
+    public explode(power?: number): void {
+        this.pointsPhysics.applyExplosion(this.width / 2, this.height / 2, power)
     }
 
     public getStarCount(): number {
-        return this.physics.getStarCount()
+        return this.pointsPhysics.getStarCount()
     }
 
-    private pointer = { x: 0, y: 0, active: false }
-
-    public setPointer(x: number, y: number, active: boolean) {
+    public setPointer(x: number, y: number, active: boolean): void {
         this.pointer.x = x
         this.pointer.y = y
         this.pointer.active = active
     }
 
-    public resize(width: number, height: number) {
-        // update with new logical dimensions
-        this.params.width = width
-        this.params.height = height
-
-        this.physics.resize(width, height)
-        this.renderer.app.renderer.resize(width, height)
+    public clear(): void {
+        this.pointsPhysics.clear()
+        this.pointsRenderer.clear()
     }
 
-    private loop(time: number) {
-        if (!this.isRunning) return
-
-        let deltaTime = time - this.lastTime
-        this.lastTime = time
-
-
-        // Apply interaction force EVERY FRAME if pointer is active (Match Prototype)
-        // MOVED TO FIXED UPDATE
-
-        // --- 60Hz Timestep Lock (Mobile Optimization) ---
-        // If detection suggests 60Hz screen (17ms or 16ms), snap to fixedDelta
-        // This eliminates "beat" jitter by forcing 1:1 Physics:Render ratio
-        let isLocked = false
-        if (Math.abs(deltaTime - this.fixedDelta) < 4) {
-            deltaTime = this.fixedDelta
-            isLocked = true
-        }
-
-        // Clamp deltaTime to avoid "spiral of death" on lag spikes
-        this.accumulator += Math.min(deltaTime, 100)
-
-        // Snap accumulator to avoid tiny float drifts causing dropped frames
-        if (Math.abs(this.accumulator - this.fixedDelta) < 2) {
-            this.accumulator = this.fixedDelta
-        }
-
-        // Fixed Update Strategy
-        let steps = 0
-        while (this.accumulator >= this.fixedDelta && steps < 5) {
-            // Apply interaction force EVERY FRAME if pointer is active (Match Prototype)
-            if (this.pointer.active) {
-                this.physics.applyRepulsion(this.pointer.x, this.pointer.y)
-            }
-            this.physics.update(this.fixedDelta)
-            this.accumulator -= this.fixedDelta
-            steps++
-        }
-
-        // Cleanup dead particles
-        this.physics.cleanup((id) => {
-            this.renderer.removeSprite(id)
-        })
-
-        // Interpolation
-        // isLocked ? 1.0 (Render Latest) : Calculated Alpha
-        const alpha = isLocked ? 1.0 : this.accumulator / this.fixedDelta
-
-        this.syncRender(alpha)
-        this.renderer.app.render()
-
-        if (!this.hasRenderedFirstFrame) {
-            this.hasRenderedFirstFrame = true
-            if (this.onFirstFrameRendered) {
-                this.onFirstFrameRendered()
-            }
-        }
-
-        requestAnimationFrame(this.loop.bind(this))
+    public resize(width: number, height: number): void {
+        super.resize(width, height)
+        this.pointsRenderer.resize(width, height)
     }
 
-    private syncRender(alpha: number) {
-        const n = this.physics.particleCount
-        const px = this.physics.px
-        const py = this.physics.py
-        const ox = this.physics.ox
-        const oy = this.physics.oy
-        const ids = this.physics.ids
-        const states = this.physics.states
-        const timers = this.physics.timers
-        const angles = this.physics.angles
+    // ========== 覆写固定更新 ==========
 
-        for (let i = 0; i < n; i++) {
-            // Interpolate between previous (ox, oy) and current (px, py)
-            const ix = px[i] * alpha + ox[i] * (1 - alpha)
-            const iy = py[i] * alpha + oy[i] * (1 - alpha)
-            const ir = angles[i] // Simple rotation for now (could interpolate if needed)
-
-            let scale: number | undefined = undefined
-            let opacity: number | undefined = undefined
-
-            if (states[i] === 1) {
-                // Dying Animation: Shrink and Fade
-                // Progress is timers[i] (0 to 1)
-                const p = timers[i]
-                if (p < 0.4) {
-                    // Phase 1: Just floating up (handled in physics)
-                    opacity = 1
-                    scale = 1
-                } else {
-                    // Phase 2: Shrink and Fade
-                    const p2 = (p - 0.4) / 0.6
-                    opacity = 1 - p2
-                    scale = 1 - p2
-                }
-            } else {
-                scale = 1
-                opacity = 1
-            }
-
-            this.renderer.updateBody(ids[i], ix, iy, ir, scale, opacity)
+    protected onFixedUpdate(): void {
+        if (this.pointer.active) {
+            this.pointsPhysics.applyRepulsion(this.pointer.x, this.pointer.y)
         }
     }
 }
