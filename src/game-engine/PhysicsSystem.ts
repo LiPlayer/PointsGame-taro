@@ -155,6 +155,7 @@ export class PhysicsSystem {
             const gy = Math.floor(this.py[i] / this.cellSize)
 
             if (gx >= 0 && gx < cols && gy >= 0 && gy < rows) {
+                // Inline index calculation: gx + gy * cols
                 const idx = gx + gy * cols
                 this.nexts[i] = this.heads[idx]
                 this.heads[idx] = i
@@ -178,39 +179,58 @@ export class PhysicsSystem {
             const ri = this.rads[i]
             const zi = this.zs[i]
 
-            // Check neighboring cells
-            for (let x = gx - 1; x <= gx + 1; x++) {
-                if (x < 0 || x >= cols) continue
-                for (let y = gy - 1; y <= gy + 1; y++) {
-                    if (y < 0 || y >= rows) continue
+            // Start with current cell (center)
+            // Pre-calculate grid index to avoid re-calculation in loop
+            const centerIdx = gx + gy * cols
 
-                    let j = this.heads[x + y * cols]
+            // Check 9 neighboring cells (including self)
+            // Unroll loop for performance (3x3 grid)
+            // Use local vars for speed
+            const heads = this.heads
+            const nexts = this.nexts
+            const states = this.states
+            const px = this.px
+            const py = this.py
+            const rads = this.rads
+            const zs = this.zs
+
+            for (let dy = -1; dy <= 1; dy++) {
+                const ny = gy + dy
+                if (ny < 0 || ny >= rows) continue
+
+                const yOffset = ny * cols
+
+                for (let dx = -1; dx <= 1; dx++) {
+                    const nx = gx + dx
+                    if (nx < 0 || nx >= cols) continue
+
+                    let j = heads[nx + yOffset]
                     while (j !== -1) {
-                        if (j > i && this.states[j] === 0) {
+                        if (j > i && states[j] === 0) {
                             // Only collide same z-level (performance + visual)
-                            if (Math.abs(zi - this.zs[j]) < 0.1) {
-                                const dx = this.px[i] - this.px[j]
-                                const dy = this.py[i] - this.py[j]
+                            if (Math.abs(zi - zs[j]) < 0.1) {
+                                const dx = px[i] - px[j]
+                                const dy = py[i] - py[j]
                                 const distSq = dx * dx + dy * dy
-                                const minDist = ri + this.rads[j]
+                                const minDist = ri + rads[j]
 
                                 if (distSq < minDist * minDist && distSq > 0.0001) {
                                     const dist = Math.sqrt(distSq)
                                     const overlap = minDist - dist
 
                                     // PBD: Move each particle by half the overlap
+                                    const limit = overlap * 0.5
                                     const nx = dx / dist
                                     const ny = dy / dist
-                                    const correction = overlap * 0.5
 
-                                    this.px[i] += nx * correction
-                                    this.py[i] += ny * correction
-                                    this.px[j] -= nx * correction
-                                    this.py[j] -= ny * correction
+                                    px[i] += nx * limit
+                                    py[i] += ny * limit
+                                    px[j] -= nx * limit
+                                    py[j] -= ny * limit
                                 }
                             }
                         }
-                        j = this.nexts[j]
+                        j = nexts[j]
                     }
                 }
             }

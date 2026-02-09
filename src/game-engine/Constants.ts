@@ -7,7 +7,7 @@ export const PHYSICS_CONFIG = {
     bounds: {
         bounce: 0.4,            // 边界反弹系数
         ceilingMargin: -2000,   // 天花板清理边界
-        collisionPasses: 5      // PBD约束求解次数
+        collisionPasses: 3      // PBD约束求解次数
     },
 
     particle: {
