@@ -7,7 +7,8 @@ import QRCode from 'qrcode'
  */
 export async function generateQRCode(text: string): Promise<string> {
     try {
-        return await QRCode.toDataURL(text, {
+        const svg = await QRCode.toString(text, {
+            type: 'svg',
             margin: 0,
             width: 400,
             color: {
@@ -15,6 +16,7 @@ export async function generateQRCode(text: string): Promise<string> {
                 light: '#ffffff'
             }
         })
+        return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
     } catch (err) {
         console.error('[QR] Failed to generate QR code:', err)
         return ''
