@@ -41,10 +41,22 @@ const Home: FC = () => {
 
         const currentPoints = refreshPoints(false)
 
+        // Handle consume param for animation (from Share reLaunch)
+        const params = Taro.getCurrentInstance().router?.params
+        const consumeAmount = params?.consume ? parseInt(params.consume) : 0
+
         // Only update UI if integer part changes or if first load (points=0)
         // Check against current state 'points'
         if (Math.floor(currentPoints) !== Math.floor(points)) {
-            setPoints(currentPoints)
+            if (consumeAmount > 0 && points === 0) {
+                // Initialize with 'pre-transfer' points to trigger drop animation
+                setPoints(currentPoints + consumeAmount)
+                setTimeout(() => {
+                    setPoints(currentPoints)
+                }, 300)
+            } else {
+                setPoints(currentPoints)
+            }
         }
 
         setDailyPlayCount(data.dailyPlayCount || 0)

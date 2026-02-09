@@ -8,16 +8,21 @@ const Game: FC = () => {
     const isReplay = router.params.mode === 'replay'
 
     const goHome = () => {
-        if (isReplay) {
-            Taro.reLaunch({ url: '/pages/collection/index' })
+        const pages = Taro.getCurrentPages()
+        if (pages.length > 1) {
+            Taro.navigateBack()
         } else {
-            Taro.reLaunch({ url: '/pages/home/index' })
+            if (isReplay) {
+                Taro.reLaunch({ url: '/pages/collection/index' })
+            } else {
+                Taro.reLaunch({ url: '/pages/home/index' })
+            }
         }
     }
 
     const handleGameOver = () => {
         const score = Math.floor(Math.random() * 50) + 50
-        Taro.reLaunch({
+        Taro.redirectTo({
             url: isReplay
                 ? `/pages/result-replay/index?score=${score}`
                 : `/pages/result-earn/index?score=${score}`

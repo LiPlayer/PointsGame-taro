@@ -27,7 +27,12 @@ const PayConfirm: FC = () => {
     const handlePay = () => {
         Taro.showToast({ title: '支付成功', icon: 'success' })
         setTimeout(() => {
-            Taro.reLaunch({ url: '/pages/home/index' })
+            const pages = Taro.getCurrentPages()
+            if (pages.length > 1) {
+                Taro.navigateBack()
+            } else {
+                Taro.reLaunch({ url: '/pages/home/index' })
+            }
         }, 1500)
     }
 

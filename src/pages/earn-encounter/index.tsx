@@ -13,11 +13,16 @@ const EarnEncounter: FC = () => {
     const contentPaddingTop = isWeapp() ? getWeappContentPaddingTopPx(50, 12) : 50
 
     const goHome = () => {
-        Taro.reLaunch({ url: '/pages/home/index' })
+        const pages = Taro.getCurrentPages()
+        if (pages.length > 1) {
+            Taro.navigateBack()
+        } else {
+            Taro.reLaunch({ url: '/pages/home/index' })
+        }
     }
 
     const handleStart = () => {
-        Taro.reLaunch({ url: '/pages/game/index' })
+        Taro.redirectTo({ url: '/pages/game/index' })
     }
 
     return (

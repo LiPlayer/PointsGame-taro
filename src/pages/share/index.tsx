@@ -17,7 +17,12 @@ const Share: FC = () => {
     const [maxPoints, setMaxPoints] = useState(0)
 
     const goHome = () => {
-        Taro.reLaunch({ url: '/pages/home/index' })
+        const pages = Taro.getCurrentPages()
+        if (pages.length > 1) {
+            Taro.navigateBack()
+        } else {
+            Taro.reLaunch({ url: '/pages/home/index' })
+        }
     }
 
     const initQR = async () => {
@@ -115,6 +120,17 @@ const Share: FC = () => {
                                 // Update max points locally
                                 setMaxPoints(prev => prev - numAmount)
                                 setAmount('')
+
+                                // Navigate back to Home to show consume animation
+                                setTimeout(() => {
+                                    const pages = Taro.getCurrentPages()
+                                    if (pages.length > 1) {
+                                        Taro.navigateBack()
+                                    } else {
+                                        // Pass consume param to trigger animation on fresh Home load
+                                        Taro.reLaunch({ url: `/pages/home/index?consume=${numAmount}` })
+                                    }
+                                }, 1500)
                             } else {
                                 Taro.showToast({ title: transferRes.error || '转赠失败', icon: 'none' })
                             }

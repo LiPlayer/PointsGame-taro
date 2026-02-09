@@ -8,7 +8,12 @@ import { setEvaporationPaused } from '../../utils/user'
 
 const PayScan: FC = () => {
     const goHome = () => {
-        Taro.reLaunch({ url: '/pages/home/index' })
+        const pages = Taro.getCurrentPages()
+        if (pages.length > 1) {
+            Taro.navigateBack()
+        } else {
+            Taro.reLaunch({ url: '/pages/home/index' })
+        }
     }
 
     const handleScanSimulate = () => {

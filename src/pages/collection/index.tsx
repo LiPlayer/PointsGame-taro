@@ -12,11 +12,16 @@ const SVG_REPLAY = "data:image/svg+xml,%3Csvg%20fill%3D%22none%22%20stroke%3D%22
 
 const Collection: FC = () => {
     const goHome = () => {
-        Taro.reLaunch({ url: '/pages/home/index' })
+        const pages = Taro.getCurrentPages()
+        if (pages.length > 1) {
+            Taro.navigateBack()
+        } else {
+            Taro.reLaunch({ url: '/pages/home/index' })
+        }
     }
 
     const handleReplay = (gameId: number) => {
-        Taro.reLaunch({ url: `/pages/game/index?mode=replay&gameId=${gameId}` })
+        Taro.navigateTo({ url: `/pages/game/index?mode=replay&gameId=${gameId}` })
     }
 
     const headerTop = isWeapp() ? getWeappCloseTopPx(40, 24) : 50
