@@ -2,21 +2,413 @@ import React, { useEffect, useRef } from 'react';
 import * as PIXI from 'pixi.js';
 
 // --- Type Definitions ---
-interface Particle {
-  sprite: PIXI.Sprite;
-  x: number;
-  y: number;
-  oldX: number;
-  oldY: number;
-  radius: number;
-  angle: number;
-  angularVelocity: number;
-  z: number; // 0.0 to 1.0 (depth)
-  isSleeping: boolean;
-  isDying: boolean;
-  deathTimer: number;
-  baseScale: number; // Stored base scale to avoid recalculating
-  update: (width: number, height: number) => void;
+// --- Constants (Matching Taro Project) ---
+const PHYSICS_CONFIG = {
+  frequency: 60,
+  maxParticles: 5000,
+  gravity: { x: 0, y: 0.5 },
+  cellSize: 15,
+  bounds: {
+    bounce: 0.4,
+    ceilingMargin: -2000,
+    collisionPasses: 3
+  },
+  particle: {
+    collisionRadius: 6,
+    visualRadius: 6,
+    damping: 0.95,
+    angularDamping: 0.0
+  },
+  consumption: {
+    speed: 0.02,
+    floatForce1: -2,
+    floatForce2: -1,
+    phase1Threshold: 0.4
+  },
+  interaction: {
+    repulsionRadius: 40,
+    repulsionForce: 16.0
+  }
+};
+
+const RENDER_CONFIG = {
+  backgroundColor: 0xFFFFFF,
+  backgroundAlpha: 0,
+  particleColor: 0xF59E0B, // Amber 500
+  particleTextureSize: 64,
+  maxDPR: 2.0,
+  depth: {
+    scaleRange: [0.5, 1.2],
+    alphaRange: [0.6, 1.0],
+    zLevels: 3
+  },
+  shape: {
+    outerRadius: 19,
+    innerRadius: 9,
+    ringPadding: 4,
+    bodyPadding: 6
+  }
+};
+
+// --- Physics System (PBD) ---
+class PhysicsSystem {
+  public px: Float32Array;
+  public py: Float32Array;
+  public ox: Float32Array;
+  public oy: Float32Array;
+  public vx: Float32Array;
+  public vy: Float32Array;
+  public rads: Float32Array;
+  public zs: Float32Array;
+  public ids: Int32Array;
+  public states: Int8Array; // 0: active, 1: dying, 2: cleanup
+  public timers: Float32Array;
+  public angles: Float32Array;
+  public avs: Float32Array;
+
+  private idPool: Int32Array;
+  private poolPtr: number;
+  public particleCount: number = 0;
+  private zCounter: number = 0;
+
+  private cellSize = PHYSICS_CONFIG.cellSize;
+  private gridCols = 0;
+  private gridRows = 0;
+  private heads: Int32Array = new Int32Array(0);
+  private nexts: Int32Array;
+
+  private width: number = 0;
+  private height: number = 0;
+
+  constructor() {
+    const max = PHYSICS_CONFIG.maxParticles;
+    this.px = new Float32Array(max);
+    this.py = new Float32Array(max);
+    this.ox = new Float32Array(max);
+    this.oy = new Float32Array(max);
+    this.vx = new Float32Array(max);
+    this.vy = new Float32Array(max);
+    this.rads = new Float32Array(max);
+    this.zs = new Float32Array(max);
+    this.ids = new Int32Array(max);
+    this.states = new Int8Array(max);
+    this.timers = new Float32Array(max);
+    this.angles = new Float32Array(max);
+    this.avs = new Float32Array(max);
+    this.nexts = new Int32Array(max);
+    this.idPool = new Int32Array(max);
+    this.poolPtr = max;
+    for (let i = 0; i < max; i++) this.idPool[i] = max - 1 - i;
+  }
+
+  public init(w: number, h: number) {
+    this.width = w;
+    this.height = h;
+    this.gridCols = Math.ceil(w / this.cellSize);
+    this.gridRows = Math.ceil(h / this.cellSize);
+    this.heads = new Int32Array(this.gridCols * this.gridRows).fill(-1);
+  }
+
+  public update() {
+    const n = this.particleCount;
+    const w = this.width, h = this.height;
+    const gravity = PHYSICS_CONFIG.gravity.y;
+    const damping = PHYSICS_CONFIG.particle.damping;
+    const consumption = PHYSICS_CONFIG.consumption;
+    const iterations = PHYSICS_CONFIG.bounds.collisionPasses;
+
+    for (let i = 0; i < n; i++) {
+      if (this.states[i] === 1) {
+        this.timers[i] += consumption.speed;
+        if (this.timers[i] < consumption.phase1Threshold) {
+          this.py[i] += consumption.floatForce1;
+          this.angles[i] += 0.1;
+        } else {
+          this.py[i] += consumption.floatForce2;
+          this.angles[i] += 0.2;
+          if (this.timers[i] >= 1.0) this.states[i] = 2;
+        }
+        continue;
+      }
+      this.vy[i] += gravity;
+      this.vx[i] *= damping;
+      this.vy[i] *= damping;
+      this.ox[i] = this.px[i];
+      this.oy[i] = this.py[i];
+      this.px[i] += this.vx[i];
+      this.py[i] += this.vy[i];
+      this.angles[i] += this.avs[i];
+    }
+
+    for (let iter = 0; iter < iterations; iter++) {
+      this.rebuildGrid(n);
+      this.solveConstraints(n);
+      this.solveBoundaries(n, w, h);
+    }
+
+    for (let i = 0; i < n; i++) {
+      if (this.states[i] !== 0) continue;
+      this.vx[i] = this.px[i] - this.ox[i];
+      this.vy[i] = this.py[i] - this.oy[i];
+    }
+  }
+
+  private rebuildGrid(n: number) {
+    this.heads.fill(-1);
+    for (let i = 0; i < n; i++) {
+      if (this.states[i] !== 0) continue;
+      const gx = Math.floor(this.px[i] / this.cellSize);
+      const gy = Math.floor(this.py[i] / this.cellSize);
+      if (gx >= 0 && gx < this.gridCols && gy >= 0 && gy < this.gridRows) {
+        const idx = gx + gy * this.gridCols;
+        this.nexts[i] = this.heads[idx];
+        this.heads[idx] = i;
+      }
+    }
+  }
+
+  private solveConstraints(n: number) {
+    for (let i = 0; i < n; i++) {
+      if (this.states[i] !== 0) continue;
+      const gx = Math.floor(this.px[i] / this.cellSize);
+      const gy = Math.floor(this.py[i] / this.cellSize);
+      const ri = this.rads[i], zi = this.zs[i];
+
+      for (let dy = -1; dy <= 1; dy++) {
+        const ny = gy + dy;
+        if (ny < 0 || ny >= this.gridRows) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = gx + dx;
+          if (nx < 0 || nx >= this.gridCols) continue;
+          let j = this.heads[nx + ny * this.gridCols];
+          while (j !== -1) {
+            if (j > i && this.states[j] === 0 && Math.abs(zi - this.zs[j]) < 0.1) {
+              const dx = this.px[i] - this.px[j], dy = this.py[i] - this.py[j];
+              const d2 = dx * dx + dy * dy, minDist = ri + this.rads[j];
+              if (d2 < minDist * minDist && d2 > 0.0001) {
+                const dist = Math.sqrt(d2), overlap = (minDist - dist) * 0.5;
+                const nx = dx / dist, ny = dy / dist;
+                this.px[i] += nx * overlap; this.py[i] += ny * overlap;
+                this.px[j] -= nx * overlap; this.py[j] -= ny * overlap;
+              }
+            }
+            j = this.nexts[j];
+          }
+        }
+      }
+    }
+  }
+
+  private solveBoundaries(n: number, w: number, h: number) {
+    const bounce = PHYSICS_CONFIG.bounds.bounce;
+    for (let i = 0; i < n; i++) {
+      if (this.states[i] !== 0) continue;
+      const r = this.rads[i];
+      if (this.px[i] < r) { this.px[i] = r; this.vx[i] *= -bounce; }
+      if (this.px[i] > w - r) { this.px[i] = w - r; this.vx[i] *= -bounce; }
+      if (this.py[i] > h - r) { this.py[i] = h - r; this.vy[i] *= -bounce; this.avs[i] *= 0.9; }
+      if (this.py[i] < PHYSICS_CONFIG.bounds.ceilingMargin) this.states[i] = 2;
+    }
+  }
+
+  public addParticle(x: number, y: number): number {
+    if (this.particleCount >= PHYSICS_CONFIG.maxParticles || this.poolPtr <= 0) return -1;
+    const i = this.particleCount;
+    this.px[i] = this.ox[i] = x; this.py[i] = this.oy[i] = y;
+    this.vx[i] = (Math.random() - 0.5) * 5; this.vy[i] = Math.random() * 0.5;
+    this.states[i] = 0; this.timers[i] = 0;
+    this.rads[i] = PHYSICS_CONFIG.particle.collisionRadius * (0.9 + Math.random() * 0.2);
+    this.zs[i] = (this.zCounter % RENDER_CONFIG.depth.zLevels) / (RENDER_CONFIG.depth.zLevels - 1 || 1);
+    this.zCounter++;
+    this.angles[i] = Math.random() * Math.PI * 2; this.avs[i] = (Math.random() - 0.5) * 0.2;
+    const id = this.idPool[--this.poolPtr]; this.ids[i] = id;
+    this.particleCount++;
+    return id;
+  }
+
+  public applyRepulsion(x: number, y: number) {
+    const range = PHYSICS_CONFIG.interaction.repulsionRadius, rangeSq = range * range;
+    const force = PHYSICS_CONFIG.interaction.repulsionForce;
+    for (let i = 0; i < this.particleCount; i++) {
+      if (this.states[i] !== 0) continue;
+      const dx = this.px[i] - x, dy = this.py[i] - y, d2 = dx * dx + dy * dy;
+      if (d2 < rangeSq && d2 > 0) {
+        const dist = Math.sqrt(d2), f = (1 - dist / range) * force;
+        this.vx[i] += (dx / dist) * f; this.vy[i] += (dy / dist) * f;
+      }
+    }
+  }
+
+  public applyExplosion(x: number, y: number, power: number = 20) {
+    for (let i = 0; i < this.particleCount; i++) {
+      if (this.states[i] !== 0) continue;
+      const dx = this.px[i] - x, dy = this.py[i] - y;
+      const dist = Math.sqrt(dx * dx + dy * dy) + 1;
+      const f = power / dist;
+      this.vx[i] += (dx / dist) * f; this.vy[i] += (dy / dist) * f;
+    }
+  }
+
+  public cleanup(onRemove: (id: number) => void) {
+    for (let i = this.particleCount - 1; i >= 0; i--) {
+      if (this.states[i] === 2) {
+        const id = this.ids[i]; onRemove(id);
+        this.idPool[this.poolPtr++] = id;
+        const last = this.particleCount - 1;
+        if (i !== last) {
+          this.px[i] = this.px[last]; this.py[i] = this.py[last];
+          this.ox[i] = this.ox[last]; this.oy[i] = this.oy[last];
+          this.vx[i] = this.vx[last]; this.vy[i] = this.vy[last];
+          this.rads[i] = this.rads[last]; this.zs[i] = this.zs[last];
+          this.ids[i] = this.ids[last]; this.states[i] = this.states[last];
+          this.timers[i] = this.timers[last]; this.angles[i] = this.angles[last]; this.avs[i] = this.avs[last];
+        }
+        this.particleCount--;
+      }
+    }
+  }
+}
+
+// --- Render System (PixiJS ParticleContainer) ---
+class RenderSystem {
+  public app: PIXI.Application;
+  public container: PIXI.ParticleContainer;
+  public texture: PIXI.Texture;
+  public sprites: (PIXI.Sprite | null)[] = [];
+  private baseScales: Float32Array = new Float32Array(PHYSICS_CONFIG.maxParticles);
+  private baseAlphas: Float32Array = new Float32Array(PHYSICS_CONFIG.maxParticles);
+
+  constructor(canvas: HTMLCanvasElement, width: number, height: number, dpr: number) {
+    this.app = new PIXI.Application({
+      view: canvas, width, height, resolution: dpr, autoDensity: true,
+      backgroundAlpha: 0, antialias: false, powerPreference: 'high-performance'
+    });
+    this.texture = this.createTexture();
+    this.container = new PIXI.ParticleContainer(PHYSICS_CONFIG.maxParticles, {
+      position: true, rotation: true, scale: true, alpha: true
+    });
+    this.app.stage.addChild(this.container);
+  }
+
+  private createTexture(): PIXI.Texture {
+    const size = RENDER_CONFIG.particleTextureSize;
+    const shape = RENDER_CONFIG.shape;
+    const graphics = new PIXI.Graphics();
+    const cx = size / 2, cy = size / 2, r = size / 2 - shape.ringPadding;
+    graphics.beginFill(0xFDE68A).drawCircle(cx, cy, r).endFill();
+    graphics.beginFill(0xFFFFFF).drawCircle(cx, cy, r - shape.bodyPadding).endFill();
+    graphics.beginFill(RENDER_CONFIG.particleColor);
+    const pts: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const a1 = (18 + i * 72) * Math.PI / 180, a2 = (54 + i * 72) * Math.PI / 180;
+      pts.push(cx + Math.cos(a1) * shape.outerRadius, cy - Math.sin(a1) * shape.outerRadius);
+      pts.push(cx + Math.cos(a2) * shape.innerRadius, cy - Math.sin(a2) * shape.innerRadius);
+    }
+    graphics.drawPolygon(pts).endFill();
+    return this.app.renderer.generateTexture(graphics);
+  }
+
+  public addSprite(id: number, x: number, y: number, radius: number, z: number) {
+    const sprite = new PIXI.Sprite(this.texture);
+    sprite.anchor.set(0.5); sprite.position.set(x, y);
+    const finalScale = ((radius * 2) / RENDER_CONFIG.particleTextureSize) * (RENDER_CONFIG.depth.scaleRange[0] + z * (RENDER_CONFIG.depth.scaleRange[1] - RENDER_CONFIG.depth.scaleRange[0]));
+    sprite.scale.set(finalScale); this.baseScales[id] = finalScale;
+    const finalAlpha = z <= 0.7 ? (RENDER_CONFIG.depth.alphaRange[0] + z * (RENDER_CONFIG.depth.alphaRange[1] - RENDER_CONFIG.depth.alphaRange[0])) : 1.0;
+    sprite.alpha = finalAlpha; this.baseAlphas[id] = finalAlpha;
+    this.container.addChild(sprite); this.sprites[id] = sprite;
+  }
+
+  public removeSprite(id: number) {
+    const s = this.sprites[id];
+    if (s) { this.container.removeChild(s); this.sprites[id] = null; s.destroy(); }
+  }
+
+  public updateBody(id: number, x: number, y: number, rotation: number, scaleMult?: number, alphaMult?: number) {
+    const s = this.sprites[id];
+    if (s) {
+      s.position.set(x, y); s.rotation = rotation;
+      if (scaleMult !== undefined) s.scale.set(this.baseScales[id] * scaleMult);
+      if (alphaMult !== undefined) s.alpha = this.baseAlphas[id] * alphaMult;
+    }
+  }
+
+  public destroy() { this.app.destroy(true, { children: true, texture: true, baseTexture: true }); }
+}
+
+// --- Game Loop (Fixed Timestep) ---
+class GameLoop {
+  private physics = new PhysicsSystem();
+  private renderer: RenderSystem;
+  private isRunning = false;
+  private lastTime = 0;
+  private accumulator = 0;
+  private fixedDelta = 1000 / PHYSICS_CONFIG.frequency;
+  private pointer = { x: 0, y: 0, active: false };
+
+  constructor(canvas: HTMLCanvasElement, width: number, height: number, dpr: number) {
+    this.renderer = new RenderSystem(canvas, width, height, dpr);
+    this.physics.init(width, height);
+  }
+
+  public start() {
+    this.isRunning = true; this.lastTime = performance.now();
+    requestAnimationFrame(this.loop.bind(this));
+  }
+
+  public stop() { this.isRunning = false; }
+
+  public addStar(x: number, y: number) {
+    const id = this.physics.addParticle(x, y);
+    if (id !== -1) this.renderer.addSprite(id, x, y, PHYSICS_CONFIG.particle.visualRadius, this.physics.zs[this.physics.particleCount - 1]);
+  }
+
+  public removeStars(count: number) {
+    const n = this.physics.particleCount;
+    const indices = Array.from({ length: n }, (_, i) => i).filter(i => this.physics.states[i] === 0);
+    for (let i = 0; i < count && indices.length > 0; i++) {
+      const pIdx = indices.splice(Math.floor(Math.random() * indices.length), 1)[0];
+      this.physics.states[pIdx] = 1; this.physics.timers[pIdx] = 0;
+    }
+  }
+
+  public explode(x?: number, y?: number, power?: number) {
+    const centerX = x !== undefined ? x : this.physics.px.length > 0 ? 187 : 0; // Default to center of 375px phone
+    const centerY = y !== undefined ? y : 406; // Default to center of 812px phone
+    // Actually use the mid-point of the card if called without params
+    this.physics.applyExplosion(centerX, centerY, power || 25);
+  }
+
+  public setPointer(x: number, y: number, active: boolean) {
+    this.pointer.x = x; this.pointer.y = y; this.pointer.active = active;
+  }
+
+  private loop(time: number) {
+    if (!this.isRunning) return;
+    let delta = time - this.lastTime; this.lastTime = time;
+    this.accumulator += Math.min(delta, 100);
+    while (this.accumulator >= this.fixedDelta) {
+      if (this.pointer.active) this.physics.applyRepulsion(this.pointer.x, this.pointer.y);
+      this.physics.update();
+      this.accumulator -= this.fixedDelta;
+    }
+    this.physics.cleanup(id => this.renderer.removeSprite(id));
+    const alpha = this.accumulator / this.fixedDelta;
+    for (let i = 0; i < this.physics.particleCount; i++) {
+      const ix = this.physics.px[i] * alpha + this.physics.ox[i] * (1 - alpha);
+      const iy = this.physics.py[i] * alpha + this.physics.oy[i] * (1 - alpha);
+      let s = 1, a = 1;
+      if (this.physics.states[i] === 1) {
+        const p = this.physics.timers[i];
+        if (p >= 0.4) { s = a = 1 - (p - 0.4) / 0.6; }
+      }
+      this.renderer.updateBody(this.physics.ids[i], ix, iy, this.physics.angles[i], s, a);
+    }
+    this.renderer.app.render();
+    requestAnimationFrame(this.loop.bind(this));
+  }
+
+  public destroy() { this.stop(); this.renderer.destroy(); }
+  public getStarCount() { return this.physics.particleCount; }
 }
 
 declare global {
@@ -128,399 +520,92 @@ const LabelCaps: React.FC<{ children: React.ReactNode; className?: string }> = (
 const PointsCard = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const displayRef = useRef<HTMLDivElement>(null);
-  const appRef = useRef<PIXI.Application | null>(null);
+  const loopRef = useRef<GameLoop | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // 1. Initialize PixiJS
     const width = containerRef.current.clientWidth;
     const height = containerRef.current.clientHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, RENDER_CONFIG.maxDPR);
 
-    const app = new PIXI.Application({
-      width,
-      height,
-      backgroundAlpha: 0, // Transparent background
-      antialias: true,
-      resolution: window.devicePixelRatio || 1,
-      autoDensity: true,
-    });
-
-    // --- FIX: Positioning Canvas Correctly ---
-    const canvas = app.view as HTMLCanvasElement;
+    const canvas = document.createElement('canvas');
     canvas.style.position = 'absolute';
     canvas.style.left = '0';
     canvas.style.top = '0';
     canvas.style.width = '100%';
     canvas.style.height = '100%';
-    canvas.style.zIndex = '0'; // Behind content
-    canvas.style.pointerEvents = 'none'; // Let clicks pass through to container listeners
-    canvas.style.borderRadius = '32px'; // Match container radius
+    canvas.style.zIndex = '0';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.borderRadius = '32px';
 
-    // Mount canvas - Prepend to ensure it is behind content if stacking context allows
     if (containerRef.current.firstChild) {
       containerRef.current.insertBefore(canvas, containerRef.current.firstChild);
     } else {
       containerRef.current.appendChild(canvas);
     }
-    appRef.current = app;
 
-    // 2. Create Star Texture (Using Native Canvas for stability and visibility)
-    const createStarTexture = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 64;
-      canvas.height = 64;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return PIXI.Texture.WHITE;
+    const loop = new GameLoop(canvas, width, height, dpr);
+    loopRef.current = loop;
+    loop.start();
 
-      const cx = 32, cy = 32, r = 28;
-
-      // Ring
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fillStyle = '#fde68a'; // Amber 200 (Darker than 100 for visibility)
-      ctx.fill();
-
-      // White Body
-      ctx.beginPath();
-      ctx.arc(cx, cy, r - 6, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
-
-      // Star Shape
-      ctx.translate(cx, cy);
-      ctx.beginPath();
-      ctx.fillStyle = '#f59e0b'; // Amber 500
-      for (let i = 0; i < 5; i++) {
-        ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * 19, -Math.sin((18 + i * 72) * Math.PI / 180) * 19);
-        ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * 9, -Math.sin((54 + i * 72) * Math.PI / 180) * 9);
-      }
-      ctx.closePath();
-      ctx.fill();
-
-      return PIXI.Texture.from(canvas);
-    };
-
-    const starTexture = createStarTexture();
-
-    // --- Revert to Single Container for Chaotic Depth ---
-    const particleContainer = new PIXI.Container();
-    app.stage.addChild(particleContainer);
-
-    // 3. Physics & Particle System
-    const CONFIG = {
-      particleCount: 1240,
-      radius: 6,
-      gravity: 0.15,
-      friction: 0.96,
-      repulsionRadius: 80,
-      repulsionForce: 0.4,
-    };
-
-    const particles: Particle[] = [];
-    let grid: Record<string, Particle[]> = {};
-    const cellSize = CONFIG.radius * 2.2;
-
-    class ParticleImpl implements Particle {
-      sprite: PIXI.Sprite;
-      x: number;
-      y: number;
-      oldX: number;
-      oldY: number;
-      radius: number;
-      angle: number;
-      angularVelocity: number;
-      z: number;
-      isSleeping: boolean;
-      isDying: boolean;
-      deathTimer: number;
-      baseScale: number;
-
-      constructor(x: number, y: number) {
-        this.x = x;
-        this.y = y;
-        this.oldX = x + (Math.random() - 0.5) * 2;
-        this.oldY = y + (Math.random() - 0.5) * 2;
-        this.radius = CONFIG.radius * (0.8 + Math.random() * 0.4);
-        this.angle = Math.random() * Math.PI * 2;
-        this.angularVelocity = (Math.random() - 0.5) * 0.2;
-
-        // Random Z depth
-        this.z = Math.floor(Math.random() * 3) / 2;
-
-        this.isSleeping = false;
-        this.isDying = false;
-        this.deathTimer = 0;
-
-        // Pixi Sprite Setup
-        this.sprite = new PIXI.Sprite(starTexture);
-        this.sprite.anchor.set(0.5); // Center anchor
-        this.sprite.x = x;
-        this.sprite.y = y;
-
-        // Calculate scale once
-        const sizeScale = (this.radius * 2) / 64; // 64 is texture size
-        const depthScale = 0.5 + this.z * 0.7;
-        this.baseScale = sizeScale * depthScale;
-        this.sprite.scale.set(this.baseScale);
-
-        // Add halo for closer stars
-        if (this.z > 0.7) {
-          this.sprite.alpha = 1.0;
-        } else {
-          this.sprite.alpha = 0.6 + this.z * 0.4;
-        }
-
-        particleContainer.addChild(this.sprite);
-      }
-
-      update(w: number, h: number) {
-        if (this.isDying) {
-          this.deathTimer += 0.02;
-          if (this.deathTimer < 0.4) {
-            this.y -= 2;
-            this.angle += 0.1;
-          } else {
-            const phase2 = (this.deathTimer - 0.4) / 0.6;
-            const dyingScale = Math.max(0, 1 - phase2);
-            this.sprite.scale.set(this.baseScale * dyingScale);
-            this.angle += 0.3;
-            this.y -= 1;
-            this.sprite.alpha = 1 - phase2; // Fade out
-          }
-          // Sync Sprite
-          this.sprite.x = this.x;
-          this.sprite.y = this.y;
-          this.sprite.rotation = this.angle;
-          return;
-        }
-
-        if (this.isSleeping) return;
-
-        const vx = (this.x - this.oldX) * CONFIG.friction;
-        const vy = (this.y - this.oldY) * CONFIG.friction;
-
-        this.oldX = this.x;
-        this.oldY = this.y;
-
-        this.x += vx;
-        this.y += vy + CONFIG.gravity;
-        this.angle += this.angularVelocity;
-
-        // Bounds
-        if (this.y + this.radius > h) {
-          this.y = h - this.radius;
-          const impact = vy;
-          this.oldY = this.y + impact * 0.5;
-          this.angularVelocity *= 0.9;
-        }
-
-        if (this.x + this.radius > w) {
-          this.x = w - this.radius;
-          this.oldX = this.x + vx * 0.5;
-        } else if (this.x - this.radius < 0) {
-          this.x = this.radius;
-          this.oldX = this.x + vx * 0.5;
-        }
-
-        // Sync Sprite
-        this.sprite.x = this.x;
-        this.sprite.y = this.y;
-        this.sprite.rotation = this.angle;
-      }
+    // Initial stars
+    const initialPoints = 1240;
+    const spacing = PHYSICS_CONFIG.particle.collisionRadius * 2.0;
+    const cols = Math.floor(width / spacing);
+    for (let i = 0; i < initialPoints; i++) {
+      const x = (i % cols + 0.5) * spacing + (Math.random() - 0.5) * 5;
+      const y = height - (Math.floor(i / cols) + 0.5) * spacing - 20;
+      loop.addStar(x, y);
     }
 
-    const initParticles = () => {
-      // Clear existing
-      particleContainer.removeChildren();
-      particles.length = 0;
-
-      const w = app.screen.width;
-      const h = app.screen.height;
-      const cols = Math.floor(w / (CONFIG.radius * 2));
-
-      for (let i = 0; i < CONFIG.particleCount; i++) {
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        const x = (col + 0.5) * (CONFIG.radius * 2) + (Math.random() - 0.5) * 5;
-        const y = h - (row + 0.5) * (CONFIG.radius * 2) - 20;
-        particles.push(new ParticleImpl(x, y));
-      }
-    };
-
-    // 4. Input Handling
-    const pointer = { x: -1000, y: -1000, active: false };
-    const handleInput = (x: number, y: number) => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      pointer.x = x - rect.left;
-      pointer.y = y - rect.top;
-      pointer.active = true;
-    };
-
-    const onPointerMove = (e: any) => handleInput(e.clientX, e.clientY);
-    const onTouchMove = (e: any) => handleInput(e.touches[0].clientX, e.touches[0].clientY);
-    const onEnd = () => { pointer.active = false; };
-
-    // Attach listeners to DOM
-    if (containerRef.current) {
-      containerRef.current.addEventListener('mousemove', onPointerMove);
-      containerRef.current.addEventListener('touchmove', onTouchMove, { passive: false });
-      containerRef.current.addEventListener('touchstart', onTouchMove, { passive: false });
-      containerRef.current.addEventListener('mouseleave', onEnd);
-      containerRef.current.addEventListener('touchend', onEnd);
-    }
-
-    // 5. Game Loop
-    const solvePhysics = () => {
-      grid = {};
-      // Grid partitioning
-      for (let p of particles) {
-        if (p.isDying) continue;
-        const key = `${Math.floor(p.x / cellSize)},${Math.floor(p.y / cellSize)}`;
-        if (!grid[key]) grid[key] = [];
-        grid[key].push(p);
-      }
-
-      for (let p of particles) {
-        if (p.isDying) continue;
-
-        // Mouse Interaction
-        if (pointer.active) {
-          const dx = p.x - pointer.x;
-          const dy = p.y - pointer.y;
-          const distSq = dx * dx + dy * dy;
-          const radiusSq = CONFIG.repulsionRadius * CONFIG.repulsionRadius;
-
-          if (distSq < radiusSq) {
-            const dist = Math.sqrt(distSq);
-            const force = (1 - dist / CONFIG.repulsionRadius) * CONFIG.repulsionForce;
-            const angle = Math.atan2(dy, dx);
-            p.x += Math.cos(angle) * force * 2;
-            p.y += Math.sin(angle) * force * 2;
-            p.isSleeping = false;
-          }
-        }
-
-        // Collisions
-        const cellX = Math.floor(p.x / cellSize);
-        const cellY = Math.floor(p.y / cellSize);
-
-        for (let cx = cellX - 1; cx <= cellX + 1; cx++) {
-          for (let cy = cellY - 1; cy <= cellY + 1; cy++) {
-            const key = `${cx},${cy}`;
-            const cell = grid[key];
-            if (!cell) continue;
-
-            for (let other of cell) {
-              if (p === other) continue;
-              // Depth check - only collide if roughly same z
-              if (Math.abs(p.z - other.z) > 0.1) continue;
-
-              const dx = p.x - other.x;
-              const dy = p.y - other.y;
-              const distSq = dx * dx + dy * dy;
-              const minDist = p.radius + other.radius;
-
-              if (distSq < minDist * minDist && distSq > 0) {
-                const dist = Math.sqrt(distSq);
-                const overlap = minDist - dist;
-                const nx = dx / dist;
-                const ny = dy / dist;
-                const factor = 0.5;
-                p.x += nx * overlap * factor;
-                p.y += ny * overlap * factor;
-                other.x -= nx * overlap * factor;
-                other.y -= ny * overlap * factor;
-                p.isSleeping = false;
-                other.isSleeping = false;
-              }
-            }
-          }
-        }
-      }
-    };
-
-    // Ticker
-    app.ticker.add(() => {
-      const w = app.screen.width;
-      const h = app.screen.height;
-
-      // Cleanup dying particles
-      for (let i = particles.length - 1; i >= 0; i--) {
-        if (particles[i].isDying && particles[i].deathTimer >= 1.0) {
-          particleContainer.removeChild(particles[i].sprite);
-          particles[i].sprite.destroy();
-          particles.splice(i, 1);
-        }
-      }
-
-      // Update Physics
-      for (let p of particles) p.update(w, h);
-      solvePhysics();
-      solvePhysics();
-    });
-
-    initParticles();
-
-    // 6. Expose Global System
-    let currentPoints = 1240;
     window.PointsSystem = {
       add: (count: number) => {
-        currentPoints += count;
-        if (displayRef.current) displayRef.current.innerText = currentPoints.toLocaleString();
-        const MAX_STARS = 3000;
-        const currentActive = particles.filter(p => !p.isDying).length;
-        const spaceLeft = Math.max(0, MAX_STARS - currentActive);
-        const toAdd = Math.min(count, spaceLeft);
-        const w = app.screen.width;
-
-        for (let i = 0; i < toAdd; i++) {
-          const x = Math.random() * w;
-          const y = -20 - Math.random() * 100;
-          particles.push(new ParticleImpl(x, y));
+        const w = width;
+        for (let i = 0; i < count; i++) {
+          loop.addStar(Math.random() * w, -20 - Math.random() * 100);
+        }
+        if (displayRef.current) {
+          const current = parseInt(displayRef.current.innerText.replace(/,/g, '')) || 0;
+          displayRef.current.innerText = (current + count).toLocaleString();
         }
       },
       consume: (count: number) => {
-        currentPoints = Math.max(0, currentPoints - count);
-        if (displayRef.current) displayRef.current.innerText = currentPoints.toLocaleString();
-        let candidates = particles.filter(p => !p.isDying);
-        for (let i = 0; i < count; i++) {
-          if (candidates.length > 0) {
-            const idx = Math.floor(Math.random() * candidates.length);
-            candidates[idx].isDying = true;
-          }
+        loop.removeStars(count);
+        if (displayRef.current) {
+          const current = parseInt(displayRef.current.innerText.replace(/,/g, '')) || 0;
+          displayRef.current.innerText = Math.max(0, current - count).toLocaleString();
         }
       },
       explode: () => {
-        for (let p of particles) {
-          const force = 10 + Math.random() * 20;
-          const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI;
-          p.oldX = p.x - Math.cos(angle) * force;
-          p.oldY = p.y - Math.sin(angle) * force;
-          p.isSleeping = false;
-        }
+        loop.explode(width / 2, height / 2, 30);
       }
     };
 
-    // Cleanup
     return () => {
-      if (appRef.current) {
-        appRef.current.destroy(true, { children: true });
-      }
-      if (containerRef.current) {
-        containerRef.current.removeEventListener('mousemove', onPointerMove);
-        containerRef.current.removeEventListener('touchmove', onTouchMove);
-        containerRef.current.removeEventListener('touchstart', onTouchMove);
-        containerRef.current.removeEventListener('mouseleave', onEnd);
-        containerRef.current.removeEventListener('touchend', onEnd);
-      }
+      loop.destroy();
+      delete (window as any).PointsSystem;
     };
   }, []);
 
+  const handlePointer = (e: any, active: boolean) => {
+    if (!loopRef.current || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = ((e.clientX || e.touches?.[0]?.clientX) || 0) - rect.left;
+    const y = ((e.clientY || e.touches?.[0]?.clientY) || 0) - rect.top;
+    loopRef.current.setPointer(x, y, active);
+  };
+
   return (
-    <div ref={containerRef} className="bg-white gradient-border rounded-[32px] p-8 text-center shadow-card mb-auto relative overflow-hidden isolate mt-4">
-      {/* Brand Header */}
+    <div
+      ref={containerRef}
+      className="bg-white gradient-border rounded-[32px] p-8 text-center shadow-card mb-auto relative overflow-hidden isolate mt-4"
+      onMouseMove={(e) => handlePointer(e, true)}
+      onTouchMove={(e) => handlePointer(e, true)}
+      onTouchStart={(e) => handlePointer(e, true)}
+      onMouseLeave={() => loopRef.current?.setPointer(0, 0, false)}
+      onTouchEnd={() => loopRef.current?.setPointer(0, 0, false)}
+    >
       <div className="flex flex-col items-center mt-2 mb-16 relative z-10">
         <div className="w-16 h-16 bg-rose-600 rounded-2xl shadow-lg flex items-center justify-center text-white text-3xl font-black mb-4">
           婷
@@ -528,7 +613,6 @@ const PointsCard = () => {
         <h1 className="text-xl font-black text-slate-900">婷姐•贵州炒鸡</h1>
       </div>
 
-      {/* Content */}
       <div className="relative z-10 pointer-events-none">
         <LabelCaps className="block mb-2">当前可用积分</LabelCaps>
         <div ref={displayRef} className="text-6xl font-black text-slate-900 tracking-tighter mix-blend-multiply">
