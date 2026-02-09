@@ -1,5 +1,5 @@
 import { GameLoop } from '../../../engine/GameLoop';
-import { StackPhysics } from './logic/StackPhysics';
+import { StackPhysics, PhysicsResult } from './logic/StackPhysics';
 import { StackRender } from './view/StackRender';
 import { PLATFORM } from 'three-platformize';
 import { WechatPlatform } from 'three-platformize/src/WechatPlatform';
@@ -30,10 +30,22 @@ export class ThreeGameLoop extends GameLoop {
         super.start();
     }
 
-    public handleTap(): { perfect: boolean, combo: number, gameOver: boolean } {
+    public handleTap(): PhysicsResult {
         console.log('[ThreeGameLoop] Tap handled');
         const physics = this.physics as any as StackPhysics;
         return physics.placeBlock();
+    }
+
+    public triggerPerfectRipple() {
+        const physics = this.physics as any as StackPhysics;
+        const topBlock = physics.stack[physics.stack.length - 1];
+        if (topBlock) {
+            (this.renderer as StackRender).triggerPerfectRipple(topBlock.position.y, topBlock.size);
+        }
+    }
+
+    public triggerScreenShake() {
+        (this.renderer as StackRender).triggerScreenShake(8);
     }
 
     public destroy() {

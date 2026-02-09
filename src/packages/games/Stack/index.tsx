@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro';
 import { ThreeGameLoop } from './game';
 import { SoundManager } from '../../../engine/SoundManager';
 import { StackPhysics } from './logic/StackPhysics';
+import { StackAudio } from './view/StackAudio';
 
 const StackGame = () => {
     const loopRef = useRef<ThreeGameLoop | null>(null);
@@ -11,7 +12,17 @@ const StackGame = () => {
     const [ready, setReady] = useState(false);
     const [score, setScore] = useState(0);
     const [combo, setCombo] = useState(0);
+    const [hue, setHue] = useState(0); // Initial hue
     const [gameOver, setGameOver] = useState(false);
+    const [deathFlash, setDeathFlash] = useState(false);
+    const [bestScore, setBestScore] = useState(0);
+
+    // Load Best Score on mount
+    useEffect(() => {
+        Taro.getStorage({ key: 'stack_best_score' }).then(res => {
+            if (res.data) setBestScore(parseInt(res.data, 10));
+        }).catch(() => { });
+    }, []);
 
     useEffect(() => {
         SoundManager.getInstance().unlock();
@@ -60,25 +71,58 @@ const StackGame = () => {
 
         setScore(physics.score);
         setCombo(physics.combo);
+        setHue(result.currentHue);
 
         if (result.gameOver) {
             console.log('[StackGame] Game Over detected. Score:', physics.score);
+            StackAudio.playGameOver();
+
+            // Death Flash effect
+            setDeathFlash(true);
+            setTimeout(() => setDeathFlash(false), 200);
+
+            // Screen Shake
+            loopRef.current.triggerScreenShake();
+
+            // Heavy haptic
+            if (process.env.TARO_ENV === 'weapp') {
+                Taro.vibrateLong();
+            }
+
+            // Update Best Score
+            if (physics.score > bestScore) {
+                setBestScore(physics.score);
+                Taro.setStorage({ key: 'stack_best_score', data: physics.score.toString() });
+            }
+
             setGameOver(true);
             setTimeout(() => {
                 Taro.redirectTo({ url: `/pages/result-earn/index?score=${physics.score}&id=stack` });
             }, 1500);
         } else if (result.perfect) {
             console.log('[StackGame] Perfect placement! Combo:', physics.combo);
+            StackAudio.playPerfect(physics.combo);
+
+            // Trigger Perfect Ripple VFX
+            loopRef.current.triggerPerfectRipple();
+
             // Trigger haptic if in WeApp
             if (process.env.TARO_ENV === 'weapp') {
                 Taro.vibrateShort({ type: 'light' });
             }
+        } else {
+            StackAudio.playSlice();
         }
     }, []);
 
     return (
         <View
-            className="relative w-full h-full bg-slate-50 flex flex-col items-center overflow-hidden"
+            className="relative w-full h-full flex flex-col items-center overflow-hidden"
+            style={{
+                background: `linear-gradient(to bottom, hsl(${hue}, 60%, 50%) 0%, hsl(${hue}, 70%, 30%) 100%)`,
+                perspective: '1000px',
+                transition: 'background 0.5s ease'
+            }}
             onTouchStart={handleTap}
         >
             {process.env.TARO_ENV === 'h5' ? (
@@ -94,14 +138,22 @@ const StackGame = () => {
                 />
             )}
 
+            {/* Death Flash Overlay */}
+            {deathFlash && (
+                <View className="absolute inset-0 bg-white z-50 transition-opacity duration-200 opacity-100" />
+            )}
+
             {/* UI Overlay */}
             <View className="absolute top-20 left-0 w-full flex flex-col items-center pointer-events-none">
-                <Text className="text-slate-900 text-7xl font-black opacity-10 leading-none">STACK</Text>
+                <Text className="text-white text-7xl font-black opacity-10 leading-none tracking-widest">极致层叠</Text>
                 <View className="mt-4 flex flex-col items-center">
-                    <Text className="text-slate-900 text-8xl font-black tracking-tighter">{score}</Text>
+                    <Text
+                        className="text-white text-8xl font-thin tracking-tighter"
+                        style={{ textShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    >{score}</Text>
                     {combo > 2 && (
-                        <View className="bg-rose-500 px-3 py-1 rounded-full mt-2 animate-bounce">
-                            <Text className="text-white text-xs font-bold uppercase tracking-widest">{combo} COMBO</Text>
+                        <View className="bg-white/90 backdrop-blur-sm px-4 py-1 rounded-full mt-4 shadow-sm animate-bounce">
+                            <Text className="text-teal-600 text-xs font-bold uppercase tracking-widest">{combo} 连击</Text>
                         </View>
                     )}
                 </View>
@@ -110,7 +162,7 @@ const StackGame = () => {
             {gameOver && (
                 <View className="absolute inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center transition-opacity duration-1000">
                     <View className="bg-white p-10 rounded-3xl shadow-2xl flex flex-col items-center border border-slate-100">
-                        <Text className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2">Game Over</Text>
+                        <Text className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2">游戏结束</Text>
                         <Text className="text-slate-900 text-6xl font-black mb-6">{score}</Text>
                         <View className="w-12 h-1 border-b-4 border-rose-500 rounded-full"></View>
                     </View>
@@ -119,7 +171,7 @@ const StackGame = () => {
 
             {!gameOver && (
                 <View className="absolute bottom-12 w-full text-center pointer-events-none">
-                    <Text className="text-slate-300 text-xs font-bold uppercase tracking-[0.3em]">Tap to stack precisely</Text>
+                    <Text className="text-slate-300 text-xs font-bold uppercase tracking-[0.3em]">点击屏幕精准对齐</Text>
                 </View>
             )}
         </View>

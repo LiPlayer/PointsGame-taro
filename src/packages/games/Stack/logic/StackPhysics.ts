@@ -19,6 +19,14 @@ export interface BlockData {
     color: number;
 }
 
+export interface PhysicsResult {
+    perfect: boolean;
+    combo: number;
+    gameOver: boolean;
+    score: number;
+    currentHue: number;
+}
+
 export class StackPhysics implements IPhysicsWorld {
     public state: GameState = GameState.IDLE;
     public score: number = 0;
@@ -36,9 +44,9 @@ export class StackPhysics implements IPhysicsWorld {
     // Constants
     private readonly INITIAL_SIZE = 100;
     private readonly BLOCK_HEIGHT = 20;
-    private readonly PERFECT_TOLERANCE = 3.0; // Units
+    private readonly PERFECT_TOLERANCE = 2.5; // Units - tighter feel
     private readonly GROWTH_COMBO_TRIGGER = 8;
-    private readonly GROWTH_AMOUNT = 5;
+    private readonly GROWTH_AMOUNT = 2.5; // More subtle recovery
     private readonly MOVE_SPEED_BASE = 2.0;
 
     private moveAxis: MoveAxis = MoveAxis.X;
@@ -109,10 +117,12 @@ export class StackPhysics implements IPhysicsWorld {
     }
 
     private calculateColor(index: number): number {
-        const startColor = new THREE.Color(0xE11D48); // Rose-600
-        const endColor = new THREE.Color(0xF59E0B);   // Amber-500
-        const factor = Math.min(index / 50, 1.0);
-        return startColor.lerp(endColor, factor).getHex();
+        // Ketchapp style: Hue shifts according to height
+        const hue = (index * 5) % 360; // 5 degrees shift per block
+        const color = new THREE.Color();
+        // S=80%, L=65% for a lighter, "candy-like" pastel look
+        color.setHSL(hue / 360, 0.8, 0.65);
+        return color.getHex();
     }
 
     public update(dt: number) {
@@ -132,8 +142,10 @@ export class StackPhysics implements IPhysicsWorld {
         }
     }
 
-    public placeBlock(): { perfect: boolean, combo: number, gameOver: boolean } {
-        if (!this.currentBlock || this.state !== GameState.PLAYING) return { perfect: false, combo: 0, gameOver: false };
+    public placeBlock(): PhysicsResult {
+        if (!this.currentBlock || this.state !== GameState.PLAYING) {
+            return { perfect: false, combo: 0, gameOver: false, score: this.score, currentHue: 0 };
+        }
 
         const top = this.stack[this.stack.length - 1];
         const axis = this.moveAxis === MoveAxis.X ? 'x' : 'z';
@@ -144,7 +156,7 @@ export class StackPhysics implements IPhysicsWorld {
 
         if (overlap <= 0) {
             this.state = GameState.GAMEOVER;
-            return { perfect: false, combo: 0, gameOver: true };
+            return { perfect: false, combo: 0, gameOver: true, score: this.score, currentHue: (this.stack.length * 5) % 360 };
         }
 
         const isPerfect = Math.abs(delta) < this.PERFECT_TOLERANCE;
@@ -155,10 +167,12 @@ export class StackPhysics implements IPhysicsWorld {
             this.currentBlock.position[axis] = top.position[axis];
             this.currentBlock.size[sizeAxis] = top.size[sizeAxis];
 
-            // Growth Mechanism
+            // Growth Mechanism (Ketchapp Style: Grows after 8 perfects)
             if (this.combo >= this.GROWTH_COMBO_TRIGGER) {
+                // Grow in BOTH directions subtly
                 this.currentBlock.size.x = Math.min(this.currentBlock.size.x + this.GROWTH_AMOUNT, this.INITIAL_SIZE);
                 this.currentBlock.size.z = Math.min(this.currentBlock.size.z + this.GROWTH_AMOUNT, this.INITIAL_SIZE);
+                console.log(`[StackPhysics] GROWTH TRIGGERED! New Size: ${this.currentBlock.size.x.toFixed(2)}x${this.currentBlock.size.z.toFixed(2)}`);
             }
         } else {
             this.combo = 0;
@@ -190,6 +204,12 @@ export class StackPhysics implements IPhysicsWorld {
         this.currentSpeed = this.MOVE_SPEED_BASE + Math.floor(this.score / 5) * 0.1;
         this.spawnNextBlock();
 
-        return { perfect: isPerfect, combo: this.combo, gameOver: false };
+        return {
+            perfect: isPerfect,
+            combo: this.combo,
+            gameOver: false,
+            score: this.score,
+            currentHue: (this.stack.length * 5) % 360
+        };
     }
 }
