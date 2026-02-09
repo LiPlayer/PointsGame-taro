@@ -212,4 +212,4 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
 
 ## 7. 游戏列表 (Registry)
 
-- **飞翔的小鸡 (Flappy Chicken)** - 2D Canvas
+> 完整游戏列表已迁移至独立文档：[game_list.md](./game_list.md)
