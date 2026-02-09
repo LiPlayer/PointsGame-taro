@@ -128,7 +128,6 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
 
 4. **一致性保证**：
    - 相同的物理参数（速度、力、半径）在不同 DPR 设备上产生相同的视觉效果
-   - 例：`repulsionRadius: 40` 在所有设备上都是 40 逻辑像素的交互范围
 
 #### D. 游戏循环与帧率 (Game Loop & Frame Rate)
 **核心原则**：采用 **Fixed Timestep (60Hz)** 确保物理模拟的确定性和跨设备一致性。
@@ -158,7 +157,32 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
    - 120Hz+ 设备：物理 60Hz，渲染 120Hz（插值）
    - 低于 60Hz：允许跳帧，但物理步长不变
 
+### 4.5 分包与云端资源 (Subpackage & Cloud Assets)
 
+本项目需支持**大规模游戏扩展 (100+ Games)**，采用分包 + 云端资源加载架构。
+
+#### A. 微信小程序分包限制
+| 限制项 | 数值 |
+|--------|------|
+| 单个主包/分包 | ≤ 2MB |
+| 总包大小 | ≤ 30MB |
+
+**规则**：TabBar/启动页/公共组件必须放主包；分包之间不能互相引用。
+
+#### B. 云端游戏加载架构
+游戏数量超限时，采用微信云存储动态加载：
+- 主包：核心页面 + 通用游戏容器 + 引擎核心
+- 云端：`/games/{gameId}/` 存放配置和资源
+
+#### C. 资源加载抽象层
+封装 `IAssetLoader` 接口，便于未来切换云服务商 (wx-cloud → tencent-cos / aliyun-oss)：
+```typescript
+// src/utils/assetLoader.ts
+export interface IAssetLoader {
+  getAssetUrl(path: string): Promise<string>
+  downloadFile(remotePath: string): Promise<string>
+}
+```
 
 ---
 
