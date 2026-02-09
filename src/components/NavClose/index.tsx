@@ -41,8 +41,10 @@ const NavClose: FC<NavCloseProps> = ({
 
     return (
         <View
-            hoverClass="none"
-            className={`absolute ${weappStyle ? '' : 'top-6'} left-6 w-10 h-10 rounded-full bg-white/95 backdrop-blur-sm shadow-sm border border-slate-200/50 text-slate-400 cursor-pointer z-[100] flex items-center justify-center active:bg-slate-100 active:opacity-80 transition-all ${className}`}
+            hoverClass="btn-hover-bg"
+            hoverStartTime={0}
+            hoverStayTime={100}
+            className={`absolute ${weappStyle ? '' : 'top-6'} left-6 w-10 h-10 rounded-full bg-white/95 backdrop-blur-sm shadow-sm border border-slate-200/50 text-slate-400 cursor-pointer z-[100] flex items-center justify-center transition-snappy ${className}`}
             style={{ ...weappStyle, WebkitTapHighlightColor: 'transparent' }}
             onClick={(e) => {
                 e.stopPropagation()

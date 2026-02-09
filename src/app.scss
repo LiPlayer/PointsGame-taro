@@ -44,6 +44,29 @@ button {
   }
 }
 
+/* Global Interaction Feedback */
+.btn-hover-opacity {
+  opacity: 0.8 !important;
+}
+
+.btn-hover-bg {
+  background-color: #f1f5f9 !important;
+}
+
+.btn-hover-scale {
+  transform: scale(0.96);
+}
+
+.btn-active-scale {
+  transform: scale(0.95);
+}
+
+/* Snappier Transitions */
+.transition-snappy {
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
 
 /* Custom Animations from Prototype */
 @keyframes float {
@@ -179,6 +202,7 @@ button {
   /* Cut the center out so only the border remains. */
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
+  mask-image: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
 }
 

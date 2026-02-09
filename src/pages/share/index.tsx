@@ -187,9 +187,12 @@ const Share: FC = () => {
                 </View>
 
                 <View
-                    className={`w-full py-5 rounded-2xl bg-slate-900 text-white font-bold flex items-center justify-center gap-2 transition-transform ${!amount || parseInt(amount) <= 0 || parseInt(amount) > maxPoints
+                    hoverClass={!amount || parseInt(amount) <= 0 || parseInt(amount) > maxPoints ? 'none' : 'btn-active-scale'}
+                    hoverStartTime={0}
+                    hoverStayTime={100}
+                    className={`w-full py-5 rounded-2xl bg-slate-900 text-white font-bold flex items-center justify-center gap-2 transition-snappy ${!amount || parseInt(amount) <= 0 || parseInt(amount) > maxPoints
                         ? 'opacity-50 pointer-events-none'
-                        : 'active:scale-95'
+                        : ''
                         }`}
                     onClick={handleScan}
                 >

@@ -109,14 +109,20 @@ const Home: FC = () => {
 
                     <View className="grid grid-cols-2 gap-4">
                         <View
-                            className="py-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center gap-2 transition active:bg-slate-50"
+                            hoverClass="btn-hover-bg"
+                            hoverStartTime={0}
+                            hoverStayTime={100}
+                            className="py-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center gap-2 transition-snappy"
                             onClick={() => Taro.navigateTo({ url: '/pages/collection/index' })}
                         >
                             <Image src={SVG_SPARKLE_SLATE} className="w-6 h-6" />
                             <Text className="text-xs font-bold text-slate-600">已收集游戏</Text>
                         </View>
                         <View
-                            className="py-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center gap-2 transition active:bg-slate-50"
+                            hoverClass="btn-hover-bg"
+                            hoverStartTime={0}
+                            hoverStayTime={100}
+                            className="py-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center gap-2 transition-snappy"
                             onClick={() => Taro.navigateTo({ url: '/pages/share/index' })}
                         >
                             <Image src={SVG_GIFT_SLATE} className="w-6 h-6" />
@@ -125,7 +131,10 @@ const Home: FC = () => {
                     </View>
 
                     <View
-                        className="w-full py-5 rounded-2xl bg-slate-900 text-white text-sm font-black flex items-center justify-center gap-3 active:scale-95 transition"
+                        hoverClass="btn-active-scale"
+                        hoverStartTime={0}
+                        hoverStayTime={100}
+                        className="w-full py-5 rounded-2xl bg-slate-900 text-white text-sm font-black flex items-center justify-center gap-3 transition-snappy"
                         onClick={() => Taro.navigateTo({ url: '/pages/pay-scan/index' })}
                     >
                         <Image src={SVG_CARD_WHITE} className="w-5 h-5" />
