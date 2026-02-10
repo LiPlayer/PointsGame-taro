@@ -52,7 +52,7 @@ export class StackPhysics implements IPhysicsWorld {
     private readonly BLOCK_HEIGHT = 0.1;
     private readonly BASE_HEIGHT = 1.0;
     private readonly PERFECT_TOLERANCE = 0.03;
-    private readonly MOVE_SPEED_BASE = 0.01;
+    private readonly MOVE_SPEED_BASE = 0.025;
 
     private moveAxis: MoveAxis = MoveAxis.X;
     private moveDirection: number = 1; // 1 or -1
@@ -320,9 +320,9 @@ export class StackPhysics implements IPhysicsWorld {
         }
         this.score += increment;
 
-        // Step-Function Speed Curve: Every 15 blocks, +15% speed. Cap at score 75.
-        const speedIncrements = Math.floor(Math.min(this.score, 75) / 15);
-        this.currentSpeed = this.MOVE_SPEED_BASE * (1 + speedIncrements * 0.15);
+        // Step-Function Speed Curve: Every 10 blocks, +20% speed. Cap at score 80. Max 2.5x.
+        const speedIncrements = Math.floor(Math.min(this.score, 80) / 10);
+        this.currentSpeed = this.MOVE_SPEED_BASE * (1 + speedIncrements * 0.2);
 
         this.spawnNextBlock();
 
