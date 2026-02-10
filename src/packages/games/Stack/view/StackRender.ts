@@ -36,20 +36,20 @@ export class StackRender implements IRenderPipeline {
     private rippleMeshes: RippleMesh[] = [];
     private screenShake: number = 0; // Remaining shake frames
 
+    // Culling System
+    private frustum: THREE.Frustum = new THREE.Frustum();
+    private projScreenMatrix: THREE.Matrix4 = new THREE.Matrix4();
+
     constructor() {
         this.scene = new THREE.Scene();
         this.scene.background = null;
 
-        const d = 120;
+        const d = 150;
         this.camera = new THREE.OrthographicCamera(-d, d, d, -d, 1, 2000);
         this.camera.position.set(300, 300, 300);
         this.camera.lookAt(0, 0, 0);
 
         this.sharedGeometry = new THREE.BoxGeometry(1, 1, 1);
-
-        // Debug Axes
-        const axesHelper = new THREE.AxesHelper(100);
-        this.scene.add(axesHelper);
 
         this.createParticles();
         this.setupLights();
@@ -63,7 +63,6 @@ export class StackRender implements IRenderPipeline {
         dirLight.position.set(-100, 200, 100);
         dirLight.castShadow = true;
 
-        // Shadow map tuning
         dirLight.shadow.mapSize.width = 2048;
         dirLight.shadow.mapSize.height = 2048;
         const d = 150;
@@ -112,7 +111,7 @@ export class StackRender implements IRenderPipeline {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         const aspect = width / height;
-        const d = 120;
+        const d = 150;
         this.camera.left = -d * aspect;
         this.camera.right = d * aspect;
         this.camera.top = d;
@@ -124,18 +123,22 @@ export class StackRender implements IRenderPipeline {
         if (!this.renderer) return;
 
         const stackPhysics = physics as StackPhysics;
+        this.updateCamera(stackPhysics);
+
+        // Update Frustum for Manual Culling
+        this.projScreenMatrix.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
+        this.frustum.setFromProjectionMatrix(this.projScreenMatrix);
+
         this.updateBlocks(stackPhysics);
         this.updateDebris(stackPhysics);
-        this.updatePerfectFlash(stackPhysics);
         this.updateParticles();
         this.updateRipples();
-        this.updateCamera(stackPhysics);
+        this.updatePerfectFlash(stackPhysics);
 
         this.renderer.render(this.scene, this.camera);
     }
 
     private updateBlocks(physics: StackPhysics) {
-        // Sync static stack
         while (this.blockMeshes.length < physics.stack.length) {
             const data = physics.stack[this.blockMeshes.length];
             const mesh = new THREE.Mesh(this.sharedGeometry, StackMaterials.getMaterials(data.color));
@@ -145,30 +148,24 @@ export class StackRender implements IRenderPipeline {
             this.blockMeshes.push(mesh);
         }
 
-        // Update positions/sizes and handle Bottom Fade (Show top 8 with transparency)
         const topIndex = physics.stack.length - 1;
-        physics.stack.forEach((data, i) => {
+        physics.stack.forEach((data: BlockData, i: number) => {
             const mesh = this.blockMeshes[i];
-            mesh.position.copy(data.position);
-            mesh.scale.copy(data.size);
+            mesh.position.copy(data.position as any);
+            mesh.scale.copy(data.size as any);
 
-            const dist = topIndex - i;
-            if (dist > 8) {
-                mesh.visible = false;
-            } else {
-                mesh.visible = true;
-                // Fade out from layer 5 to 8
-                const opacity = dist < 5 ? 1 : 1 - (dist - 5) / 3;
-                if (Array.isArray(mesh.material)) {
-                    mesh.material.forEach(m => {
-                        m.transparent = true;
-                        m.opacity = opacity;
-                    });
-                }
+            // Always rely on Camera Frustum Culling for visibility
+            mesh.visible = this.frustum.intersectsObject(mesh);
+
+            // Ensure material is opqaue since we removed the distance fade
+            if (mesh.visible && Array.isArray(mesh.material)) {
+                mesh.material.forEach(m => {
+                    m.transparent = false;
+                    m.opacity = 1;
+                });
             }
         });
 
-        // Current moving block
         if (physics.currentBlock) {
             if (!this.currentBlockMesh) {
                 this.currentBlockMesh = new THREE.Mesh(this.sharedGeometry, StackMaterials.getMaterials(physics.currentBlock.color));
@@ -176,10 +173,12 @@ export class StackRender implements IRenderPipeline {
                 this.currentBlockMesh.receiveShadow = true;
                 this.scene.add(this.currentBlockMesh);
             }
-            this.currentBlockMesh.position.copy(physics.currentBlock.position);
-            this.currentBlockMesh.scale.copy(physics.currentBlock.size);
+            this.currentBlockMesh.position.copy(physics.currentBlock.position as any);
+            this.currentBlockMesh.scale.copy(physics.currentBlock.size as any);
             this.currentBlockMesh.material = StackMaterials.getMaterials(physics.currentBlock.color);
-            this.currentBlockMesh.visible = true;
+
+            // Apply Culling for current block
+            this.currentBlockMesh.visible = this.frustum.intersectsObject(this.currentBlockMesh);
         } else if (this.currentBlockMesh) {
             this.currentBlockMesh.visible = false;
         }
@@ -199,19 +198,18 @@ export class StackRender implements IRenderPipeline {
             const mesh = this.debrisMeshes[i];
             const data = physics.debris[i];
 
-            if (!data || data.position.y < -100) {
+            if (!data || data.position.y < this.currentCameraY - 250) {
                 this.scene.remove(mesh);
                 this.debrisMeshes.splice(i, 1);
-                if (data && data.position.y < -100) {
-                    if (data.body) physics.world.removeBody(data.body);
-                    physics.debris.splice(i, 1);
-                }
                 continue;
             }
 
-            mesh.position.copy(data.position);
-            mesh.scale.copy(data.size);
-            if (data.quaternion) mesh.quaternion.copy(data.quaternion);
+            mesh.position.copy(data.position as any);
+            mesh.scale.copy(data.size as any);
+            if (data.quaternion) mesh.quaternion.copy(data.quaternion as any);
+
+            // Manual Culling for debris
+            mesh.visible = this.frustum.intersectsObject(mesh);
         }
     }
 

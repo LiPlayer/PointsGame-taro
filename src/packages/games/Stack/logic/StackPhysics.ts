@@ -148,8 +148,8 @@ export class StackPhysics implements IPhysicsWorld {
 
         // Start from distance (closer to view)
         // Ensure block is partially visible immediately to prevent "stuck" feeling
-        // Camera frustum edge ~67 (at 9/16 aspect). StartDist 90 puts right edge at -40.
-        const startDist = 90;
+        // Camera frustum edge ~84 (at 9/16, d=150). StartDist 100 puts edge at -50.
+        const startDist = 100;
         if (this.moveAxis === MoveAxis.X) {
             pos.x = -startDist;
         } else {
@@ -188,6 +188,7 @@ export class StackPhysics implements IPhysicsWorld {
         }
 
         // Sync debris positions and rotations from physics
+        const topY = this.stack.length > 0 ? this.stack[this.stack.length - 1].position.y : 0;
         for (let i = this.debris.length - 1; i >= 0; i--) {
             const deb = this.debris[i];
             if (deb.body) {
@@ -196,8 +197,9 @@ export class StackPhysics implements IPhysicsWorld {
                 deb.quaternion.copy(deb.body.quaternion as any);
             }
 
-            // Remove far away debris
-            if (deb.position.y < -200) {
+            // Remove debris only when it's well below the current tower top
+            // (Relative to the top block to ensure it's off-camera)
+            if (deb.position.y < topY - 500) {
                 if (deb.body) this.world.removeBody(deb.body);
                 this.debris.splice(i, 1);
             }
@@ -209,7 +211,7 @@ export class StackPhysics implements IPhysicsWorld {
         // console.log('[StackPhysics] Update: dt=', dt, 'move=', moveAmount, 'pos=', this.currentBlock.position); // Debug
 
         const top = this.stack[this.stack.length - 1];
-        const range = top.size[this.moveAxis === MoveAxis.X ? 'x' : 'z'] * 1.5; // Range is 1.5x current size
+        const range = top.size[this.moveAxis === MoveAxis.X ? 'x' : 'z'] * 1.15; // Range reduced to 1.15x to keep block near screen edge
 
         if (this.moveAxis === MoveAxis.X) {
             this.currentBlock.position.x += moveAmount * this.moveDirection;
