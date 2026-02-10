@@ -155,19 +155,83 @@ export class StackRender implements IRenderPipeline {
             this.blockMeshes.push(mesh);
         }
 
-        const topIndex = physics.stack.length - 1;
         physics.stack.forEach((data: BlockData, i: number) => {
             const mesh = this.blockMeshes[i];
             mesh.position.copy(data.position as any);
             mesh.scale.copy(data.size as any);
+
+            // Special handling for tower base (index 0) to add gradient mist
+            if (i === 0) {
+                // Check if we need to replace the geometry/material for the base mist effect
+                if (!(mesh.material instanceof THREE.MeshPhongMaterial) || !(mesh.material as any).__isBaseMaterial) {
+                    // 1. Create Alpha Map (Black->White)
+                    const alphaMap = this.createGradientTexture();
+
+                    // 2. Create Material
+                    const baseMaterial = new THREE.MeshPhongMaterial({
+                        color: new THREE.Color(data.color),
+                        alphaMap: alphaMap,
+                        transparent: true,
+                        opacity: 1.0,
+                        shininess: 30,
+                        specular: 0x444444,
+                        flatShading: true,
+                        side: THREE.FrontSide // Use FrontSide to avoid backface artifacts
+                    });
+                    (baseMaterial as any).__isBaseMaterial = true;
+
+                    // 3. Create Custom Geometry with Corrected UVs
+                    const baseGeometry = new THREE.BoxGeometry(1, 1, 1);
+
+                    // BoxGeometry UV mapping:
+                    // 0: Right, 1: Left, 2: Top, 3: Bottom, 4: Front, 5: Back
+                    // Each face has 4 vertices. Total 24 vertices.
+                    // We need Top Face (Index 2 -> Vertices 8, 9, 10, 11) to be fully Opaque (V=1).
+                    // We need Bottom Face (Index 3 -> Vertices 12, 13, 14, 15) to be fully Transparent (V=0).
+                    // Side Faces (Right, Left, Front, Back) should keep standard 0-1 V mapping.
+
+                    const uvs = baseGeometry.attributes.uv;
+
+                    // Top Face (Indices 8, 9, 10, 11) -> Set V to 1.0 (Opaque)
+                    for (let v = 8; v < 12; v++) {
+                        uvs.setY(v, 1.0);
+                    }
+
+                    // Bottom Face (Indices 12, 13, 14, 15) -> Set V to 0.0 (Transparent)
+                    for (let v = 12; v < 16; v++) {
+                        uvs.setY(v, 0.0);
+                    }
+
+                    uvs.needsUpdate = true;
+
+                    mesh.geometry.dispose();
+                    mesh.geometry = baseGeometry;
+                    mesh.material = baseMaterial;
+
+                    // Disable shadow casting for the base
+                    mesh.castShadow = false;
+                }
+            } else if (i > 0 && (mesh.material as any).__isBaseMaterial) {
+                // Restore standard material if reused
+                mesh.material = StackMaterials.getMaterials(data.color);
+                // Ideally restore geometry too, but BoxGeometry(1,1,1) is shared shape wise.
+                // However, standard blocks might need standard UVs?
+                // Shared geometry is unmodified. So we just need to dispose current custom geo and use shared.
+                mesh.geometry.dispose();
+                mesh.geometry = this.sharedGeometry;
+                mesh.castShadow = true;
+            }
 
             // Always rely on Camera Frustum Culling for visibility
             mesh.visible = this.frustum.intersectsObject(mesh);
 
             if (mesh.visible && mesh.material) {
                 const material = mesh.material as THREE.Material;
-                material.transparent = false;
-                material.opacity = 1;
+                // Don't override transparency for the base material
+                if (!(material as any).__isBaseMaterial) {
+                    material.transparent = false;
+                    material.opacity = 1;
+                }
             }
         });
 
@@ -322,6 +386,34 @@ export class StackRender implements IRenderPipeline {
                 this.rippleMeshes.splice(i, 1);
             }
         }
+    }
+
+    private createGradientTexture(): THREE.Texture {
+        const canvas = document.createElement('canvas');
+        canvas.width = 2;
+        canvas.height = 512;
+        const context = canvas.getContext('2d');
+        if (context) {
+            const gradient = context.createLinearGradient(0, 0, 0, 512);
+
+            // Three.js alphaMap uses the Red channel (Luminance) for opacity.
+            // Texture flipY is true by default. 
+            // Canvas Top (0) -> Maps to V=1 (Top of Mesh).
+            // Canvas Bottom (512) -> Maps to V=0 (Bottom of Mesh).
+
+            // We want Top of Mesh (V=1) to be Opaque (White).
+            // We want Bottom of Mesh (V=0) to be Transparent (Black).
+
+            gradient.addColorStop(0, '#FFFFFF'); // Top of Canvas -> Top of Mesh (V=1) -> Opaque
+            gradient.addColorStop(0.5, '#FFFFFF'); // Solid top half
+            gradient.addColorStop(1, '#000000'); // Bottom of Canvas -> Bottom of Mesh (V=0) -> Transparent
+
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 2, 512);
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
     }
 
     public destroy() {

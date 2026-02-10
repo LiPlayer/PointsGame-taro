@@ -50,7 +50,7 @@ export class StackPhysics implements IPhysicsWorld {
     // Constants (Aligned with V4.0 Spec)
     private readonly INITIAL_SIZE = 100;
     private readonly BLOCK_HEIGHT = 10; // Increased to 10 as requested
-    private readonly BASE_HEIGHT = 50; // Increased to 50 as requested
+    private readonly BASE_HEIGHT = 100; // Increased to 100 as requested
     private readonly PERFECT_TOLERANCE = 3.0;
     private readonly GROWTH_AMOUNT_PERCENT = 0.02; // +2% per perfect
     private readonly MOVE_SPEED_BASE = 1.0; // Reverted to 1.0 as requested
