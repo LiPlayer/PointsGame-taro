@@ -267,6 +267,8 @@ export class StackPhysics implements IPhysicsWorld {
                 new THREE.Vector3(0, 0, 0) // No slice offset, whole block falls
             );
 
+            this.currentBlock = null;
+
             return { perfect: false, combo: 0, gameOver: true, score: this.score, currentColor: this.calculateColor(this.stack.length) };
         }
 
