@@ -52,7 +52,6 @@ export class StackPhysics implements IPhysicsWorld {
     private readonly BLOCK_HEIGHT = 10; // Increased to 10 as requested
     private readonly BASE_HEIGHT = 100; // Increased to 100 as requested
     private readonly PERFECT_TOLERANCE = 3.0;
-    private readonly GROWTH_AMOUNT_PERCENT = 0.02; // +2% per perfect
     private readonly MOVE_SPEED_BASE = 1.0; // Reverted to 1.0 as requested
 
     private moveAxis: MoveAxis = MoveAxis.X;
@@ -274,13 +273,6 @@ export class StackPhysics implements IPhysicsWorld {
             this.combo++;
             this.currentBlock.position[axis] = top.position[axis];
             this.currentBlock.size[sizeAxis] = top.size[sizeAxis];
-
-            // Gradual Growth (+2% per Perfect)
-            const growthX = this.currentBlock.size.x * 0.02;
-            const growthZ = this.currentBlock.size.z * 0.02;
-
-            this.currentBlock.size.x = Math.min(this.currentBlock.size.x + growthX, this.INITIAL_SIZE);
-            this.currentBlock.size.z = Math.min(this.currentBlock.size.z + growthZ, this.INITIAL_SIZE);
         } else {
             this.combo = 0;
 
@@ -317,7 +309,13 @@ export class StackPhysics implements IPhysicsWorld {
         this.currentBlock.body = body;
 
         this.stack.push(this.currentBlock);
-        this.score++;
+
+        // Scoring: +1 base. If Perfect and combo >= 4, + (combo - 3) bonus.
+        let increment = 1;
+        if (this.combo >= 4) {
+            increment += (this.combo - 3);
+        }
+        this.score += increment;
 
         // Step-Function Speed Curve: Every 15 blocks, +15% speed. Cap at score 75.
         const speedIncrements = Math.floor(Math.min(this.score, 75) / 15);

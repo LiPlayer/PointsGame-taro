@@ -13,6 +13,7 @@ interface RippleMesh extends THREE.LineLoop {
     maxLife: number;
     baseScale: number;
     delay: number;
+    isStatic: boolean;
 }
 
 export class StackRender implements IRenderPipeline {
@@ -319,7 +320,8 @@ export class StackRender implements IRenderPipeline {
     }
 
     public triggerPerfectRipple(positionY: number, size: THREE.Vector3, combo: number = 1) {
-        const rippleCount = Math.min(combo, 8); // Cap ripples at 8 for performance
+        const isStatic = combo <= 3;
+        const rippleCount = isStatic ? 1 : Math.min(combo - 3, 8); // Only one ring if static
 
         for (let i = 0; i < rippleCount; i++) {
             const halfW = size.x / 2 + 5;
@@ -343,8 +345,9 @@ export class StackRender implements IRenderPipeline {
             ripple.maxLife = 1.0;
             ripple.baseScale = 1.0;
             ripple.scale.set(1.0, 1, 1.0);
+            ripple.isStatic = isStatic;
             // Non-linear delay for increasing intervals between rings
-            ripple.delay = i * (i + 6);
+            ripple.delay = isStatic ? 0 : i * (i + 6);
 
             this.scene.add(ripple);
             this.rippleMeshes.push(ripple);
@@ -364,11 +367,14 @@ export class StackRender implements IRenderPipeline {
                 continue;
             }
 
-            // Non-linear Expansion (Ease-Out)
-            // Starts faster, slows down as life decreases
-            const expansionFactor = 0.15 * (ripple.life / ripple.maxLife);
-            ripple.scale.x += expansionFactor;
-            ripple.scale.z += expansionFactor;
+            // Expansion logic
+            if (!ripple.isStatic) {
+                // Non-linear Expansion (Ease-Out)
+                // Starts faster, slows down as life decreases
+                const expansionFactor = 0.15 * (ripple.life / ripple.maxLife);
+                ripple.scale.x += expansionFactor;
+                ripple.scale.z += expansionFactor;
+            }
 
             // Linear life decay
             ripple.life -= 0.025;
