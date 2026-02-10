@@ -60,7 +60,7 @@ export class StackPhysics implements IPhysicsWorld {
 
     public startHue: number = 0;
     private readonly HUE_SHIFT_PER_BLOCK = 5.0; // Aligned with latest spec
-    private readonly SATURATION_BLOCK = 0.8;
+    private readonly SATURATION_BLOCK = 0.9;
     private readonly LIGHTNESS_TOP = 0.65;
 
     constructor() {
@@ -109,6 +109,10 @@ export class StackPhysics implements IPhysicsWorld {
         const shape = new CANNON.Box(new CANNON.Vec3(baseSize.x / 2, baseSize.y / 2, baseSize.z / 2));
         const body = new CANNON.Body({ mass: 0 }); // Static
         body.addShape(shape);
+        // Base Block: Center at (0, -50, 0)
+        // Size: 100x100x100.
+        // Y Range: -100 to 0. Top Face at Y=0.
+        basePos.y = -this.BASE_HEIGHT / 2;
         body.position.set(basePos.x, basePos.y, basePos.z);
         this.world.addBody(body);
 
@@ -137,6 +141,10 @@ export class StackPhysics implements IPhysicsWorld {
         // Target position (centered above top)
         const pos = top.position.clone();
         // Fix overlap: adjust Y based on half of previous block + half of new block
+        // Base (Index 0): Size Y=100. Pos Y=-50. Top Y=0.
+        // Block 1 (Index 1): Size Y=10. Pos Y = 0 + 5 = 5.
+        // Logic: top.pos.y + top.size.y/2 + new.size.y/2.
+        // -50 + 50 + 5 = 5. Correct.
         pos.y += (top.size.y + this.BLOCK_HEIGHT) / 2;
 
         // Start from distance (closer to view)

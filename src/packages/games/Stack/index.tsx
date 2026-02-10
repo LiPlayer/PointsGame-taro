@@ -132,17 +132,39 @@ const StackGame = () => {
         }
     }, [bestScore]);
 
+    // Smooth Hue Transition
+    const currentHueRef = useRef<number>(0);
+    const initializedRef = useRef<boolean>(false);
+
     const backgroundStyle = useMemo(() => {
         const physics = loopRef.current?.physicsWorld as any as StackPhysics;
         const startH = physics?.startHue || 0;
-        const h = (score * 5 + startH) % 360; // Sync with Physics (Hue shift = 5)
-        // Amplitude 30 (Range 60)
-        const deltaL = 30 * Math.cos((2 * Math.PI * time) / 60);
-        const topL = Math.max(0, Math.min(100, 50 + deltaL)); // 20 ~ 80
-        const bottomL = Math.max(0, Math.min(100, 40 + deltaL)); // 10 ~ 70
+
+        // Target Hue: accumulation of 5 degrees per score. 
+        // We use absolute value to avoid modulo wrapping issues during interpolation.
+        const targetH = startH + score * 5;
+
+        // Initialize on first valid physics access
+        if (!initializedRef.current && physics) {
+            currentHueRef.current = targetH;
+            initializedRef.current = true;
+        }
+
+        // Linear Interpolation (Lerp) for smooth transition
+        // Since this runs every frame (due to time dependency), it creates an animation
+        if (initializedRef.current) {
+            currentHueRef.current += (targetH - currentHueRef.current) * 0.05;
+        }
+
+        const h = currentHueRef.current % 360;
+
+        // Amplitude 25 (Range 50)
+        const deltaL = 25 * Math.cos((2 * Math.PI * time) / 60);
+        const topL = Math.max(0, Math.min(100, 55 + deltaL)); // 30 ~ 80
+        const bottomL = Math.max(0, Math.min(100, 45 + deltaL)); // 20 ~ 70
 
         return {
-            background: `linear-gradient(to bottom, hsl(${h}, 30%, ${topL}%) 0%, hsl(${h}, 30%, ${bottomL}%) 100%)`,
+            background: `linear-gradient(to bottom, hsl(${h}, 70%, ${topL}%) 0%, hsl(${h}, 70%, ${bottomL}%) 100%)`,
             transition: 'none'
         };
     }, [score, time]);

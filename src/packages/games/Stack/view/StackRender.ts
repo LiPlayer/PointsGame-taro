@@ -134,23 +134,37 @@ export class StackRender implements IRenderPipeline {
         const d = (this.BASE_SIZE * Math.sqrt(2)) / (1.6 * aspect);
 
         // SPECIFICATION: Base lowest point visible at screen bottom
-        // Lowest point P = (50, -50, 50) relative to (0,0,0) center of base?
-        // Actually base is at (0,0,0) in world, size 100x100x100.
-        // StackPhysics puts base at (0,0,0). So it extends Y: -50 to +50.
-        // Lowest Point in World: Y=-50.
-        // In Isometric View (35.264 deg from XZ plane), the lowest visible point is the front corner?
-        // Camera LookAt (0,0,0) from (300,300,300).
-        // View vector is (-1, -1, -1).
-        // Front corner (50, -50, 50) is indeed the lowest in screen Y space.
-        // Screen Y projection of P relative to center:
-        // ProjY = Dot(P - Center, Up)
-        // We want ProjY = -d (bottom of frustum).
-        // Rearranging formula derived: yOffset = (d * sqrt(6) - 200) / 2
-        // Note: 200 comes from (P_lowest_y_contribution + ...), specifically:
-        // P dot Up_unnormalized = -200.
-        // yOffset shift moves camera UP, pushing world DOWN.
+        // Lowest point P = (50, -100, 50) relative to (0,0,0) world origin.
+        // (Since Base center is now at (0, -50, 0) and height is 100).
+        // View Vector V = (-1, -1, -1) normalized.
+        // Up Vector U (Camera Up) is perpendicular to V... actually in Isometric, Up is projected Y.
+        // Let's rely on the Dot Product projection.
+        // Center of Camera LookAt is initially (0, 0, 0) (or will be adjusted by offset).
+        // We want the screen Y projection of P to be -d.
+        // ScreenY = Dot(P - CameraPos, CameraUp_ScreenSpace?)
+        // Simpler: The previous formula derived yOffset = (d * sqrt(6) - 200) / 2 was for lowest point -50.
+        // Now lowest point is -100.
+        // The difference is -50 units in World Y.
+        // Isometric Y projection scale is approx 0.816 (sqrt(2/3)).
+        // So visually it's lower.
+        // We need to shift the camera *down* (decrease yOffset) to bring the point up?
+        // No, if point is lower, we need to look lower.
+        // Actually, let's use the explicit constraint equation:
+        // P_y_screen = (P - LookAt).dot(Up)
+        // With:
+        //   LookAt = (0, yOffset, 0)
+        //   Up = (-1, 2, -1) / sqrt(6)  (The standard isometric up vector)
+        //   P = (50, -100, 50)
+        //   We want P_y_screen = -d.
+        //   (50, -100 - yOffset, 50).dot(-1, 2, -1) / sqrt(6) = -d
+        //   (-50 + 2*(-100 - yOffset) - 50) / sqrt(6) = -d
+        //   (-50 - 200 - 2*yOffset - 50) = -d * sqrt(6)
+        //   -300 - 2*yOffset = -d * sqrt(6)
+        //   300 + 2*yOffset = d * sqrt(6)
+        //   2*yOffset = d * sqrt(6) - 300
+        //   yOffset = (d * Math.sqrt(6) - 300) / 2
 
-        this.yOffset = (d * Math.sqrt(6) - 200) / 2;
+        this.yOffset = (d * Math.sqrt(6) - 300) / 2;
 
         this.camera.left = -d * aspect;
         this.camera.right = d * aspect;
@@ -342,7 +356,13 @@ export class StackRender implements IRenderPipeline {
 
     private updateCamera(physics: StackPhysics) {
         const topBlock = physics.stack[physics.stack.length - 1];
-        if (topBlock) this.cameraTargetY = topBlock.position.y;
+
+        // Deadzone Follow: Only move if top block exceeds the initial center height (yOffset)
+        if (topBlock) {
+            const targetY = topBlock.position.y - this.yOffset;
+            this.cameraTargetY = Math.max(0, targetY);
+        }
+
         this.currentCameraY += (this.cameraTargetY - this.currentCameraY) * 0.1;
 
         const offset = new THREE.Vector3(300, 300 + this.currentCameraY + this.yOffset, 300);
