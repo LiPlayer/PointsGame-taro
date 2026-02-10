@@ -25,10 +25,11 @@ export class GameLoop {
         renderer: IRenderPipeline,
         canvas: any,
         width: number,
-        height: number
+        height: number,
+        options?: { maxDPR?: number }
     ) {
         // Centralized Resolution Handling
-        const { dpr, physicalWidth, physicalHeight } = Resolution.getInfo(width, height);
+        const { dpr, physicalWidth, physicalHeight } = Resolution.getInfo(width, height, options?.maxDPR);
 
         // Auto-resize canvas to physical pixels
         if (canvas) {

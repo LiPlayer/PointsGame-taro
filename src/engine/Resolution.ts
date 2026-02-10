@@ -11,16 +11,12 @@ export class Resolution {
      * @param logicalWidth CSS pixel width of the container
      * @param logicalHeight CSS pixel height of the container
      */
-    public static getInfo(logicalWidth: number, logicalHeight: number) {
+    public static getInfo(logicalWidth: number, logicalHeight: number, maxDPR?: number) {
         const sysInfo = Taro.getSystemInfoSync();
         const rawDpr = sysInfo.pixelRatio || 1;
 
-        // Spec: maxDPR safety net
-        // H5: min(dpr, 2.0)
-        // WeApp: min(dpr, 1.5)
-        const isH5 = process.env.TARO_ENV === 'h5';
-        const maxDpr = isH5 ? 2.0 : 1.5;
-        const dpr = Math.min(rawDpr, maxDpr);
+        // Spec: Allow full resolution by default unless capped by maxDPR
+        const dpr = maxDPR ? Math.min(rawDpr, maxDPR) : rawDpr;
 
         return {
             dpr,

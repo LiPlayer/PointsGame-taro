@@ -131,9 +131,10 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
 2.  **坐标与分辨率 (Resolution System)**
     -   **逻辑像素主导**: 所有业务逻辑（速度、位置、碰撞体积）必须基于 **逻辑像素 (CSS Pixels)**。
     -   **自动 DPR 处理**: `GameLoop` 构造函数不再接受外部 `dpr`，内部通过 `Resolution.getInfo(width, height)` 自动计算物理尺寸。
-    -   **安全网 (maxDPR)**: 强制限制最大像素比，防止过热：
-        -   H5 环境：`resolution = min(devicePixelRatio, 2.0)`
-        -   WeApp 环境：`resolution = min(devicePixelRatio, 1.5)`
+    -   **自动 DPR 处理**: `GameLoop` 默认使用设备原生 `devicePixelRatio` 以获得最佳画质 (No Cap)。
+    -   **性能调优 (Optional)**:
+        -   默认情况下不限制 DPR，优先保证画质。
+        -   对于高负载 3D 游戏，允许在 `GameLoop` 构造函数中传入 `{ maxDPR: 2.0 }` 进行手动限制，以平衡发热与画质。
 
 3.  **时间步长 (Time Step)**
     -   **Variable Timestep (全变速)**: 物理更新基于真实 `deltaTime`，最大程度利用高刷屏流畅度。
@@ -168,8 +169,11 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
     // src/engine/GameLoop.ts
     class MyGameLoop extends GameLoop {
       constructor(pixi, canvas, w, h) {
-        // GameLoop 自动处理 DPR，无需手动传递
+        // 默认满画质：
         super(new MyPhysics(), new MyRenderer(pixi), canvas, w, h)
+        
+        // 或者手动限制 DPR (例如限制为 2.0)：
+        // super(new MyPhysics(), new MyRenderer(pixi), canvas, w, h, { maxDPR: 2.0 })
       }
       
       protected onUpdate(dt: number) { 
