@@ -15,6 +15,10 @@ export class ThreeGameLoop extends GameLoop {
         super(physics, renderer, canvas, width, height);
     }
 
+    public get stackRenderer(): StackRender {
+        return this.renderer as StackRender;
+    }
+
     public start() {
         if (this.isRunning) return;
 

@@ -14,9 +14,10 @@ const StackGame = () => {
     const [combo, setCombo] = useState(0);
     const [bgColor, setBgColor] = useState<number>(0xf25367); // Initial color (Rose Red)
     const [gameOver, setGameOver] = useState(false);
-    const [deathFlash, setDeathFlash] = useState(false);
+    const [showFinalScore, setShowFinalScore] = useState(false);
     const [bestScore, setBestScore] = useState(0);
     const [time, setTime] = useState(0);
+    const exitTimerRef = useRef<any>(null);
 
     // Background Breathing Cycle (60s)
     useEffect(() => {
@@ -80,6 +81,16 @@ const StackGame = () => {
     const handleTap = useCallback(() => {
         if (!loopRef.current) return;
 
+        if (gameOver) {
+            console.log('[StackGame] Manual Skip triggered');
+            if (exitTimerRef.current) {
+                clearTimeout(exitTimerRef.current);
+            }
+            const physics = (loopRef.current as any).physics as StackPhysics;
+            Taro.redirectTo({ url: `/pages/result-earn/index?score=${physics.score}&id=stack` });
+            return;
+        }
+
         const result = loopRef.current.handleTap();
         const physics = (loopRef.current as any).physics as StackPhysics;
 
@@ -91,17 +102,17 @@ const StackGame = () => {
             console.log('[StackGame] Game Over detected. Score:', physics.score);
             StackAudio.playGameOver();
 
-            // Death Flash effect
-            setDeathFlash(true);
-            setTimeout(() => setDeathFlash(false), 200);
-
-            // Screen Shake
-            loopRef.current.triggerScreenShake();
-
             // Heavy haptic
             if (process.env.TARO_ENV === 'weapp') {
                 Taro.vibrateLong();
             }
+
+            // Camera Overview Zoom
+            const towerHeight = physics.stack.length * 0.1;
+            loopRef.current.stackRenderer.zoomToOverview(towerHeight);
+
+            // Delay Final Score sliding to center
+            setTimeout(() => setShowFinalScore(true), 600);
 
             // Update Best Score
             if (physics.score > bestScore) {
@@ -110,16 +121,16 @@ const StackGame = () => {
             }
 
             setGameOver(true);
-            setTimeout(() => {
-                Taro.redirectTo({ url: `/pages/result-earn/index?score=${physics.score}&id=stack` });
-            }, 1500);
+            // Auto-exit removed per user request: "Click to exit" only.
+            // exitTimerRef.current = setTimeout(() => {
+            //     Taro.redirectTo({ url: `/pages/result-earn/index?score=${physics.score}&id=stack` });
+            // }, 4500); // 4.5s total overview time
         } else if (result.perfect) {
             console.log('[StackGame] Perfect placement! Combo:', physics.combo);
             StackAudio.playPerfect(physics.combo);
 
-            // Trigger Perfect Ripple VFX
+            // Trigger Perfect Ripple VFX via game loop
             loopRef.current.triggerPerfectRipple(physics.combo);
-            // loopRef.current.triggerPerfectFlash(physics.combo); // Removed
 
             // Trigger haptic if in WeApp
             if (process.env.TARO_ENV === 'weapp') {
@@ -130,7 +141,7 @@ const StackGame = () => {
             StackAudio.playTick();
             StackAudio.playSlice();
         }
-    }, [bestScore]);
+    }, [bestScore, gameOver]);
 
     // Smooth Hue Transition
     const currentHueRef = useRef<number>(0);
@@ -188,32 +199,23 @@ const StackGame = () => {
                 />
             )}
 
-            {/* Death Flash Overlay */}
-            {deathFlash && (
-                <View className="absolute inset-0 bg-white z-50 transition-opacity duration-200 opacity-100" />
-            )}
-
             {/* UI Overlay */}
-            <View className="absolute top-24 left-0 w-full flex flex-col items-center pointer-events-none">
+            <View
+                className={`absolute left-0 w-full flex flex-col items-center pointer-events-none transition-all duration-[1500ms] cubic-bezier(0.23, 1, 0.32, 1) ${showFinalScore ? 'top-1/2 -translate-y-1/2' : 'top-24'}`}
+            >
                 {score === 0 && !gameOver && (
                     <Text className="text-white text-7xl font-black opacity-10 leading-none tracking-widest mb-6">极致层叠</Text>
                 )}
                 <View className="flex flex-col items-center">
                     <Text
-                        className="text-white text-9xl font-thin tracking-tighter"
-                        style={{ textShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+                        className={`text-white font-thin tracking-tighter transition-all duration-[1500ms] ${showFinalScore ? 'text-[12rem]' : 'text-9xl'}`}
+                        style={{ textShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
                     >{score}</Text>
                 </View>
             </View>
 
-            {gameOver && (
-                <View className="absolute inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center transition-opacity duration-1000">
-                    <View className="bg-white p-10 rounded-3xl shadow-2xl flex flex-col items-center border border-slate-100">
-                        <Text className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2">游戏结束</Text>
-                        <Text className="text-slate-900 text-6xl font-black mb-6">{score}</Text>
-                        <View className="w-12 h-1 border-b-4 border-rose-500 rounded-full"></View>
-                    </View>
-                </View>
+            {gameOver && !showFinalScore && (
+                <View className="absolute inset-0 bg-white/10 backdrop-blur-[2px] pointer-events-none" />
             )}
 
             {!gameOver && score === 0 && (

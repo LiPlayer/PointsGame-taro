@@ -38,12 +38,16 @@ export class StackRender implements IRenderPipeline {
     private rippleMeshes: RippleMesh[] = [];
     private screenShake: number = 0; // Remaining shake frames
 
-    // Culling System
-    private frustum: THREE.Frustum = new THREE.Frustum();
     private projScreenMatrix: THREE.Matrix4 = new THREE.Matrix4();
+    private frustum: THREE.Frustum = new THREE.Frustum();
 
-    // Camera Framing
+    // Camera Framing & Zoom
     private yOffset: number = 0;
+    private defaultD: number = 1.5;
+    private currentD: number = 1.5;
+    private targetD: number = 1.5;
+    private isGameOverMode: boolean = false;
+    private aspect: number = 1.0;
     private dirLight: THREE.DirectionalLight | null = null;
     private readonly BASE_SIZE: number = 1.0;
 
@@ -129,6 +133,7 @@ export class StackRender implements IRenderPipeline {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         const aspect = width / height;
+        this.aspect = aspect;
 
         // SPECIFICATION: Base (100x100x100) width = 80% Screen Width
         // Base Projected Width = 100 * sqrt(2) approx 141.42
@@ -169,6 +174,9 @@ export class StackRender implements IRenderPipeline {
         //   yOffset = (d * Math.sqrt(6) - 3.0) / 2
         //   Rescaled to 3.0 instead of 300
         this.yOffset = (d * Math.sqrt(6) - 3.0) / 2;
+        this.defaultD = d;
+        this.currentD = d;
+        this.targetD = d;
 
         this.camera.left = -d * aspect;
         this.camera.right = d * aspect;
@@ -369,6 +377,24 @@ export class StackRender implements IRenderPipeline {
 
         this.currentCameraY += (this.cameraTargetY - this.currentCameraY) * 0.1;
 
+        if (this.isGameOverMode) {
+            // Smoothly interpolate frustum size
+            this.currentD += (this.targetD - this.currentD) * 0.04;
+
+            // Dynamically update camera projection
+            this.camera.left = -this.currentD * this.aspect;
+            this.camera.right = this.currentD * this.aspect;
+            this.camera.top = this.currentD;
+            this.camera.bottom = -this.currentD;
+            this.camera.updateProjectionMatrix();
+
+            // Re-calculate yOffset to keep tower base at screen bottom
+            // Strategy: yOffset is derived from the constraint that the base bottom (at y=-3.0 in world)
+            // projects to the screen bottom (-d). 
+            // So we update yOffset based on current interpolated D.
+            this.yOffset = (this.currentD * Math.sqrt(6) - 3.0) / 2;
+        }
+
         const offset = new THREE.Vector3(3, 3 + this.currentCameraY + this.yOffset, 3);
         this.camera.position.copy(offset);
         this.camera.lookAt(0, this.currentCameraY + this.yOffset, 0);
@@ -381,8 +407,41 @@ export class StackRender implements IRenderPipeline {
         }
     }
 
-    public triggerPerfectFlash(combo: number) {
-        // Feature removed
+    /**
+     * Zooms the camera to fit the entire tower.
+     * @param towerHeight The current height of the tower in meters.
+     */
+    public zoomToOverview(towerHeight: number) {
+        this.isGameOverMode = true;
+
+        // Calculate required D to fit the whole tower.
+        // Tower spans from Y=0 to Y=towerHeight.
+        // Plus the base which is at Y=-1.0 to 0. (Actually base is height 1.0, top at 0)
+        // So total vertical span to fit is from -1.0 to towerHeight.
+
+        // In isometric projection (Up=[-1, 2, -1]), Y-range maps to ScreenY-range.
+        // ScreenY = (WorldY - lookAtY) * sqrt(2/3)
+        // We want base bottom (WorldY = -1.0) to be at ScreenY = -D
+        // and tower top (WorldY = towerHeight) to be at ScreenY < D (with some padding).
+
+        // 1. Minimum D to fit the height:
+        // ScreenHeight = 2 * D. 
+        // Projected Height = (towerHeight + 1.0) * sqrt(2/3).
+        // We want 2 * D > Projected Height / 0.7 (fit within 70% of screen height)
+        const totalHeightSpan = towerHeight + 1.0;
+        const targetDHeight = (totalHeightSpan * Math.sqrt(2 / 3)) / (2 * 0.7);
+
+        // 2. Minimum D to fit the width:
+        // Tower width is ~1.0. 
+        // Max Projected Width = 1.0 * sqrt(2).
+        // We want 2 * D * aspect > Projected Width / 0.8
+        const targetDWidth = (Math.sqrt(2)) / (2 * this.aspect * 0.8);
+
+        this.targetD = Math.max(this.defaultD, targetDHeight, targetDWidth);
+
+        // Camera focal point should stay at tower center horizontally.
+        // We set cameraTargetY to 0 because yOffset now dynamically handles the bottom alignment.
+        this.cameraTargetY = 0;
     }
 
     public triggerPerfectRipple(positionY: number, size: THREE.Vector3, combo: number = 1) {
