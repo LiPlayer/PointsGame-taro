@@ -47,16 +47,16 @@ export class StackPhysics implements IPhysicsWorld {
     // Debris from slicing
     public debris: BlockData[] = [];
 
-    // Constants (Aligned with V4.0 Spec)
-    private readonly INITIAL_SIZE = 100;
-    private readonly BLOCK_HEIGHT = 10; // Increased to 10 as requested
-    private readonly BASE_HEIGHT = 100; // Increased to 100 as requested
-    private readonly PERFECT_TOLERANCE = 3.0;
-    private readonly MOVE_SPEED_BASE = 1.0; // Reverted to 1.0 as requested
+    // Constants (Aligned with V4.0 Spec - Rescaled 1:100)
+    private readonly INITIAL_SIZE = 1.0;
+    private readonly BLOCK_HEIGHT = 0.1;
+    private readonly BASE_HEIGHT = 1.0;
+    private readonly PERFECT_TOLERANCE = 0.03;
+    private readonly MOVE_SPEED_BASE = 0.01;
 
     private moveAxis: MoveAxis = MoveAxis.X;
     private moveDirection: number = 1; // 1 or -1
-    private currentSpeed: number = 1.0;
+    private currentSpeed: number = 0.01;
 
     public startHue: number = 0;
     private readonly HUE_SHIFT_PER_BLOCK = 5.0; // Aligned with latest spec
@@ -66,7 +66,7 @@ export class StackPhysics implements IPhysicsWorld {
     constructor() {
         // Initialize Cannon World
         this.world = new CANNON.World();
-        this.world.gravity.set(0, -9.82, 0); // Standard gravity
+        this.world.gravity.set(0, -9.82, 0); // Standard Earth Gravity (meters)
         this.world.broadphase = new CANNON.NaiveBroadphase();
         (this.world.solver as CANNON.GSSolver).iterations = 10;
 
@@ -149,8 +149,8 @@ export class StackPhysics implements IPhysicsWorld {
 
         // Start from distance (closer to view)
         // Ensure block is partially visible immediately to prevent "stuck" feeling
-        // Camera frustum edge ~84 (at 9/16, d=150). StartDist 100 puts edge at -50.
-        const startDist = 100;
+        // Camera frustum edge ~0.84 (at 9/16, d=1.5). StartDist 1.0 puts edge at -0.5.
+        const startDist = 1.0;
         if (this.moveAxis === MoveAxis.X) {
             pos.x = -startDist;
         } else {
@@ -200,8 +200,8 @@ export class StackPhysics implements IPhysicsWorld {
 
             // Remove debris only when it's well below the current tower top
             // (Relative to the top block to ensure it's off-camera)
-            // Increased to 800 to ensure it falls through the visible tower/background
-            if (deb.position.y < topY - 800) {
+            // Rescaled to 8.0
+            if (deb.position.y < topY - 8.0) {
                 if (deb.body) this.world.removeBody(deb.body);
                 this.debris.splice(i, 1);
             }

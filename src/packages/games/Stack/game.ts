@@ -49,7 +49,7 @@ export class ThreeGameLoop extends GameLoop {
     }
 
     public triggerScreenShake() {
-        (this.renderer as StackRender).triggerScreenShake(8);
+        (this.renderer as StackRender).triggerScreenShake(0.08); // Scaled from 8.0
     }
 
     public destroy() {

@@ -45,15 +45,15 @@ export class StackRender implements IRenderPipeline {
     // Camera Framing
     private yOffset: number = 0;
     private dirLight: THREE.DirectionalLight | null = null;
-    private readonly BASE_SIZE: number = 100;
+    private readonly BASE_SIZE: number = 1.0;
 
     constructor() {
         this.scene = new THREE.Scene();
         this.scene.background = null;
 
-        const d = 150;
+        const d = 1.5;
         this.camera = new THREE.OrthographicCamera(-d, d, d, -d, 1, 2000);
-        this.camera.position.set(300, 300, 300);
+        this.camera.position.set(3, 3, 3);
         this.camera.lookAt(0, 0, 0);
 
         this.sharedGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -65,14 +65,14 @@ export class StackRender implements IRenderPipeline {
     private setupLights() {
         // Hemisphere Light: Sky color (white) vs Ground color (slightly dark) -> natural gradient on sides
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
-        hemiLight.position.set(0, 500, 0);
+        hemiLight.position.set(0, 5, 0);
         this.scene.add(hemiLight);
 
         // Directional Light: Sharp shadows and distinct face shading
         // Positioned to barely light the top face, but strongly light the side faces
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
         this.dirLight = dirLight;
-        dirLight.position.set(150, 300, 150); // Classic isometric key light position
+        dirLight.position.set(1.5, 3.0, 1.5); // Classic isometric key light position
         dirLight.castShadow = true;
 
         // Shadow map tuning for sharp shadows
@@ -96,9 +96,9 @@ export class StackRender implements IRenderPipeline {
         const sizes = new Float32Array(particleCount);
 
         for (let i = 0; i < particleCount; i++) {
-            positions[i * 3] = (Math.random() - 0.5) * 400;
-            positions[i * 3 + 1] = (Math.random() - 0.5) * 600;
-            positions[i * 3 + 2] = (Math.random() - 0.5) * 400;
+            positions[i * 3] = (Math.random() - 0.5) * 4.0;
+            positions[i * 3 + 1] = (Math.random() - 0.5) * 6.0;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 4.0;
             sizes[i] = Math.random() < 0.3 ? 3 : 2;
         }
 
@@ -161,10 +161,10 @@ export class StackRender implements IRenderPipeline {
         //   (-50 - 200 - 2*yOffset - 50) = -d * sqrt(6)
         //   -300 - 2*yOffset = -d * sqrt(6)
         //   300 + 2*yOffset = d * sqrt(6)
-        //   2*yOffset = d * sqrt(6) - 300
-        //   yOffset = (d * Math.sqrt(6) - 300) / 2
-
-        this.yOffset = (d * Math.sqrt(6) - 300) / 2;
+        //   2*yOffset = d * sqrt(6) - 3.0
+        //   yOffset = (d * Math.sqrt(6) - 3.0) / 2
+        //   Rescaled to 3.0 instead of 300
+        this.yOffset = (d * Math.sqrt(6) - 3.0) / 2;
 
         this.camera.left = -d * aspect;
         this.camera.right = d * aspect;
@@ -174,7 +174,7 @@ export class StackRender implements IRenderPipeline {
 
         // Update Shadow Camera to match new frustum if needed
         if (this.dirLight) {
-            const shadowD = Math.max(d, 150); // Ensure at least 150 coverage
+            const shadowD = Math.max(d, 1.5); // Ensure at least 1.5 coverage
             this.dirLight.shadow.camera.left = -shadowD;
             this.dirLight.shadow.camera.right = shadowD;
             this.dirLight.shadow.camera.top = shadowD;
@@ -324,7 +324,7 @@ export class StackRender implements IRenderPipeline {
             const mesh = this.debrisMeshes[i];
             const data = physics.debris[i];
 
-            if (!data || data.position.y < this.currentCameraY - 400) {
+            if (!data || data.position.y < this.currentCameraY - 4.0) {
                 this.scene.remove(mesh);
                 this.debrisMeshes.splice(i, 1);
                 continue;
@@ -347,8 +347,8 @@ export class StackRender implements IRenderPipeline {
         if (!this.particles) return;
         const positions = this.particles.geometry.attributes.position.array as Float32Array;
         for (let i = 1; i < positions.length; i += 3) {
-            positions[i] += 0.2;
-            if (positions[i] > 400) positions[i] = -200;
+            positions[i] += 0.002;
+            if (positions[i] > 4.0) positions[i] = -2.0;
         }
         this.particles.geometry.attributes.position.needsUpdate = true;
         this.particles.position.y = this.currentCameraY * 0.8;
@@ -365,7 +365,7 @@ export class StackRender implements IRenderPipeline {
 
         this.currentCameraY += (this.cameraTargetY - this.currentCameraY) * 0.1;
 
-        const offset = new THREE.Vector3(300, 300 + this.currentCameraY + this.yOffset, 300);
+        const offset = new THREE.Vector3(3, 3 + this.currentCameraY + this.yOffset, 3);
         this.camera.position.copy(offset);
         this.camera.lookAt(0, this.currentCameraY + this.yOffset, 0);
 
@@ -386,8 +386,8 @@ export class StackRender implements IRenderPipeline {
         const rippleCount = isStatic ? 1 : Math.min(combo - 3, 8); // Only one ring if static
 
         for (let i = 0; i < rippleCount; i++) {
-            const halfW = size.x / 2 + 5;
-            const halfD = size.z / 2 + 5;
+            const halfW = size.x / 2 + 0.05;
+            const halfD = size.z / 2 + 0.05;
             const geometry = new THREE.BufferGeometry().setFromPoints([
                 new THREE.Vector3(-halfW, 0, -halfD),
                 new THREE.Vector3(halfW, 0, -halfD),
@@ -402,7 +402,7 @@ export class StackRender implements IRenderPipeline {
             });
 
             const ripple = new THREE.LineLoop(geometry, material) as unknown as RippleMesh;
-            ripple.position.set(0, positionY + (size.y / 2) + 1, 0);
+            ripple.position.set(0, positionY + (size.y / 2) + 0.01, 0);
             ripple.life = 1.0;
             ripple.maxLife = 1.0;
             ripple.baseScale = 1.0;
