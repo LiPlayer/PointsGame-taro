@@ -28,6 +28,17 @@ export class StackAudio {
         setTimeout(() => {
             SoundManager.getInstance().playTone(freq * 1.5, 'sine', 0.1, 0.05);
         }, 20);
+
+        // 8th Combo (Major Chord trigger) - C5 (Index 7)
+        // Play a full Major Chord (Root, Major Third, Perfect Fifth)
+        if ((combo - 1) % 8 === 7) {
+            setTimeout(() => {
+                // Major Third (E5 usually, but let's just do freq * 1.25)
+                SoundManager.getInstance().playTone(freq * 1.25, 'sine', 0.2, 0.2);
+                // Octave (freq * 2)
+                SoundManager.getInstance().playTone(freq * 2.0, 'sine', 0.2, 0.2);
+            }, 50);
+        }
     }
 
     /**

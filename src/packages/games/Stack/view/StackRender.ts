@@ -54,56 +54,67 @@ export class StackRender implements IRenderPipeline {
 
     private setupLights() {
         // High-end Studio lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // Brighter ambient for Zen look
         this.scene.add(ambientLight);
 
-        // Warm Key Light (Front-Right-Top)
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        // Warm Key Light (Front-Right-Top) with Shadows
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight.position.set(100, 200, 100);
+        dirLight.castShadow = true;
+
+        // Shadow High Res Configuration
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        const d = 150;
+        dirLight.shadow.camera.left = -d;
+        dirLight.shadow.camera.right = d;
+        dirLight.shadow.camera.top = d;
+        dirLight.shadow.camera.bottom = -d;
+        dirLight.shadow.bias = -0.0005;
         this.scene.add(dirLight);
 
-        // Rim Light (Back-Left-Top) - Defines the candy edges
-        const rimLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        // Rim Light (Back-Left-Top)
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
         rimLight.position.set(-100, 150, -100);
         this.scene.add(rimLight);
 
         // Ground Foundation
         const groundGeo = new THREE.PlaneGeometry(1000, 1000);
-        const groundMat = new THREE.MeshLambertMaterial({
-            color: 0x2A8499, // Slightly darker than background
-            transparent: true,
-            opacity: 0.3
+        const groundMat = new THREE.ShadowMaterial({
+            opacity: 0.1,
+            color: 0x000000
         });
         const ground = new THREE.Mesh(groundGeo, groundMat);
         ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -10; // Slightly below base
+        ground.position.y = -50;
+        ground.receiveShadow = true;
         this.scene.add(ground);
 
         this.createParticles();
     }
 
     private createParticles() {
+        // Keep existing particle logic
         const particleCount = 60;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const sizes = new Float32Array(particleCount);
 
         for (let i = 0; i < particleCount; i++) {
-            // Random spread in a large volume around the tower
-            positions[i * 3] = (Math.random() - 0.5) * 400;     // X
-            positions[i * 3 + 1] = (Math.random() - 0.5) * 600; // Y (Tall vertical spread)
-            positions[i * 3 + 2] = (Math.random() - 0.5) * 400; // Z
+            positions[i * 3] = (Math.random() - 0.5) * 400;
+            positions[i * 3 + 1] = (Math.random() - 0.5) * 600;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 400;
 
-            sizes[i] = Math.random() < 0.3 ? 3 : 2; // Mixed sizes
+            sizes[i] = Math.random() < 0.3 ? 3 : 2;
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1)); // We can use this in shader if we want, or just uniform size
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
         const material = new THREE.PointsMaterial({
             color: 0xFFFFFF,
             size: 3,
-            sizeAttenuation: false, // Keep them as pixel-perfect dots/squares regardless of depth
+            sizeAttenuation: false,
             transparent: true,
             opacity: 0.4
         });
@@ -122,6 +133,8 @@ export class StackRender implements IRenderPipeline {
         });
         this.renderer.setPixelRatio(Math.min(dpr, 1.2));
         this.renderer.setSize(width, height);
+        this.renderer.shadowMap.enabled = true; // Enable Shadows
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         const aspect = width / height;
         const d = 120;
@@ -150,6 +163,8 @@ export class StackRender implements IRenderPipeline {
         while (this.blockMeshes.length < physics.stack.length) {
             const data = physics.stack[this.blockMeshes.length];
             const mesh = new THREE.Mesh(this.sharedGeometry, StackMaterials.getMaterial(data.color));
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
             this.scene.add(mesh);
             this.blockMeshes.push(mesh);
         }
@@ -165,10 +180,14 @@ export class StackRender implements IRenderPipeline {
         if (physics.currentBlock) {
             if (!this.currentBlockMesh) {
                 this.currentBlockMesh = new THREE.Mesh(this.sharedGeometry, StackMaterials.getMaterial(physics.currentBlock.color));
+                this.currentBlockMesh.castShadow = true;
+                this.currentBlockMesh.receiveShadow = true;
                 this.scene.add(this.currentBlockMesh);
             }
             this.currentBlockMesh.position.copy(physics.currentBlock.position);
             this.currentBlockMesh.scale.copy(physics.currentBlock.size);
+            // Updating Material color if needed (optimization: reusing material)
+            this.currentBlockMesh.material = StackMaterials.getMaterial(physics.currentBlock.color);
             this.currentBlockMesh.visible = true;
         } else if (this.currentBlockMesh) {
             this.currentBlockMesh.visible = false;
@@ -177,61 +196,33 @@ export class StackRender implements IRenderPipeline {
 
     private updateDebris(physics: StackPhysics) {
         // Pop new debris data from physics engine and create visual meshes
-        while (physics.debris.length > 0) {
-            const data = physics.debris.shift()!;
+        while (physics.debris.length > this.debrisMeshes.length) {
+            // New debris added
+            const data = physics.debris[this.debrisMeshes.length];
             const mesh = new THREE.Mesh(this.sharedGeometry, StackMaterials.getMaterial(data.color)) as unknown as DebrisMesh;
-            mesh.position.copy(data.position);
-            mesh.scale.copy(data.size);
-
-            // Physics initialization (Rigid Body simulation)
-            // 1. Initial push outwards (optional, but adds juice)
-            mesh.velocity = new THREE.Vector3(
-                (Math.random() - 0.5) * 2,
-                0, // Start falling immediately or slight pop? Let's drop.
-                (Math.random() - 0.5) * 2
-            );
-
-            // 2. Gravity will be applied in update loop
-
-            // 3. Random tumbling (Angular Velocity)
-            mesh.angularVelocity = new THREE.Vector3(
-                (Math.random() - 0.5) * 0.5,
-                (Math.random() - 0.5) * 0.5,
-                (Math.random() - 0.5) * 0.5
-            );
-
-            mesh.life = 1.5; // Seconds roughly
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
             this.scene.add(mesh);
             this.debrisMeshes.push(mesh);
         }
 
-        // Update physics for all active debris
-        const gravity = 0.5; // Per frame gravity
+        // Sync with physics logic
+        // We assume index matching for simplicity as we only push/splice together
         for (let i = this.debrisMeshes.length - 1; i >= 0; i--) {
             const mesh = this.debrisMeshes[i];
+            const data = physics.debris[i];
 
-            // Apply Gravity
-            mesh.velocity.y -= gravity;
-
-            // Apply Velocity to Position
-            mesh.position.add(mesh.velocity);
-
-            // Apply Angular Velocity to Rotation (Tumbling)
-            mesh.rotation.x += mesh.angularVelocity.x;
-            mesh.rotation.y += mesh.angularVelocity.y;
-            mesh.rotation.z += mesh.angularVelocity.z;
-
-            // Fade out
-            // To do fade out effectively with MeshPhongMaterial, we'd need to clone materials or use opacity.
-            // For now, we just shrink logic life.
-
-            // Optional: Ground collision
-            // if (mesh.position.y < -50) { ... }
-
-            mesh.life -= 0.02;
-            if (mesh.life <= 0 || mesh.position.y < -100) {
+            if (!data) {
+                // Debris removed from physics
                 this.scene.remove(mesh);
                 this.debrisMeshes.splice(i, 1);
+                continue;
+            }
+
+            mesh.position.copy(data.position);
+            mesh.scale.copy(data.size);
+            if (data.quaternion) {
+                mesh.quaternion.copy(data.quaternion);
             }
         }
     }

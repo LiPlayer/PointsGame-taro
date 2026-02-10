@@ -119,7 +119,8 @@ const StackGame = () => {
         <View
             className="relative w-full h-full flex flex-col items-center overflow-hidden"
             style={{
-                background: `linear-gradient(to bottom, hsl(${hue}, 60%, 50%) 0%, hsl(${hue}, 70%, 30%) 100%)`,
+                // Analogous: Hue + 40°, Low Saturation (40%), High Lightness (85%)
+                background: `linear-gradient(to bottom, hsl(${(hue + 40) % 360}, 40%, 85%) 0%, hsl(${(hue + 40) % 360}, 50%, 75%) 100%)`,
                 perspective: '1000px',
                 transition: 'background 0.5s ease'
             }}
@@ -151,7 +152,7 @@ const StackGame = () => {
                         className="text-white text-8xl font-thin tracking-tighter"
                         style={{ textShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                     >{score}</Text>
-                    {combo > 2 && (
+                    {combo > 1 && (
                         <View className="bg-white/90 backdrop-blur-sm px-4 py-1 rounded-full mt-4 shadow-sm animate-bounce">
                             <Text className="text-teal-600 text-xs font-bold uppercase tracking-widest">{combo} 连击</Text>
                         </View>
@@ -169,7 +170,13 @@ const StackGame = () => {
                 </View>
             )}
 
-            {!gameOver && (
+            {!gameOver && score === 0 && (
+                <View className="absolute bottom-32 w-full text-center pointer-events-none animate-pulse">
+                    <Text className="text-white text-xl font-bold tracking-[0.2em] shadow-sm">点击开始</Text>
+                </View>
+            )}
+
+            {!gameOver && score > 0 && (
                 <View className="absolute bottom-12 w-full text-center pointer-events-none">
                     <Text className="text-slate-300 text-xs font-bold uppercase tracking-[0.3em]">点击屏幕精准对齐</Text>
                 </View>

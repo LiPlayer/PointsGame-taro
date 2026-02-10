@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 import { IPhysicsWorld } from '../../../../engine/IPhysicsWorld';
 import { SoundManager } from '../../../../engine/SoundManager';
 
@@ -15,8 +16,10 @@ export enum MoveAxis {
 
 export interface BlockData {
     position: THREE.Vector3;
+    quaternion?: THREE.Quaternion;
     size: THREE.Vector3;
     color: number;
+    body?: CANNON.Body; // For physics simulation
 }
 
 export interface PhysicsResult {
@@ -32,6 +35,9 @@ export class StackPhysics implements IPhysicsWorld {
     public score: number = 0;
     public combo: number = 0;
 
+    // Cannon.js World
+    public world: CANNON.World;
+
     // Stack of placed blocks
     public stack: BlockData[] = [];
 
@@ -44,9 +50,9 @@ export class StackPhysics implements IPhysicsWorld {
     // Constants
     private readonly INITIAL_SIZE = 100;
     private readonly BLOCK_HEIGHT = 20;
-    private readonly PERFECT_TOLERANCE = 2.5; // Units - tighter feel
+    private readonly PERFECT_TOLERANCE = 3.0; // Units - defined in spec
     private readonly GROWTH_COMBO_TRIGGER = 8;
-    private readonly GROWTH_AMOUNT = 2.5; // More subtle recovery
+    private readonly GROWTH_AMOUNT_PERCENT = 0.10; // 10% size increase
     private readonly MOVE_SPEED_BASE = 2.0;
 
     private moveAxis: MoveAxis = MoveAxis.X;
@@ -54,7 +60,19 @@ export class StackPhysics implements IPhysicsWorld {
     private currentSpeed: number = 2.0;
 
     constructor() {
-        // We defer initialization to init()
+        // Initialize Cannon World
+        this.world = new CANNON.World();
+        this.world.gravity.set(0, -9.82, 0); // Standard gravity
+        this.world.broadphase = new CANNON.NaiveBroadphase();
+        (this.world.solver as CANNON.GSSolver).iterations = 10;
+
+        // Ground plane for physics
+        const groundShape = new CANNON.Plane();
+        const groundBody = new CANNON.Body({ mass: 0 }); // Static
+        groundBody.addShape(groundShape);
+        groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+        groundBody.position.set(0, -50, 0); // Well below the first block
+        this.world.addBody(groundBody);
     }
 
     public init(width: number, height: number) {
@@ -66,13 +84,18 @@ export class StackPhysics implements IPhysicsWorld {
     }
 
     public destroy() {
-        // Cleanup if needed
+        // cleanup bodies if necessary
     }
 
     public reset() {
         this.state = GameState.IDLE;
         this.score = 0;
         this.combo = 0;
+
+        // Clean up old bodies
+        this.stack.forEach(b => { if (b.body) this.world.removeBody(b.body); });
+        this.debris.forEach(b => { if (b.body) this.world.removeBody(b.body); });
+
         this.stack = [];
         this.debris = [];
         this.moveAxis = MoveAxis.X;
@@ -80,13 +103,31 @@ export class StackPhysics implements IPhysicsWorld {
         this.currentSpeed = this.MOVE_SPEED_BASE;
 
         // Base block
+        const baseSize = new THREE.Vector3(this.INITIAL_SIZE, this.BLOCK_HEIGHT, this.INITIAL_SIZE);
+        const basePos = new THREE.Vector3(0, 0, 0);
+
+        // Add static body for base block so debris can bounce off it
+        const shape = new CANNON.Box(new CANNON.Vec3(baseSize.x / 2, baseSize.y / 2, baseSize.z / 2));
+        const body = new CANNON.Body({ mass: 0 }); // Static
+        body.addShape(shape);
+        body.position.set(basePos.x, basePos.y, basePos.z);
+        this.world.addBody(body);
+
         this.stack.push({
-            position: new THREE.Vector3(0, 0, 0),
-            size: new THREE.Vector3(this.INITIAL_SIZE, this.BLOCK_HEIGHT, this.INITIAL_SIZE),
-            color: 0xE11D48 // Rose-600
+            position: basePos,
+            size: baseSize,
+            color: 0xE11D48, // Rose-600
+            body: body
         });
 
-        this.spawnNextBlock();
+        // Don't spawn next block yet. Wait for start.
+        this.state = GameState.IDLE;
+    }
+
+    public start() {
+        if (this.state === GameState.IDLE) {
+            this.spawnNextBlock();
+        }
     }
 
     private spawnNextBlock() {
@@ -99,7 +140,7 @@ export class StackPhysics implements IPhysicsWorld {
         pos.y += this.BLOCK_HEIGHT;
 
         // Start from distance
-        const startDist = 150;
+        const startDist = 180;
         if (this.moveAxis === MoveAxis.X) {
             pos.x = -startDist;
         } else {
@@ -118,31 +159,58 @@ export class StackPhysics implements IPhysicsWorld {
 
     private calculateColor(index: number): number {
         // Ketchapp style: Hue shifts according to height
-        const hue = (index * 5) % 360; // 5 degrees shift per block
+        // 5-10 degrees per 10 blocks -> let's say 5 degrees per block on average for smooth transition?
+        // Spec says "Shift Hue 5-10° every 10 blocks". That is 0.5-1 deg per block.
+        // Let's use 1 degree per block for a slow, subtle transition.
+        const hue = index % 360; // 1 degree per block
         const color = new THREE.Color();
-        // S=80%, L=65% for a lighter, "candy-like" pastel look
-        color.setHSL(hue / 360, 0.8, 0.65);
+        // Spec: High Saturation (75%), Mid Lightness (55%) for Zen feel
+        color.setHSL(hue / 360, 0.75, 0.55);
         return color.getHex();
     }
 
     public update(dt: number) {
+        // Step physics world
+        this.world.step(1 / 60, dt / 1000, 3);
+
+        // Sync debris positions and rotations from physics
+        for (let i = this.debris.length - 1; i >= 0; i--) {
+            const deb = this.debris[i];
+            if (deb.body) {
+                deb.position.copy(deb.body.position as any);
+                if (!deb.quaternion) deb.quaternion = new THREE.Quaternion();
+                deb.quaternion.copy(deb.body.quaternion as any);
+            }
+
+            // Remove far away debris
+            if (deb.position.y < -200) {
+                if (deb.body) this.world.removeBody(deb.body);
+                this.debris.splice(i, 1);
+            }
+        }
+
         if (this.state !== GameState.PLAYING || !this.currentBlock) return;
 
         const moveAmount = this.currentSpeed * (dt / 16.66);
         if (this.moveAxis === MoveAxis.X) {
             this.currentBlock.position.x += moveAmount * this.moveDirection;
-            if (Math.abs(this.currentBlock.position.x) > 200) {
+            if (Math.abs(this.currentBlock.position.x) > 220) {
                 this.moveDirection *= -1;
             }
         } else {
             this.currentBlock.position.z += moveAmount * this.moveDirection;
-            if (Math.abs(this.currentBlock.position.z) > 200) {
+            if (Math.abs(this.currentBlock.position.z) > 220) {
                 this.moveDirection *= -1;
             }
         }
     }
 
     public placeBlock(): PhysicsResult {
+        if (this.state === GameState.IDLE) {
+            this.start();
+            return { perfect: false, combo: 0, gameOver: false, score: 0, currentHue: 0 };
+        }
+
         if (!this.currentBlock || this.state !== GameState.PLAYING) {
             return { perfect: false, combo: 0, gameOver: false, score: this.score, currentHue: 0 };
         }
@@ -156,52 +224,79 @@ export class StackPhysics implements IPhysicsWorld {
 
         if (overlap <= 0) {
             this.state = GameState.GAMEOVER;
-            return { perfect: false, combo: 0, gameOver: true, score: this.score, currentHue: (this.stack.length * 5) % 360 };
+
+            // Current block falls as debris
+            this.spawnDebris(
+                this.currentBlock.position,
+                this.currentBlock.size,
+                this.currentBlock.color,
+                new THREE.Vector3(0, 0, 0) // No slice offset, whole block falls
+            );
+
+            return { perfect: false, combo: 0, gameOver: true, score: this.score, currentHue: (this.stack.length) % 360 };
         }
 
         const isPerfect = Math.abs(delta) < this.PERFECT_TOLERANCE;
-        console.log(`[StackPhysics] Block placed. Delta: ${delta.toFixed(2)}, Overlap: ${overlap.toFixed(2)}, Perfect: ${isPerfect}`);
 
         if (isPerfect) {
             this.combo++;
             this.currentBlock.position[axis] = top.position[axis];
             this.currentBlock.size[sizeAxis] = top.size[sizeAxis];
 
-            // Growth Mechanism (Ketchapp Style: Grows after 8 perfects)
+            // Growth Mechanism
             if (this.combo >= this.GROWTH_COMBO_TRIGGER) {
-                // Grow in BOTH directions subtly
-                this.currentBlock.size.x = Math.min(this.currentBlock.size.x + this.GROWTH_AMOUNT, this.INITIAL_SIZE);
-                this.currentBlock.size.z = Math.min(this.currentBlock.size.z + this.GROWTH_AMOUNT, this.INITIAL_SIZE);
-                console.log(`[StackPhysics] GROWTH TRIGGERED! New Size: ${this.currentBlock.size.x.toFixed(2)}x${this.currentBlock.size.z.toFixed(2)}`);
+                // Grow by 10%
+                const growthX = this.currentBlock.size.x * this.GROWTH_AMOUNT_PERCENT;
+                const growthZ = this.currentBlock.size.z * this.GROWTH_AMOUNT_PERCENT;
+
+                this.currentBlock.size.x = Math.min(this.currentBlock.size.x + growthX, this.INITIAL_SIZE);
+                this.currentBlock.size.z = Math.min(this.currentBlock.size.z + growthZ, this.INITIAL_SIZE);
+
+                console.log(`[StackPhysics] GROWTH! New Size: ${this.currentBlock.size.x.toFixed(2)}x${this.currentBlock.size.z.toFixed(2)}`);
             }
         } else {
             this.combo = 0;
 
             // Slice the block
             const oldSize = this.currentBlock.size[sizeAxis];
-            this.currentBlock.size[sizeAxis] = overlap;
-            this.currentBlock.position[axis] = top.position[axis] + delta / 2;
+            const cutSize = Math.abs(delta);
+            const keepSize = overlap;
 
-            // Spawn Debris
-            const debrisSize = oldSize - overlap;
+            this.currentBlock.size[sizeAxis] = keepSize;
+
+            // New center position for the kept part
+            const centerShift = (oldSize - keepSize) / 2;
+            const direction = delta > 0 ? 1 : -1;
+            this.currentBlock.position[axis] = top.position[axis] + (centerShift * direction);
+
+            // Spawn Debris for the cut part
+            const debrisSize = cutSize;
             const debrisPos = this.currentBlock.position.clone();
-            const sign = delta > 0 ? 1 : -1;
-            debrisPos[axis] += (overlap / 2 + debrisSize / 2) * sign;
+            // Debris is offset by (keepSize/2 + debrisSize/2) * direction
+            debrisPos[axis] += (keepSize / 2 + debrisSize / 2) * direction;
 
             const debrisBlockSize = this.currentBlock.size.clone();
             debrisBlockSize[sizeAxis] = debrisSize;
 
-            this.debris.push({
-                position: debrisPos,
-                size: debrisBlockSize,
-                color: this.currentBlock.color
-            });
-            console.log(`[StackPhysics] Sliced! New Size: ${this.currentBlock.size[sizeAxis].toFixed(2)}, Debris Size: ${debrisSize.toFixed(2)}`);
+            this.spawnDebris(debrisPos, debrisBlockSize, this.currentBlock.color);
         }
+
+        // Add static body for the new top block
+        const shape = new CANNON.Box(new CANNON.Vec3(this.currentBlock.size.x / 2, this.currentBlock.size.y / 2, this.currentBlock.size.z / 2));
+        const body = new CANNON.Body({ mass: 0 }); // Static
+        body.addShape(shape);
+        body.position.set(this.currentBlock.position.x, this.currentBlock.position.y, this.currentBlock.position.z);
+        this.world.addBody(body);
+        this.currentBlock.body = body;
 
         this.stack.push(this.currentBlock);
         this.score++;
-        this.currentSpeed = this.MOVE_SPEED_BASE + Math.floor(this.score / 5) * 0.1;
+
+        // Update Speed: Initial V, +0.5% per block, Cap 2.5V
+        // V = 2.0
+        const speedMultiplier = Math.min(1 + (this.score * 0.005), 2.5);
+        this.currentSpeed = this.MOVE_SPEED_BASE * speedMultiplier;
+
         this.spawnNextBlock();
 
         return {
@@ -209,7 +304,40 @@ export class StackPhysics implements IPhysicsWorld {
             combo: this.combo,
             gameOver: false,
             score: this.score,
-            currentHue: (this.stack.length * 5) % 360
+            currentHue: (this.stack.length) % 360
         };
+    }
+
+    private spawnDebris(pos: THREE.Vector3, size: THREE.Vector3, color: number, velocityOffset?: THREE.Vector3) {
+        const shape = new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2));
+        const body = new CANNON.Body({ mass: 5 }); // Dynamic
+        body.addShape(shape);
+        body.position.set(pos.x, pos.y, pos.z);
+
+        // Initial velocity logic
+        // Push it away slightly or just let gravity take it?
+        // If it was moving, maybe impart some velocity?
+        // Let's give it a small push perpendicular to gravity
+        body.velocity.set(
+            (Math.random() - 0.5) * 5,
+            0,
+            (Math.random() - 0.5) * 5
+        );
+
+        // Add random rotation (tumbling)
+        body.angularVelocity.set(
+            Math.random() * 5,
+            Math.random() * 5,
+            Math.random() * 5
+        );
+
+        this.world.addBody(body);
+
+        this.debris.push({
+            position: pos.clone(),
+            size: size.clone(),
+            color: color,
+            body: body
+        });
     }
 }

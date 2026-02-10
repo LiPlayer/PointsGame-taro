@@ -8,8 +8,8 @@ export class StackMaterials {
             this.materials.set(color, new THREE.MeshPhongMaterial({
                 color: color,
                 flatShading: false,
-                specular: 0x333333,
-                shininess: 30
+                specular: 0x222222, // Slight specular for plastic toy look
+                shininess: 10 // Low shininess but not dead matte
             }));
         }
         return this.materials.get(color)!;
