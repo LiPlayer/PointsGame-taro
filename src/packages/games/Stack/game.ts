@@ -44,7 +44,7 @@ export class ThreeGameLoop extends GameLoop {
         const physics = this.physics as any as StackPhysics;
         const topBlock = physics.stack[physics.stack.length - 1];
         if (topBlock) {
-            (this.renderer as StackRender).triggerPerfectRipple(topBlock.position.y, topBlock.size, combo);
+            (this.renderer as StackRender).triggerPerfectRipple(topBlock.position, topBlock.size, combo);
         }
     }
 

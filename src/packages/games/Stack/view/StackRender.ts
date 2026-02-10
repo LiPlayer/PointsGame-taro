@@ -379,7 +379,7 @@ export class StackRender implements IRenderPipeline {
         const topBlock = physics.stack[physics.stack.length - 1];
 
         // Deadzone Follow: Only move if top block exceeds the initial center height (yOffset)
-        if (topBlock) {
+        if (topBlock && !this.isGameOverMode) {
             const targetY = topBlock.position.y - this.yOffset;
             this.cameraTargetY = Math.max(0, targetY);
         }
@@ -453,7 +453,7 @@ export class StackRender implements IRenderPipeline {
         this.cameraTargetY = 0;
     }
 
-    public triggerPerfectRipple(positionY: number, size: THREE.Vector3, combo: number = 1) {
+    public triggerPerfectRipple(position: THREE.Vector3, size: THREE.Vector3, combo: number = 1) {
         const isStatic = combo <= 3;
         const rippleCount = isStatic ? 1 : Math.min(combo - 3, 8); // Only one ring if static
 
@@ -474,7 +474,7 @@ export class StackRender implements IRenderPipeline {
             });
 
             const ripple = new THREE.LineLoop(geometry, material) as unknown as RippleMesh;
-            ripple.position.set(0, positionY + (size.y / 2) + 0.01, 0);
+            ripple.position.set(position.x, position.y + (size.y / 2) + 0.01, position.z);
             ripple.life = 1.0;
             ripple.maxLife = 1.0;
             ripple.baseScale = 1.0;
