@@ -27,7 +27,8 @@ export class StackRender implements IRenderPipeline {
     private perfectFlashMesh: THREE.Mesh | null = null;
     private perfectFlashIntensity: number = 0;
     private debrisMeshes: DebrisMesh[] = [];
-    private particles: THREE.Points | null = null;
+    private bgParticles: THREE.Points | null = null;
+    private fgParticles: THREE.Points | null = null;
 
     private sharedGeometry: THREE.BoxGeometry;
 
@@ -64,10 +65,6 @@ export class StackRender implements IRenderPipeline {
 
         this.createParticles();
         this.setupLights();
-
-        // Debug: XYZ Axes
-        const axesHelper = new THREE.AxesHelper(5);
-        this.scene.add(axesHelper);
     }
 
     private setupLights() {
@@ -98,30 +95,38 @@ export class StackRender implements IRenderPipeline {
     }
 
     private createParticles() {
-        const particleCount = 60;
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const sizes = new Float32Array(particleCount);
+        const createPoints = (count: number, xRange: [number, number], zRange: [number, number], opacity: number) => {
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(count * 3);
+            const sizes = new Float32Array(count);
 
-        for (let i = 0; i < particleCount; i++) {
-            positions[i * 3] = (Math.random() - 0.5) * 4.0;
-            positions[i * 3 + 1] = (Math.random() - 0.5) * 6.0;
-            positions[i * 3 + 2] = (Math.random() - 0.5) * 4.0;
-            sizes[i] = Math.random() < 0.3 ? 3 : 2;
-        }
+            for (let i = 0; i < count; i++) {
+                positions[i * 3] = xRange[0] + Math.random() * (xRange[1] - xRange[0]);
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 6.0;
+                positions[i * 3 + 2] = zRange[0] + Math.random() * (zRange[1] - zRange[0]);
+                sizes[i] = Math.random() < 0.3 ? 3 : 2;
+            }
 
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-        const material = new THREE.PointsMaterial({
-            color: 0xFFFFFF,
-            size: 3,
-            sizeAttenuation: false,
-            transparent: true,
-            opacity: 0.4
-        });
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+            const material = new THREE.PointsMaterial({
+                color: 0xFFFFFF,
+                size: 3,
+                sizeAttenuation: false,
+                transparent: true,
+                opacity: opacity
+            });
 
-        this.particles = new THREE.Points(geometry, material);
-        this.scene.add(this.particles);
+            return new THREE.Points(geometry, material);
+        };
+
+        // Background Particles (Behind the tower from camera 3,3,3)
+        this.bgParticles = createPoints(30, [-4.0, -1.0], [-4.0, -1.0], 0.3);
+        this.scene.add(this.bgParticles);
+
+        // Foreground Particles (In front of the tower)
+        this.fgParticles = createPoints(30, [1.0, 4.0], [1.0, 4.0], 0.5);
+        this.scene.add(this.fgParticles);
     }
 
     public init(canvas: any, width: number, height: number, dpr: number) {
@@ -356,14 +361,18 @@ export class StackRender implements IRenderPipeline {
     }
 
     private updateParticles() {
-        if (!this.particles) return;
-        const positions = this.particles.geometry.attributes.position.array as Float32Array;
-        for (let i = 1; i < positions.length; i += 3) {
-            positions[i] += 0.002;
-            if (positions[i] > 4.0) positions[i] = -2.0;
-        }
-        this.particles.geometry.attributes.position.needsUpdate = true;
-        this.particles.position.y = this.currentCameraY * 0.8;
+        const animate = (points: THREE.Points, speedMultiplier: number) => {
+            const positions = points.geometry.attributes.position.array as Float32Array;
+            for (let i = 1; i < positions.length; i += 3) {
+                positions[i] += 0.001 * speedMultiplier;
+                if (positions[i] > 4.0) positions[i] = -2.0;
+            }
+            points.geometry.attributes.position.needsUpdate = true;
+            points.position.y = this.currentCameraY * 0.8;
+        };
+
+        if (this.bgParticles) animate(this.bgParticles, 0.8);
+        if (this.fgParticles) animate(this.fgParticles, 1.2);
     }
 
     private updateCamera(physics: StackPhysics) {
@@ -554,6 +563,8 @@ export class StackRender implements IRenderPipeline {
         this.debrisMeshes = [];
         if (this.currentBlockMesh) this.scene.remove(this.currentBlockMesh);
         if (this.perfectFlashMesh) this.scene.remove(this.perfectFlashMesh);
+        if (this.bgParticles) this.scene.remove(this.bgParticles);
+        if (this.fgParticles) this.scene.remove(this.fgParticles);
         this.sharedGeometry.dispose();
         StackMaterials.clear();
         this.renderer?.dispose();
