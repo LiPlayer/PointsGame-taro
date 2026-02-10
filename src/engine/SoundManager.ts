@@ -37,10 +37,16 @@ export class SoundManager {
         }
     }
 
-    public playTone(freq: number, type: 'sine' | 'square' | 'sawtooth' | 'triangle' = 'sine', duration: number = 0.1, vol: number = 0.1) {
+    public playTone(freq: number, type: 'sine' | 'square' | 'sawtooth' | 'triangle' = 'sine', duration: number = 0.1, vol: number = 0.1, pan: number = 0) {
         if (!this.ctx) return;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
+
+        let panner: StereoPannerNode | null = null;
+        if (this.ctx.createStereoPanner) {
+            panner = this.ctx.createStereoPanner();
+            panner.pan.value = Math.max(-1, Math.min(1, pan));
+        }
 
         // Small lookahead to ensure synchronization and prevent dropped notes
         const startTime = this.ctx.currentTime + 0.01;
@@ -55,7 +61,12 @@ export class SoundManager {
         gain.gain.linearRampToValueAtTime(0.001, endTime);
 
         osc.connect(gain);
-        gain.connect(this.ctx.destination);
+        if (panner) {
+            gain.connect(panner);
+            panner.connect(this.ctx.destination);
+        } else {
+            gain.connect(this.ctx.destination);
+        }
 
         osc.start(startTime);
         osc.stop(endTime);
@@ -64,7 +75,7 @@ export class SoundManager {
     /**
      * Plays a burst of white noise (useful for impacts/grit)
      */
-    public playNoise(duration: number = 0.1, vol: number = 0.1, filterFreq: number = 2000) {
+    public playNoise(duration: number = 0.1, vol: number = 0.1, filterFreq: number = 2000, pan: number = 0) {
         if (!this.ctx) return;
 
         const bufferSize = this.ctx.sampleRate * duration;
@@ -81,6 +92,12 @@ export class SoundManager {
         const gain = this.ctx.createGain();
         const filter = this.ctx.createBiquadFilter();
 
+        let panner: StereoPannerNode | null = null;
+        if (this.ctx.createStereoPanner) {
+            panner = this.ctx.createStereoPanner();
+            panner.pan.value = Math.max(-1, Math.min(1, pan));
+        }
+
         const startTime = this.ctx.currentTime + 0.01;
         const endTime = startTime + duration;
 
@@ -92,7 +109,12 @@ export class SoundManager {
 
         source.connect(filter);
         filter.connect(gain);
-        gain.connect(this.ctx.destination);
+        if (panner) {
+            gain.connect(panner);
+            panner.connect(this.ctx.destination);
+        } else {
+            gain.connect(this.ctx.destination);
+        }
 
         source.start(startTime);
         source.stop(endTime);
@@ -101,11 +123,17 @@ export class SoundManager {
     /**
      * Plays a percussive impact with a pitch envelope (sweep)
      */
-    public playImpact(startFreq: number, endFreq: number, duration: number = 0.1, vol: number = 0.1) {
+    public playImpact(startFreq: number, endFreq: number, duration: number = 0.1, vol: number = 0.1, pan: number = 0) {
         if (!this.ctx) return;
 
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
+
+        let panner: StereoPannerNode | null = null;
+        if (this.ctx.createStereoPanner) {
+            panner = this.ctx.createStereoPanner();
+            panner.pan.value = Math.max(-1, Math.min(1, pan));
+        }
 
         // Small lookahead
         const startTime = this.ctx.currentTime + 0.01;
@@ -122,7 +150,12 @@ export class SoundManager {
         gain.gain.linearRampToValueAtTime(0.001, endTime);
 
         osc.connect(gain);
-        gain.connect(this.ctx.destination);
+        if (panner) {
+            gain.connect(panner);
+            panner.connect(this.ctx.destination);
+        } else {
+            gain.connect(this.ctx.destination);
+        }
 
         osc.start(startTime);
         osc.stop(endTime);

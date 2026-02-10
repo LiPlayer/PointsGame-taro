@@ -134,7 +134,18 @@ const StackGame = () => {
             }
         } else {
             // Ordinary placement gets ONLY a "Tick" sound (Clean, no Slice/Fall)
-            StackAudio.playTick();
+            // Dynamic Audio: Calculate Scale and Pan
+            const top = physics.stack[physics.stack.length - 1];
+            if (top) {
+                // Scale relative to initial size (1.0)
+                // We use X*Z area to approximate "mass"
+                const area = top.size.x * top.size.z;
+                const scale = Math.min(1.0, Math.max(0.1, area));
+
+                StackAudio.playTick(scale);
+            } else {
+                StackAudio.playTick();
+            }
         }
     }, [bestScore, gameOver]);
 
