@@ -118,7 +118,7 @@ const StackGame = () => {
             StackAudio.playPerfect(physics.combo);
 
             // Trigger Perfect Ripple VFX
-            loopRef.current.triggerPerfectRipple();
+            loopRef.current.triggerPerfectRipple(physics.combo);
             // loopRef.current.triggerPerfectFlash(physics.combo); // Removed
 
             // Trigger haptic if in WeApp

@@ -12,6 +12,7 @@ interface RippleMesh extends THREE.LineLoop {
     life: number;
     maxLife: number;
     baseScale: number;
+    delay: number;
 }
 
 export class StackRender implements IRenderPipeline {
@@ -253,23 +254,37 @@ export class StackRender implements IRenderPipeline {
         // Feature removed
     }
 
-    public triggerPerfectRipple(positionY: number, size: THREE.Vector3) {
-        const halfW = size.x / 2 + 5;
-        const halfD = size.z / 2 + 5;
-        const geometry = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(-halfW, 0, -halfD),
-            new THREE.Vector3(halfW, 0, -halfD),
-            new THREE.Vector3(halfW, 0, halfD),
-            new THREE.Vector3(-halfW, 0, halfD),
-        ]);
-        const material = new THREE.LineBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.8 });
-        const ripple = new THREE.LineLoop(geometry, material) as unknown as RippleMesh;
-        ripple.position.set(0, positionY + (size.y / 2) + 1, 0);
-        ripple.life = 1.0;
-        ripple.maxLife = 1.0;
-        ripple.baseScale = 1.0;
-        this.scene.add(ripple);
-        this.rippleMeshes.push(ripple);
+    public triggerPerfectRipple(positionY: number, size: THREE.Vector3, combo: number = 1) {
+        const rippleCount = Math.min(combo, 8); // Cap ripples at 8 for performance
+
+        for (let i = 0; i < rippleCount; i++) {
+            const halfW = size.x / 2 + 5;
+            const halfD = size.z / 2 + 5;
+            const geometry = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(-halfW, 0, -halfD),
+                new THREE.Vector3(halfW, 0, -halfD),
+                new THREE.Vector3(halfW, 0, halfD),
+                new THREE.Vector3(-halfW, 0, halfD),
+            ]);
+
+            const material = new THREE.LineBasicMaterial({
+                color: 0xFFFFFF,
+                transparent: true,
+                opacity: 0
+            });
+
+            const ripple = new THREE.LineLoop(geometry, material) as unknown as RippleMesh;
+            ripple.position.set(0, positionY + (size.y / 2) + 1, 0);
+            ripple.life = 1.0;
+            ripple.maxLife = 1.0;
+            ripple.baseScale = 1.0;
+            ripple.scale.set(1.0, 1, 1.0);
+            // Non-linear delay for increasing intervals between rings
+            ripple.delay = i * (i + 6);
+
+            this.scene.add(ripple);
+            this.rippleMeshes.push(ripple);
+        }
     }
 
     public triggerScreenShake(intensity: number = 10) {
@@ -279,11 +294,27 @@ export class StackRender implements IRenderPipeline {
     private updateRipples() {
         for (let i = this.rippleMeshes.length - 1; i >= 0; i--) {
             const ripple = this.rippleMeshes[i];
-            ripple.scale.x += 0.15;
-            ripple.scale.z += 0.15;
-            ripple.life -= 0.05;
+
+            if (ripple.delay > 0) {
+                ripple.delay--;
+                continue;
+            }
+
+            // Non-linear Expansion (Ease-Out)
+            // Starts faster, slows down as life decreases
+            const expansionFactor = 0.15 * (ripple.life / ripple.maxLife);
+            ripple.scale.x += expansionFactor;
+            ripple.scale.z += expansionFactor;
+
+            // Linear life decay
+            ripple.life -= 0.025;
+
+            // Non-linear Opacity (Quadratic Ease-Out)
+            // Linger longer at high opacity, then fade smoothly
             const material = ripple.material as THREE.LineBasicMaterial;
-            material.opacity = ripple.life / ripple.maxLife * 0.8;
+            const t = 1.0 - (ripple.life / ripple.maxLife); // Normalized time 0 -> 1
+            material.opacity = (1.0 - t * t) * 0.8;
+
             if (ripple.life <= 0) {
                 this.scene.remove(ripple);
                 ripple.geometry.dispose();
