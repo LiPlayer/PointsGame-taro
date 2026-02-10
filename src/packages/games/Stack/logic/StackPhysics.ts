@@ -70,13 +70,7 @@ export class StackPhysics implements IPhysicsWorld {
         this.world.broadphase = new CANNON.NaiveBroadphase();
         (this.world.solver as CANNON.GSSolver).iterations = 10;
 
-        // Ground plane for physics
-        const groundShape = new CANNON.Plane();
-        const groundBody = new CANNON.Body({ mass: 0 }); // Static
-        groundBody.addShape(groundShape);
-        groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-        groundBody.position.set(0, -50, 0); // Well below the first block
-        this.world.addBody(groundBody);
+        // Ground plane removed per user request - debris falls into the void.
     }
 
     public init(width: number, height: number) {
@@ -198,7 +192,8 @@ export class StackPhysics implements IPhysicsWorld {
 
             // Remove debris only when it's well below the current tower top
             // (Relative to the top block to ensure it's off-camera)
-            if (deb.position.y < topY - 500) {
+            // Increased to 800 to ensure it falls through the visible tower/background
+            if (deb.position.y < topY - 800) {
                 if (deb.body) this.world.removeBody(deb.body);
                 this.debris.splice(i, 1);
             }
@@ -338,22 +333,11 @@ export class StackPhysics implements IPhysicsWorld {
         body.addShape(shape);
         body.position.set(pos.x, pos.y, pos.z);
 
-        // Initial velocity logic
-        // Push it away slightly or just let gravity take it?
-        // If it was moving, maybe impart some velocity?
-        // Let's give it a small push perpendicular to gravity
-        body.velocity.set(
-            (Math.random() - 0.5) * 5,
-            0,
-            (Math.random() - 0.5) * 5
-        );
+        // Initial velocity logic: Set to zero for "stay still first"
+        body.velocity.set(0, 0, 0);
 
-        // Add random rotation (tumbling)
-        body.angularVelocity.set(
-            Math.random() * 5,
-            Math.random() * 5,
-            Math.random() * 5
-        );
+        // Initial angular velocity: Set to zero for no initial tumbling
+        body.angularVelocity.set(0, 0, 0);
 
         this.world.addBody(body);
 

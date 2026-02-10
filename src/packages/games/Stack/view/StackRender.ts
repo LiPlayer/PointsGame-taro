@@ -268,7 +268,7 @@ export class StackRender implements IRenderPipeline {
             const mesh = this.debrisMeshes[i];
             const data = physics.debris[i];
 
-            if (!data || data.position.y < this.currentCameraY - 250) {
+            if (!data || data.position.y < this.currentCameraY - 400) {
                 this.scene.remove(mesh);
                 this.debrisMeshes.splice(i, 1);
                 continue;
