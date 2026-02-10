@@ -49,7 +49,7 @@ export class StackPhysics implements IPhysicsWorld {
 
     // Constants
     private readonly INITIAL_SIZE = 100;
-    private readonly BLOCK_HEIGHT = 20;
+    private readonly BLOCK_HEIGHT = 10;
     private readonly PERFECT_TOLERANCE = 3.0; // Units - defined in spec
     private readonly GROWTH_COMBO_TRIGGER = 8;
     private readonly GROWTH_AMOUNT_PERCENT = 0.10; // 10% size increase
@@ -60,9 +60,9 @@ export class StackPhysics implements IPhysicsWorld {
     private currentSpeed: number = 2.0;
 
     private startHue: number = 0;
-    private readonly HUE_SHIFT_PER_BLOCK = 4; // 3-5 degrees
-    private readonly SATURATION = 0.60;
-    private readonly LIGHTNESS = 0.65;
+    private readonly HUE_SHIFT_PER_BLOCK = 60; // 3-5 degrees
+    private readonly SATURATION = 1.0;
+    private readonly LIGHTNESS = 0.8;
 
     constructor() {
         // Initialize Cannon World
