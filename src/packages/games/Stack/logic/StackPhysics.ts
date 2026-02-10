@@ -214,8 +214,8 @@ export class StackPhysics implements IPhysicsWorld {
         const moveAmount = this.currentSpeed * (safeDt / 16.66);
         // console.log('[StackPhysics] Update: dt=', dt, 'move=', moveAmount, 'pos=', this.currentBlock.position); // Debug
 
-        const top = this.stack[this.stack.length - 1];
-        const range = top.size[this.moveAxis === MoveAxis.X ? 'x' : 'z'] * 1.15; // Range reduced to 1.15x to keep block near screen edge
+        // range fixed to 1.5 * INITIAL_SIZE as per spec
+        const range = this.INITIAL_SIZE * 1.5;
 
         if (this.moveAxis === MoveAxis.X) {
             this.currentBlock.position.x += moveAmount * this.moveDirection;
