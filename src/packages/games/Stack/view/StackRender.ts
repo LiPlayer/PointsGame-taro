@@ -127,7 +127,7 @@ export class StackRender implements IRenderPipeline {
         this.camera.updateProjectionMatrix();
     }
 
-    public render(physics: IPhysicsWorld, alpha: number) {
+    public render(physics: IPhysicsWorld) {
         if (!this.renderer) return;
 
         const stackPhysics = physics as StackPhysics;

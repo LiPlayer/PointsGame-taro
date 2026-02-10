@@ -136,9 +136,11 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
         -   WeApp 环境：`resolution = min(devicePixelRatio, 1.5)`
 
 3.  **时间步长 (Time Step)**
-    -   **Fixed Timestep (60Hz)**: 物理更新强制锁定 `16.66ms`，确保确定性。
-    -   **渲染插值 (Interpolation)**: `render(alpha)` 接收插值因子 `alpha`，用于在逻辑帧之间平滑过渡，消除高刷屏抖动。
-    -   **60Hz 锁定优化**: 对原生 60Hz 屏幕自动锁定 `deltaTime`，消除浮点误差。
+    -   **Variable Timestep (全变速)**: 物理更新基于真实 `deltaTime`，最大程度利用高刷屏流畅度。
+    -   **直接渲染**: 不再使用插值 (`alpha`)，渲染器直接绘制物理引擎的当前状态。
+    -   **安全限制**:
+        -   `MIN_DT`: 1ms (防止除零)
+        -   `MAX_DT`: 64ms (防止卡顿穿模)
 
 4.  **标准化接口 (Standard Interfaces)**
 
@@ -148,7 +150,7 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
     // src/engine/IPhysicsWorld.ts
     interface IPhysicsWorld {
       init(width: number, height: number): void // 接收逻辑宽高
-      update(dt: number): void // 固定步长 dt (ms)
+      update(dt: number): void // 可变步长 dt (ms)
       resize(w: number, h: number): void
       destroy(): void
     }
@@ -156,7 +158,7 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
     // src/engine/IRenderPipeline.ts
     interface IRenderPipeline {
       init(canvas: any, width: number, height: number, dpr: number): void
-      render(physics: IPhysicsWorld, alpha: number): void // alpha 用于插值
+      render(physics: IPhysicsWorld): void // 直接渲染
       destroy(): void
     }
     ```
@@ -170,8 +172,8 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
         super(new MyPhysics(), new MyRenderer(pixi), canvas, w, h)
       }
       
-      protected onFixedUpdate() { 
-        // 可选：处理点击事件/输入
+      protected onUpdate(dt: number) { 
+        // 可选：每帧逻辑 update
       }
     }
     ```

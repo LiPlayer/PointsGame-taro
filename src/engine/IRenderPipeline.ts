@@ -10,8 +10,8 @@ export interface IRenderPipeline {
     /** 初始化渲染器 */
     init(canvas: any, width: number, height: number, dpr: number): void
 
-    /** 渲染一帧，alpha 用于插值 */
-    render(physics: IPhysicsWorld, alpha: number): void
+    /** 渲染一帧 */
+    render(physics: IPhysicsWorld): void
 
     /** 销毁渲染器 */
     destroy(): void

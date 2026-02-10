@@ -20,9 +20,6 @@ export class GameLoop {
     public onFirstFrameRendered?: () => void
     protected hasRenderedFirstFrame: boolean = false
 
-    // Fixed time step (60Hz = 16.66ms)
-    protected readonly fixedDelta: number = 1000 / 60
-
     constructor(
         physics: IPhysicsWorld,
         renderer: IRenderPipeline,
@@ -58,7 +55,6 @@ export class GameLoop {
         this.renderer.init(this.params.canvas, this.params.width, this.params.height, this.params.dpr)
         this.isRunning = true
         this.lastTime = performance.now()
-        this.accumulator = 0
 
         requestAnimationFrame(this.loop.bind(this))
     }
@@ -85,35 +81,20 @@ export class GameLoop {
         let deltaTime = time - this.lastTime
         this.lastTime = time
 
-        // 60Hz Timestep Lock (Mobile Optimization)
-        let isLocked = false
-        if (Math.abs(deltaTime - this.fixedDelta) < 4) {
-            deltaTime = this.fixedDelta
-            isLocked = true
-        }
+        // Variable Timestep: No Accumulator Logic
+        // We use the safeDelta calculated below for physics updates
 
-        // Clamp deltaTime to avoid "spiral of death" on lag spikes
-        this.accumulator += Math.min(deltaTime, 100)
+        // Variable Timestep (No Lock)
+        // Clamp deltaTime to avoid giant leaps or tiny steps
+        const safeDelta = Math.min(deltaTime, 64) // Max ~15fps latency simulation
+        const dt = Math.max(safeDelta, 1) // Min 1ms to avoid zero-division in physics
 
-        // Snap accumulator to avoid tiny float drifts
-        if (Math.abs(this.accumulator - this.fixedDelta) < 2) {
-            this.accumulator = this.fixedDelta
-        }
+        // Update Physics directly with variable time
+        this.onUpdate(dt) // Hook for custom logic
+        this.physics.update(dt)
 
-        // Fixed Update
-        let steps = 0
-        while (this.accumulator >= this.fixedDelta && steps < 5) {
-            this.onFixedUpdate()
-            this.physics.update(this.fixedDelta)
-            this.accumulator -= this.fixedDelta
-            steps++
-        }
-
-        // Interpolation alpha
-        const alpha = isLocked ? 1.0 : this.accumulator / this.fixedDelta
-
-        // Render
-        this.renderer.render(this.physics, alpha)
+        // Render current state
+        this.renderer.render(this.physics)
 
         if (!this.hasRenderedFirstFrame) {
             this.hasRenderedFirstFrame = true
@@ -125,8 +106,8 @@ export class GameLoop {
         requestAnimationFrame(this.loop.bind(this))
     }
 
-    /** Override this for custom per-fixed-step logic (e.g., input handling) */
-    protected onFixedUpdate(): void {
+    /** Override this for custom per-frame logic (e.g., input handling) */
+    protected onUpdate(dt: number): void {
         // Override in subclass if needed
     }
 }
