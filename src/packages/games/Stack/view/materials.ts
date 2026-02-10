@@ -1,18 +1,21 @@
 import * as THREE from 'three';
 
 export class StackMaterials {
-    private static materials: Map<number, THREE.MeshPhongMaterial> = new Map();
+    private static materials: Map<number, THREE.Material> = new Map();
 
-    public static getMaterial(color: number): THREE.MeshPhongMaterial {
+    public static getMaterial(color: number): THREE.MeshStandardMaterial {
         if (!this.materials.has(color)) {
-            this.materials.set(color, new THREE.MeshPhongMaterial({
+            const material = new THREE.MeshStandardMaterial({
                 color: color,
-                flatShading: false,
-                specular: 0x222222, // Slight specular for plastic toy look
-                shininess: 10 // Low shininess but not dead matte
-            }));
+                flatShading: false, // Smooth shading for roundness if we had it, but box is sharp.
+                roughness: 0.4, // Smoother plastic
+                metalness: 0.1, // Slight reflection
+                emissive: color,
+                emissiveIntensity: 0.1 // Slight inner glow for "Jelly" look
+            });
+            this.materials.set(color, material);
         }
-        return this.materials.get(color)!;
+        return this.materials.get(color) as THREE.MeshStandardMaterial;
     }
 
     public static clear() {

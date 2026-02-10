@@ -27,7 +27,7 @@ export interface PhysicsResult {
     combo: number;
     gameOver: boolean;
     score: number;
-    currentHue: number;
+    currentColor: number;
 }
 
 export class StackPhysics implements IPhysicsWorld {
@@ -157,16 +157,36 @@ export class StackPhysics implements IPhysicsWorld {
         this.state = GameState.PLAYING;
     }
 
+    // Ketchapp "Stack" Original Color Palette (Approximation)
+    // The game cycles through these specific "Target Colors".
+    private readonly COLOR_PALETTE = [
+        0xf25367, // Rose Red
+        0xf29c42, // Orange
+        0xf2d634, // Yellow
+        0x58c554, // Green
+        0x3db5e4, // Blue
+        0x8e4fd6, // Purple
+        0xf25367  // Loop back to Rose
+    ];
+
     private calculateColor(index: number): number {
-        // Ketchapp style: Hue shifts according to height
-        // 5-10 degrees per 10 blocks -> let's say 5 degrees per block on average for smooth transition?
-        // Spec says "Shift Hue 5-10° every 10 blocks". That is 0.5-1 deg per block.
-        // Let's use 1 degree per block for a slow, subtle transition.
-        const hue = index % 360; // 1 degree per block
-        const color = new THREE.Color();
-        // Spec: High Saturation (75%), Mid Lightness (55%) for Zen feel
-        color.setHSL(hue / 360, 0.75, 0.55);
-        return color.getHex();
+        // Cycle length: How many blocks to transition between two palette colors?
+        // Ketchapp is quite fast, maybe 15-20 blocks per transition.
+        const SEGMENT_LENGTH = 15;
+
+        const totalSegments = this.COLOR_PALETTE.length - 1;
+        const cycleLength = totalSegments * SEGMENT_LENGTH;
+
+        const wrappedIndex = index % cycleLength;
+        const segmentIndex = Math.floor(wrappedIndex / SEGMENT_LENGTH);
+        const segmentProgress = (wrappedIndex % SEGMENT_LENGTH) / SEGMENT_LENGTH;
+
+        const colorStart = new THREE.Color(this.COLOR_PALETTE[segmentIndex]);
+        const colorEnd = new THREE.Color(this.COLOR_PALETTE[segmentIndex + 1]);
+
+        colorStart.lerp(colorEnd, segmentProgress);
+
+        return colorStart.getHex();
     }
 
     public update(dt: number) {
@@ -208,11 +228,11 @@ export class StackPhysics implements IPhysicsWorld {
     public placeBlock(): PhysicsResult {
         if (this.state === GameState.IDLE) {
             this.start();
-            return { perfect: false, combo: 0, gameOver: false, score: 0, currentHue: 0 };
+            return { perfect: false, combo: 0, gameOver: false, score: 0, currentColor: this.COLOR_PALETTE[0] };
         }
 
         if (!this.currentBlock || this.state !== GameState.PLAYING) {
-            return { perfect: false, combo: 0, gameOver: false, score: this.score, currentHue: 0 };
+            return { perfect: false, combo: 0, gameOver: false, score: this.score, currentColor: this.calculateColor(this.stack.length) };
         }
 
         const top = this.stack[this.stack.length - 1];
@@ -233,7 +253,7 @@ export class StackPhysics implements IPhysicsWorld {
                 new THREE.Vector3(0, 0, 0) // No slice offset, whole block falls
             );
 
-            return { perfect: false, combo: 0, gameOver: true, score: this.score, currentHue: (this.stack.length) % 360 };
+            return { perfect: false, combo: 0, gameOver: true, score: this.score, currentColor: this.calculateColor(this.stack.length) };
         }
 
         const isPerfect = Math.abs(delta) < this.PERFECT_TOLERANCE;
@@ -304,7 +324,7 @@ export class StackPhysics implements IPhysicsWorld {
             combo: this.combo,
             gameOver: false,
             score: this.score,
-            currentHue: (this.stack.length) % 360
+            currentColor: this.calculateColor(this.stack.length)
         };
     }
 

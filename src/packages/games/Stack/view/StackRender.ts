@@ -187,7 +187,11 @@ export class StackRender implements IRenderPipeline {
             this.currentBlockMesh.position.copy(physics.currentBlock.position);
             this.currentBlockMesh.scale.copy(physics.currentBlock.size);
             // Updating Material color if needed (optimization: reusing material)
-            this.currentBlockMesh.material = StackMaterials.getMaterial(physics.currentBlock.color);
+            // Assuming 'top' in the instruction refers to 'physics.currentBlock' for syntactic correctness.
+            if (physics.currentBlock) {
+                const material = StackMaterials.getMaterial(physics.currentBlock.color);
+                this.currentBlockMesh.material = material;
+            }
             this.currentBlockMesh.visible = true;
         } else if (this.currentBlockMesh) {
             this.currentBlockMesh.visible = false;

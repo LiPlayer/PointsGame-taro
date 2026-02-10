@@ -12,7 +12,7 @@ const StackGame = () => {
     const [ready, setReady] = useState(false);
     const [score, setScore] = useState(0);
     const [combo, setCombo] = useState(0);
-    const [hue, setHue] = useState(0); // Initial hue
+    const [bgColor, setBgColor] = useState<number>(0xf25367); // Initial color (Rose Red)
     const [gameOver, setGameOver] = useState(false);
     const [deathFlash, setDeathFlash] = useState(false);
     const [bestScore, setBestScore] = useState(0);
@@ -62,7 +62,6 @@ const StackGame = () => {
             loopRef.current?.destroy();
         };
     }, [ready]);
-
     const handleTap = useCallback(() => {
         if (!loopRef.current) return;
 
@@ -71,7 +70,7 @@ const StackGame = () => {
 
         setScore(physics.score);
         setCombo(physics.combo);
-        setHue(result.currentHue);
+        setBgColor(result.currentColor);
 
         if (result.gameOver) {
             console.log('[StackGame] Game Over detected. Score:', physics.score);
@@ -113,16 +112,19 @@ const StackGame = () => {
         } else {
             StackAudio.playSlice();
         }
-    }, []);
+    }, [bestScore]);
 
     return (
         <View
             className="relative w-full h-full flex flex-col items-center overflow-hidden"
             style={{
-                // Analogous: Hue + 40°, Low Saturation (40%), High Lightness (85%)
-                background: `linear-gradient(to bottom, hsl(${(hue + 40) % 360}, 40%, 85%) 0%, hsl(${(hue + 40) % 360}, 50%, 75%) 100%)`,
+                // Radial Gradient: Lighter center, Darker edge
+                // Background: Base Color (from Physics)
+                // Inner: Radial Gradient White Overlay -> Transparent for Vignette effect
+                backgroundColor: bgColor,
+                backgroundImage: 'radial-gradient(circle at 50% 30%, rgba(255,255,255,0.2) 0%, rgba(0,0,0,0) 70%)',
                 perspective: '1000px',
-                transition: 'background 0.5s ease'
+                transition: 'background-color 0.5s ease'
             }}
             onTouchStart={handleTap}
         >
