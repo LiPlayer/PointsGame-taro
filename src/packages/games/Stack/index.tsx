@@ -117,9 +117,9 @@ const StackGame = () => {
             console.log('[StackGame] Perfect placement! Combo:', physics.combo);
             StackAudio.playPerfect(physics.combo);
 
-            // Trigger Perfect Ripple & Flash VFX
+            // Trigger Perfect Ripple VFX
             loopRef.current.triggerPerfectRipple();
-            loopRef.current.triggerPerfectFlash(physics.combo);
+            // loopRef.current.triggerPerfectFlash(physics.combo); // Removed
 
             // Trigger haptic if in WeApp
             if (process.env.TARO_ENV === 'weapp') {

@@ -216,25 +216,7 @@ export class StackRender implements IRenderPipeline {
     }
 
     private updatePerfectFlash(physics: StackPhysics) {
-        if (this.perfectFlashIntensity > 0) {
-            if (!this.perfectFlashMesh) {
-                const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
-                this.perfectFlashMesh = new THREE.Mesh(this.sharedGeometry, mat);
-                this.scene.add(this.perfectFlashMesh);
-            }
-            const topBlock = physics.stack[physics.stack.length - 1];
-            if (topBlock) {
-                this.perfectFlashMesh.position.copy(topBlock.position);
-                this.perfectFlashMesh.scale.copy(topBlock.size).addScalar(0.2);
-                (this.perfectFlashMesh.material as THREE.MeshBasicMaterial).opacity = this.perfectFlashIntensity;
-                this.perfectFlashMesh.visible = true;
-            }
-            this.perfectFlashIntensity *= 0.85;
-            if (this.perfectFlashIntensity < 0.01) {
-                this.perfectFlashIntensity = 0;
-                this.perfectFlashMesh.visible = false;
-            }
-        }
+        // Feature removed per user request
     }
 
     private updateParticles() {
@@ -266,7 +248,7 @@ export class StackRender implements IRenderPipeline {
     }
 
     public triggerPerfectFlash(combo: number) {
-        this.perfectFlashIntensity = Math.min(0.4 + (combo * 0.08), 0.95);
+        // Feature removed
     }
 
     public triggerPerfectRipple(positionY: number, size: THREE.Vector3) {
