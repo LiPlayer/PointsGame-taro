@@ -98,16 +98,30 @@ export class StackRender implements IRenderPipeline {
         const createPoints = (count: number, xRange: [number, number], zRange: [number, number], opacity: number) => {
             const geometry = new THREE.BufferGeometry();
             const positions = new Float32Array(count * 3);
+            const basePositions = new Float32Array(count * 3);
+            const phases = new Float32Array(count);
             const sizes = new Float32Array(count);
 
             for (let i = 0; i < count; i++) {
-                positions[i * 3] = xRange[0] + Math.random() * (xRange[1] - xRange[0]);
-                positions[i * 3 + 1] = (Math.random() - 0.5) * 6.0;
-                positions[i * 3 + 2] = zRange[0] + Math.random() * (zRange[1] - zRange[0]);
+                const x = xRange[0] + Math.random() * (xRange[1] - xRange[0]);
+                const y = (Math.random() - 0.5) * 6.0;
+                const z = zRange[0] + Math.random() * (zRange[1] - zRange[0]);
+
+                positions[i * 3] = x;
+                positions[i * 3 + 1] = y;
+                positions[i * 3 + 2] = z;
+
+                basePositions[i * 3] = x;
+                basePositions[i * 3 + 1] = y;
+                basePositions[i * 3 + 2] = z;
+
+                phases[i] = Math.random() * Math.PI * 2;
                 sizes[i] = Math.random() < 0.3 ? 3 : 2;
             }
 
             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('basePosition', new THREE.BufferAttribute(basePositions, 3));
+            geometry.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
             geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
             const material = new THREE.PointsMaterial({
                 color: 0xFFFFFF,
@@ -363,11 +377,23 @@ export class StackRender implements IRenderPipeline {
     private updateParticles() {
         const animate = (points: THREE.Points, speedMultiplier: number) => {
             const positions = points.geometry.attributes.position.array as Float32Array;
-            for (let i = 1; i < positions.length; i += 3) {
-                positions[i] += 0.001 * speedMultiplier;
-                if (positions[i] > 4.0) positions[i] = -2.0;
+            const basePos = points.geometry.attributes.basePosition.array as Float32Array;
+            const phase = points.geometry.attributes.phase.array as Float32Array;
+            const time = Date.now() * 0.001;
+
+            for (let i = 0; i < phase.length; i++) {
+                const idx = i * 3;
+                // Vertical movement on basePosition
+                basePos[idx + 1] += 0.001 * speedMultiplier;
+                if (basePos[idx + 1] > 4.0) basePos[idx + 1] = -2.0;
+
+                // Compute final positions with smooth oscillation
+                positions[idx] = basePos[idx] + Math.sin(time * 0.5 + phase[i]) * 0.2;
+                positions[idx + 1] = basePos[idx + 1];
+                positions[idx + 2] = basePos[idx + 2] + Math.cos(time * 0.4 + phase[i]) * 0.2;
             }
             points.geometry.attributes.position.needsUpdate = true;
+            points.geometry.attributes.basePosition.needsUpdate = true;
             points.position.y = this.currentCameraY * 0.8;
         };
 

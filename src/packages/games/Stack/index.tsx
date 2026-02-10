@@ -5,6 +5,7 @@ import { ThreeGameLoop } from './game';
 import { SoundManager } from '../../../engine/SoundManager';
 import { StackPhysics } from './logic/StackPhysics';
 import { StackAudio } from './view/StackAudio';
+import { GameState } from './logic/StackPhysics';
 
 const StackGame = () => {
     const loopRef = useRef<ThreeGameLoop | null>(null);
@@ -13,6 +14,7 @@ const StackGame = () => {
     const [score, setScore] = useState(0);
     const [combo, setCombo] = useState(0);
     const [bgColor, setBgColor] = useState<number>(0xf25367); // Initial color (Rose Red)
+    const [gameState, setGameState] = useState<GameState>(GameState.IDLE);
     const [gameOver, setGameOver] = useState(false);
     const [showFinalScore, setShowFinalScore] = useState(false);
     const [bestScore, setBestScore] = useState(0);
@@ -97,6 +99,7 @@ const StackGame = () => {
         setScore(physics.score);
         setCombo(physics.combo);
         setBgColor(result.currentColor);
+        setGameState(physics.state);
 
         if (result.gameOver) {
             console.log('[StackGame] Game Over detected. Score:', physics.score);
@@ -209,14 +212,17 @@ const StackGame = () => {
             <View
                 className={`absolute left-0 w-full flex flex-col items-center pointer-events-none transition-all duration-[1500ms] cubic-bezier(0.23, 1, 0.32, 1) ${showFinalScore ? 'top-1/2 -translate-y-1/2' : 'top-24'}`}
             >
-                {score === 0 && !gameOver && (
-                    <Text className="text-white text-7xl font-black opacity-10 leading-none tracking-widest mb-6">极致层叠</Text>
-                )}
-                <View className="flex flex-col items-center">
-                    <Text
-                        className={`text-white font-thin tracking-tighter transition-all duration-[1500ms] ${showFinalScore ? 'text-[12rem]' : 'text-9xl'}`}
-                        style={{ textShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
-                    >{score}</Text>
+                <View className="relative w-full flex flex-col items-center">
+                    {/* Title: Position absolute to prevent layout shift of score */}
+                    {score === 0 && gameState === GameState.IDLE && (
+                        <Text className="absolute bottom-full mb-6 text-white text-7xl font-black opacity-10 leading-none tracking-widest whitespace-nowrap">极致层叠</Text>
+                    )}
+                    <View className="flex flex-col items-center">
+                        <Text
+                            className={`text-white font-thin tracking-tighter transition-all duration-[1500ms] ${showFinalScore ? 'text-[12rem]' : 'text-9xl'}`}
+                            style={{ textShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
+                        >{score}</Text>
+                    </View>
                 </View>
             </View>
 
@@ -224,7 +230,7 @@ const StackGame = () => {
                 <View className="absolute inset-0 bg-white/10 backdrop-blur-[2px] pointer-events-none" />
             )}
 
-            {!gameOver && score === 0 && (
+            {!gameOver && gameState === GameState.IDLE && (
                 <View className="absolute bottom-32 w-full text-center pointer-events-none animate-pulse">
                     <Text className="text-white text-xl font-bold tracking-[0.2em] shadow-sm">点击开始</Text>
                 </View>
