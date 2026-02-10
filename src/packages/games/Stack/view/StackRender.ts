@@ -46,16 +46,24 @@ export class StackRender implements IRenderPipeline {
         this.camera.lookAt(0, 0, 0);
 
         this.sharedGeometry = new THREE.BoxGeometry(1, 1, 1);
+
+        // Debug Axes
+        const axesHelper = new THREE.AxesHelper(100);
+        this.scene.add(axesHelper);
+
+        this.createParticles();
         this.setupLights();
     }
 
     private setupLights() {
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         this.scene.add(ambientLight);
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(100, 200, 100);
+        dirLight.position.set(-100, 200, 100);
         dirLight.castShadow = true;
+
+        // Shadow map tuning
         dirLight.shadow.mapSize.width = 2048;
         dirLight.shadow.mapSize.height = 2048;
         const d = 150;
@@ -64,22 +72,8 @@ export class StackRender implements IRenderPipeline {
         dirLight.shadow.camera.top = d;
         dirLight.shadow.camera.bottom = -d;
         dirLight.shadow.bias = -0.0005;
+
         this.scene.add(dirLight);
-
-        const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
-        rimLight.position.set(-100, 150, -100);
-        this.scene.add(rimLight);
-
-        // Ground Foundation
-        const groundGeo = new THREE.PlaneGeometry(1000, 1000);
-        const groundMat = new THREE.ShadowMaterial({ opacity: 0.1, color: 0x000000 });
-        const ground = new THREE.Mesh(groundGeo, groundMat);
-        ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -50;
-        ground.receiveShadow = true;
-        this.scene.add(ground);
-
-        this.createParticles();
     }
 
     private createParticles() {
@@ -151,13 +145,27 @@ export class StackRender implements IRenderPipeline {
             this.blockMeshes.push(mesh);
         }
 
-        // Update positions/sizes and handle Bottom Fade (Show top 10)
+        // Update positions/sizes and handle Bottom Fade (Show top 8 with transparency)
         const topIndex = physics.stack.length - 1;
         physics.stack.forEach((data, i) => {
             const mesh = this.blockMeshes[i];
             mesh.position.copy(data.position);
             mesh.scale.copy(data.size);
-            mesh.visible = (i > topIndex - 10);
+
+            const dist = topIndex - i;
+            if (dist > 8) {
+                mesh.visible = false;
+            } else {
+                mesh.visible = true;
+                // Fade out from layer 5 to 8
+                const opacity = dist < 5 ? 1 : 1 - (dist - 5) / 3;
+                if (Array.isArray(mesh.material)) {
+                    mesh.material.forEach(m => {
+                        m.transparent = true;
+                        m.opacity = opacity;
+                    });
+                }
+            }
         });
 
         // Current moving block

@@ -49,6 +49,7 @@ export class GameLoop {
 
     public get width() { return this.params.width }
     public get height() { return this.params.height }
+    public get physicsWorld() { return this.physics }
 
     public start() {
         if (this.isRunning) return

@@ -47,22 +47,22 @@ export class StackPhysics implements IPhysicsWorld {
     // Debris from slicing
     public debris: BlockData[] = [];
 
-    // Constants
+    // Constants (Aligned with V4.0 Spec)
     private readonly INITIAL_SIZE = 100;
-    private readonly BLOCK_HEIGHT = 10;
-    private readonly PERFECT_TOLERANCE = 3.0; // Units - defined in spec
-    private readonly GROWTH_COMBO_TRIGGER = 8;
-    private readonly GROWTH_AMOUNT_PERCENT = 0.10; // 10% size increase
-    private readonly MOVE_SPEED_BASE = 2.0;
+    private readonly BLOCK_HEIGHT = 10; // Increased to 10 as requested
+    private readonly BASE_HEIGHT = 50; // Increased to 50 as requested
+    private readonly PERFECT_TOLERANCE = 3.0;
+    private readonly GROWTH_AMOUNT_PERCENT = 0.02; // +2% per perfect
+    private readonly MOVE_SPEED_BASE = 1.0; // Reverted to 1.0 as requested
 
     private moveAxis: MoveAxis = MoveAxis.X;
     private moveDirection: number = 1; // 1 or -1
-    private currentSpeed: number = 2.0;
+    private currentSpeed: number = 1.0;
 
-    private startHue: number = 0;
-    private readonly HUE_SHIFT_PER_BLOCK = 60; // 3-5 degrees
-    private readonly SATURATION = 1.0;
-    private readonly LIGHTNESS = 0.8;
+    public startHue: number = 0;
+    private readonly HUE_SHIFT_PER_BLOCK = 5.0; // Aligned with latest spec
+    private readonly SATURATION_BLOCK = 0.8;
+    private readonly LIGHTNESS_TOP = 0.65;
 
     constructor() {
         // Initialize Cannon World
@@ -108,8 +108,8 @@ export class StackPhysics implements IPhysicsWorld {
         this.currentSpeed = this.MOVE_SPEED_BASE;
         this.startHue = Math.random() * 360; // Randomize start hue
 
-        // Base block
-        const baseSize = new THREE.Vector3(this.INITIAL_SIZE, this.BLOCK_HEIGHT, this.INITIAL_SIZE);
+        // Base block (Foundation)
+        const baseSize = new THREE.Vector3(this.INITIAL_SIZE, this.BASE_HEIGHT, this.INITIAL_SIZE);
         const basePos = new THREE.Vector3(0, 0, 0);
 
         // Add static body for base block so debris can bounce off it
@@ -143,10 +143,13 @@ export class StackPhysics implements IPhysicsWorld {
 
         // Target position (centered above top)
         const pos = top.position.clone();
-        pos.y += this.BLOCK_HEIGHT;
+        // Fix overlap: adjust Y based on half of previous block + half of new block
+        pos.y += (top.size.y + this.BLOCK_HEIGHT) / 2;
 
-        // Start from distance
-        const startDist = 180;
+        // Start from distance (closer to view)
+        // Ensure block is partially visible immediately to prevent "stuck" feeling
+        // Camera frustum edge ~67 (at 9/16 aspect). StartDist 90 puts right edge at -40.
+        const startDist = 90;
         if (this.moveAxis === MoveAxis.X) {
             pos.x = -startDist;
         } else {
@@ -158,6 +161,7 @@ export class StackPhysics implements IPhysicsWorld {
             size: top.size.clone(),
             color: this.calculateColor(this.stack.length)
         };
+        this.currentBlock.size.y = this.BLOCK_HEIGHT; // Force correct height (1), do not inherit Base height (5)
 
         this.moveDirection = 1;
         this.state = GameState.PLAYING;
@@ -165,15 +169,23 @@ export class StackPhysics implements IPhysicsWorld {
 
     private calculateColor(index: number): number {
         const color = new THREE.Color();
-        // Shift hue slowly by index
         const currentHue = (this.startHue + index * this.HUE_SHIFT_PER_BLOCK) % 360;
-        color.setHSL(currentHue / 360, this.SATURATION, this.LIGHTNESS);
+        // Returning just the hue as hex isn't quite right for HSL direct assignment, 
+        // but let's keep it as number for now, we will handle HSL in material.
+        color.setHSL(currentHue / 360, this.SATURATION_BLOCK, this.LIGHTNESS_TOP);
         return color.getHex();
     }
 
     public update(dt: number) {
-        // Step physics world
-        this.world.step(1 / 60, dt / 1000, 3);
+        // Step physics world (Only need to step if we have dynamic debris)
+        // If debris list is empty, there are no moving physics bodies, so we can skip step
+        if (this.debris.length > 0) {
+            try {
+                this.world.step(1 / 60, dt / 1000, 3);
+            } catch (e) {
+                console.error('[StackPhysics] World Step Error:', e);
+            }
+        }
 
         // Sync debris positions and rotations from physics
         for (let i = this.debris.length - 1; i >= 0; i--) {
@@ -194,15 +206,23 @@ export class StackPhysics implements IPhysicsWorld {
         if (this.state !== GameState.PLAYING || !this.currentBlock) return;
 
         const moveAmount = this.currentSpeed * (dt / 16.66);
-        const range = 180; // 1.8x foundation size (100)
+        // console.log('[StackPhysics] Update: dt=', dt, 'move=', moveAmount, 'pos=', this.currentBlock.position); // Debug
+
+        const top = this.stack[this.stack.length - 1];
+        const range = top.size[this.moveAxis === MoveAxis.X ? 'x' : 'z'] * 1.5; // Range is 1.5x current size
+
         if (this.moveAxis === MoveAxis.X) {
             this.currentBlock.position.x += moveAmount * this.moveDirection;
-            if (Math.abs(this.currentBlock.position.x) > range) {
+            const px = this.currentBlock.position.x;
+            if ((px > range && this.moveDirection > 0) || (px < -range && this.moveDirection < 0)) {
+                console.log('[StackPhysics] Flip X. Range:', range, 'Pos:', px);
                 this.moveDirection *= -1;
             }
         } else {
             this.currentBlock.position.z += moveAmount * this.moveDirection;
-            if (Math.abs(this.currentBlock.position.z) > range) {
+            const pz = this.currentBlock.position.z;
+            if ((pz > range && this.moveDirection > 0) || (pz < -range && this.moveDirection < 0)) {
+                console.log('[StackPhysics] Flip Z. Range:', range, 'Pos:', pz);
                 this.moveDirection *= -1;
             }
         }
@@ -226,6 +246,7 @@ export class StackPhysics implements IPhysicsWorld {
         const overlap = top.size[sizeAxis] - Math.abs(delta);
 
         if (overlap <= 0) {
+            console.log('[StackPhysics] Game Over: Overlap', overlap, 'Delta', delta, 'Size', top.size[sizeAxis]);
             this.state = GameState.GAMEOVER;
 
             // Current block falls as debris

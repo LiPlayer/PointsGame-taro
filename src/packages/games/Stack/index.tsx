@@ -16,6 +16,21 @@ const StackGame = () => {
     const [gameOver, setGameOver] = useState(false);
     const [deathFlash, setDeathFlash] = useState(false);
     const [bestScore, setBestScore] = useState(0);
+    const [time, setTime] = useState(0);
+
+    // Background Breathing Cycle (60s)
+    useEffect(() => {
+        let startTime = Date.now();
+        let frameId: number;
+
+        const update = () => {
+            setTime((Date.now() - startTime) / 1000);
+            frameId = requestAnimationFrame(update);
+        };
+
+        frameId = requestAnimationFrame(update);
+        return () => cancelAnimationFrame(frameId);
+    }, []);
 
     // Load Best Score on mount
     useEffect(() => {
@@ -117,15 +132,25 @@ const StackGame = () => {
         }
     }, [bestScore]);
 
+    const backgroundStyle = useMemo(() => {
+        const physics = loopRef.current?.physicsWorld as any as StackPhysics;
+        const startH = physics?.startHue || 0;
+        const h = (score * 5 + startH) % 360; // Sync with Physics (Hue shift = 5)
+        // Amplitude 30 (Range 60)
+        const deltaL = 30 * Math.cos((2 * Math.PI * time) / 60);
+        const topL = Math.max(0, Math.min(100, 50 + deltaL)); // 20 ~ 80
+        const bottomL = Math.max(0, Math.min(100, 40 + deltaL)); // 10 ~ 70
+
+        return {
+            background: `linear-gradient(to bottom, hsl(${h}, 30%, ${topL}%) 0%, hsl(${h}, 30%, ${bottomL}%) 100%)`,
+            transition: 'none'
+        };
+    }, [score, time]);
+
     return (
         <View
             className="relative w-full h-full flex flex-col items-center overflow-hidden"
-            style={{
-                backgroundColor: `hsl(${(score * 4 + 20) % 360}, 35%, 87%)`, // Deriving soft background from score/hue
-                backgroundImage: `linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.05) 100%)`,
-                perspective: '1000px',
-                transition: 'background-color 0.8s ease'
-            }}
+            style={backgroundStyle}
             onTouchStart={handleTap}
         >
             {process.env.TARO_ENV === 'h5' ? (
@@ -153,7 +178,7 @@ const StackGame = () => {
                 )}
                 <View className="flex flex-col items-center">
                     <Text
-                        className="text-white text-9xl font-black tracking-tighter"
+                        className="text-white text-9xl font-thin tracking-tighter"
                         style={{ textShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
                     >{score}</Text>
                 </View>
