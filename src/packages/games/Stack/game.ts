@@ -44,6 +44,10 @@ export class ThreeGameLoop extends GameLoop {
         }
     }
 
+    public triggerPerfectFlash(combo: number) {
+        (this.renderer as StackRender).triggerPerfectFlash(combo);
+    }
+
     public triggerScreenShake() {
         (this.renderer as StackRender).triggerScreenShake(8);
     }

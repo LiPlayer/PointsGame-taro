@@ -59,6 +59,11 @@ export class StackPhysics implements IPhysicsWorld {
     private moveDirection: number = 1; // 1 or -1
     private currentSpeed: number = 2.0;
 
+    private startHue: number = 0;
+    private readonly HUE_SHIFT_PER_BLOCK = 4; // 3-5 degrees
+    private readonly SATURATION = 0.60;
+    private readonly LIGHTNESS = 0.65;
+
     constructor() {
         // Initialize Cannon World
         this.world = new CANNON.World();
@@ -101,6 +106,7 @@ export class StackPhysics implements IPhysicsWorld {
         this.moveAxis = MoveAxis.X;
         this.moveDirection = 1;
         this.currentSpeed = this.MOVE_SPEED_BASE;
+        this.startHue = Math.random() * 360; // Randomize start hue
 
         // Base block
         const baseSize = new THREE.Vector3(this.INITIAL_SIZE, this.BLOCK_HEIGHT, this.INITIAL_SIZE);
@@ -116,7 +122,7 @@ export class StackPhysics implements IPhysicsWorld {
         this.stack.push({
             position: basePos,
             size: baseSize,
-            color: 0xE11D48, // Rose-600
+            color: this.calculateColor(0),
             body: body
         });
 
@@ -157,36 +163,12 @@ export class StackPhysics implements IPhysicsWorld {
         this.state = GameState.PLAYING;
     }
 
-    // Ketchapp "Stack" Original Color Palette (Approximation)
-    // The game cycles through these specific "Target Colors".
-    private readonly COLOR_PALETTE = [
-        0xf25367, // Rose Red
-        0xf29c42, // Orange
-        0xf2d634, // Yellow
-        0x58c554, // Green
-        0x3db5e4, // Blue
-        0x8e4fd6, // Purple
-        0xf25367  // Loop back to Rose
-    ];
-
     private calculateColor(index: number): number {
-        // Cycle length: How many blocks to transition between two palette colors?
-        // Ketchapp is quite fast, maybe 15-20 blocks per transition.
-        const SEGMENT_LENGTH = 15;
-
-        const totalSegments = this.COLOR_PALETTE.length - 1;
-        const cycleLength = totalSegments * SEGMENT_LENGTH;
-
-        const wrappedIndex = index % cycleLength;
-        const segmentIndex = Math.floor(wrappedIndex / SEGMENT_LENGTH);
-        const segmentProgress = (wrappedIndex % SEGMENT_LENGTH) / SEGMENT_LENGTH;
-
-        const colorStart = new THREE.Color(this.COLOR_PALETTE[segmentIndex]);
-        const colorEnd = new THREE.Color(this.COLOR_PALETTE[segmentIndex + 1]);
-
-        colorStart.lerp(colorEnd, segmentProgress);
-
-        return colorStart.getHex();
+        const color = new THREE.Color();
+        // Shift hue slowly by index
+        const currentHue = (this.startHue + index * this.HUE_SHIFT_PER_BLOCK) % 360;
+        color.setHSL(currentHue / 360, this.SATURATION, this.LIGHTNESS);
+        return color.getHex();
     }
 
     public update(dt: number) {
@@ -212,14 +194,15 @@ export class StackPhysics implements IPhysicsWorld {
         if (this.state !== GameState.PLAYING || !this.currentBlock) return;
 
         const moveAmount = this.currentSpeed * (dt / 16.66);
+        const range = 180; // 1.8x foundation size (100)
         if (this.moveAxis === MoveAxis.X) {
             this.currentBlock.position.x += moveAmount * this.moveDirection;
-            if (Math.abs(this.currentBlock.position.x) > 220) {
+            if (Math.abs(this.currentBlock.position.x) > range) {
                 this.moveDirection *= -1;
             }
         } else {
             this.currentBlock.position.z += moveAmount * this.moveDirection;
-            if (Math.abs(this.currentBlock.position.z) > 220) {
+            if (Math.abs(this.currentBlock.position.z) > range) {
                 this.moveDirection *= -1;
             }
         }
@@ -228,7 +211,7 @@ export class StackPhysics implements IPhysicsWorld {
     public placeBlock(): PhysicsResult {
         if (this.state === GameState.IDLE) {
             this.start();
-            return { perfect: false, combo: 0, gameOver: false, score: 0, currentColor: this.COLOR_PALETTE[0] };
+            return { perfect: false, combo: 0, gameOver: false, score: 0, currentColor: this.calculateColor(0) };
         }
 
         if (!this.currentBlock || this.state !== GameState.PLAYING) {
@@ -263,17 +246,12 @@ export class StackPhysics implements IPhysicsWorld {
             this.currentBlock.position[axis] = top.position[axis];
             this.currentBlock.size[sizeAxis] = top.size[sizeAxis];
 
-            // Growth Mechanism
-            if (this.combo >= this.GROWTH_COMBO_TRIGGER) {
-                // Grow by 10%
-                const growthX = this.currentBlock.size.x * this.GROWTH_AMOUNT_PERCENT;
-                const growthZ = this.currentBlock.size.z * this.GROWTH_AMOUNT_PERCENT;
+            // Gradual Growth (+2% per Perfect)
+            const growthX = this.currentBlock.size.x * 0.02;
+            const growthZ = this.currentBlock.size.z * 0.02;
 
-                this.currentBlock.size.x = Math.min(this.currentBlock.size.x + growthX, this.INITIAL_SIZE);
-                this.currentBlock.size.z = Math.min(this.currentBlock.size.z + growthZ, this.INITIAL_SIZE);
-
-                console.log(`[StackPhysics] GROWTH! New Size: ${this.currentBlock.size.x.toFixed(2)}x${this.currentBlock.size.z.toFixed(2)}`);
-            }
+            this.currentBlock.size.x = Math.min(this.currentBlock.size.x + growthX, this.INITIAL_SIZE);
+            this.currentBlock.size.z = Math.min(this.currentBlock.size.z + growthZ, this.INITIAL_SIZE);
         } else {
             this.combo = 0;
 
@@ -312,10 +290,9 @@ export class StackPhysics implements IPhysicsWorld {
         this.stack.push(this.currentBlock);
         this.score++;
 
-        // Update Speed: Initial V, +0.5% per block, Cap 2.5V
-        // V = 2.0
-        const speedMultiplier = Math.min(1 + (this.score * 0.005), 2.5);
-        this.currentSpeed = this.MOVE_SPEED_BASE * speedMultiplier;
+        // Step-Function Speed Curve: Every 15 blocks, +15% speed. Cap at score 75.
+        const speedIncrements = Math.floor(Math.min(this.score, 75) / 15);
+        this.currentSpeed = this.MOVE_SPEED_BASE * (1 + speedIncrements * 0.15);
 
         this.spawnNextBlock();
 

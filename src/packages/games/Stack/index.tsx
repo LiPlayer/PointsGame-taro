@@ -102,14 +102,17 @@ const StackGame = () => {
             console.log('[StackGame] Perfect placement! Combo:', physics.combo);
             StackAudio.playPerfect(physics.combo);
 
-            // Trigger Perfect Ripple VFX
+            // Trigger Perfect Ripple & Flash VFX
             loopRef.current.triggerPerfectRipple();
+            loopRef.current.triggerPerfectFlash(physics.combo);
 
             // Trigger haptic if in WeApp
             if (process.env.TARO_ENV === 'weapp') {
                 Taro.vibrateShort({ type: 'light' });
             }
         } else {
+            // Ordinary placement gets a "Tick" sound + Slice sound
+            StackAudio.playTick();
             StackAudio.playSlice();
         }
     }, [bestScore]);
@@ -118,13 +121,10 @@ const StackGame = () => {
         <View
             className="relative w-full h-full flex flex-col items-center overflow-hidden"
             style={{
-                // Radial Gradient: Lighter center, Darker edge
-                // Background: Base Color (from Physics)
-                // Inner: Radial Gradient White Overlay -> Transparent for Vignette effect
-                backgroundColor: bgColor,
-                backgroundImage: 'radial-gradient(circle at 50% 30%, rgba(255,255,255,0.2) 0%, rgba(0,0,0,0) 70%)',
+                backgroundColor: `hsl(${(score * 4 + 20) % 360}, 35%, 87%)`, // Deriving soft background from score/hue
+                backgroundImage: `linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.05) 100%)`,
                 perspective: '1000px',
-                transition: 'background-color 0.5s ease'
+                transition: 'background-color 0.8s ease'
             }}
             onTouchStart={handleTap}
         >
@@ -147,18 +147,15 @@ const StackGame = () => {
             )}
 
             {/* UI Overlay */}
-            <View className="absolute top-20 left-0 w-full flex flex-col items-center pointer-events-none">
-                <Text className="text-white text-7xl font-black opacity-10 leading-none tracking-widest">极致层叠</Text>
-                <View className="mt-4 flex flex-col items-center">
+            <View className="absolute top-24 left-0 w-full flex flex-col items-center pointer-events-none">
+                {score === 0 && !gameOver && (
+                    <Text className="text-white text-7xl font-black opacity-10 leading-none tracking-widest mb-6">极致层叠</Text>
+                )}
+                <View className="flex flex-col items-center">
                     <Text
-                        className="text-white text-8xl font-thin tracking-tighter"
-                        style={{ textShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        className="text-white text-9xl font-black tracking-tighter"
+                        style={{ textShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
                     >{score}</Text>
-                    {combo > 1 && (
-                        <View className="bg-white/90 backdrop-blur-sm px-4 py-1 rounded-full mt-4 shadow-sm animate-bounce">
-                            <Text className="text-teal-600 text-xs font-bold uppercase tracking-widest">{combo} 连击</Text>
-                        </View>
-                    )}
                 </View>
             </View>
 
@@ -178,11 +175,6 @@ const StackGame = () => {
                 </View>
             )}
 
-            {!gameOver && score > 0 && (
-                <View className="absolute bottom-12 w-full text-center pointer-events-none">
-                    <Text className="text-slate-300 text-xs font-bold uppercase tracking-[0.3em]">点击屏幕精准对齐</Text>
-                </View>
-            )}
         </View>
     );
 };
