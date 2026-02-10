@@ -56,13 +56,18 @@ export class StackRender implements IRenderPipeline {
     }
 
     private setupLights() {
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        this.scene.add(ambientLight);
+        // Hemisphere Light: Sky color (white) vs Ground color (slightly dark) -> natural gradient on sides
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+        hemiLight.position.set(0, 500, 0);
+        this.scene.add(hemiLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(-100, 200, 100);
+        // Directional Light: Sharp shadows and distinct face shading
+        // Positioned to barely light the top face, but strongly light the side faces
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        dirLight.position.set(150, 300, 150); // Classic isometric key light position
         dirLight.castShadow = true;
 
+        // Shadow map tuning for sharp shadows
         dirLight.shadow.mapSize.width = 2048;
         dirLight.shadow.mapSize.height = 2048;
         const d = 150;
@@ -70,7 +75,8 @@ export class StackRender implements IRenderPipeline {
         dirLight.shadow.camera.right = d;
         dirLight.shadow.camera.top = d;
         dirLight.shadow.camera.bottom = -d;
-        dirLight.shadow.bias = -0.0005;
+        // Bias to prevent shadow acne on self-shadowing
+        dirLight.shadow.bias = -0.0001;
 
         this.scene.add(dirLight);
     }
@@ -157,12 +163,10 @@ export class StackRender implements IRenderPipeline {
             // Always rely on Camera Frustum Culling for visibility
             mesh.visible = this.frustum.intersectsObject(mesh);
 
-            // Ensure material is opqaue since we removed the distance fade
-            if (mesh.visible && Array.isArray(mesh.material)) {
-                mesh.material.forEach(m => {
-                    m.transparent = false;
-                    m.opacity = 1;
-                });
+            if (mesh.visible && mesh.material) {
+                const material = mesh.material as THREE.Material;
+                material.transparent = false;
+                material.opacity = 1;
             }
         });
 

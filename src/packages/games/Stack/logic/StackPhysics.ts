@@ -207,7 +207,9 @@ export class StackPhysics implements IPhysicsWorld {
 
         if (this.state !== GameState.PLAYING || !this.currentBlock) return;
 
-        const moveAmount = this.currentSpeed * (dt / 16.66);
+        // Clamp dt to avoid massive jumps during lag spikes (max 3 frames approx)
+        const safeDt = Math.min(dt, 50);
+        const moveAmount = this.currentSpeed * (safeDt / 16.66);
         // console.log('[StackPhysics] Update: dt=', dt, 'move=', moveAmount, 'pos=', this.currentBlock.position); // Debug
 
         const top = this.stack[this.stack.length - 1];
@@ -217,15 +219,19 @@ export class StackPhysics implements IPhysicsWorld {
             this.currentBlock.position.x += moveAmount * this.moveDirection;
             const px = this.currentBlock.position.x;
             if ((px > range && this.moveDirection > 0) || (px < -range && this.moveDirection < 0)) {
-                console.log('[StackPhysics] Flip X. Range:', range, 'Pos:', px);
+                // console.log('[StackPhysics] Flip X. Range:', range, 'Pos:', px);
                 this.moveDirection *= -1;
+                // Clamp position to edge to prevent perpetual out-of-bounds flipping
+                this.currentBlock.position.x = range * (px > 0 ? 1 : -1);
             }
         } else {
             this.currentBlock.position.z += moveAmount * this.moveDirection;
             const pz = this.currentBlock.position.z;
             if ((pz > range && this.moveDirection > 0) || (pz < -range && this.moveDirection < 0)) {
-                console.log('[StackPhysics] Flip Z. Range:', range, 'Pos:', pz);
+                // console.log('[StackPhysics] Flip Z. Range:', range, 'Pos:', pz);
                 this.moveDirection *= -1;
+                // Clamp position to edge to prevent perpetual out-of-bounds flipping
+                this.currentBlock.position.z = range * (pz > 0 ? 1 : -1);
             }
         }
     }
