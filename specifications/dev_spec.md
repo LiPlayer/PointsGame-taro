@@ -239,7 +239,7 @@ export interface IAssetLoader {
 
 ### 5.3 Game Container（游戏容器）
 - **UI**：顶部悬浮透明 [X]，禁止游戏内部绘制退出按钮。
-- **逻辑**：游戏结束后延迟 1.5s 跳转 Result 页。
+- **逻辑**：游戏结束后经过确认或者自动跳转 Result 页。
 
 ### 5.4 Result（结算页）
 - **模式**：Earn (积分+Diff动效) / Collection (不计分提示)。

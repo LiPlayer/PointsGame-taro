@@ -42,6 +42,11 @@ export class StackRender implements IRenderPipeline {
     private frustum: THREE.Frustum = new THREE.Frustum();
     private projScreenMatrix: THREE.Matrix4 = new THREE.Matrix4();
 
+    // Camera Framing
+    private yOffset: number = 0;
+    private dirLight: THREE.DirectionalLight | null = null;
+    private readonly BASE_SIZE: number = 100;
+
     constructor() {
         this.scene = new THREE.Scene();
         this.scene.background = null;
@@ -66,6 +71,7 @@ export class StackRender implements IRenderPipeline {
         // Directional Light: Sharp shadows and distinct face shading
         // Positioned to barely light the top face, but strongly light the side faces
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        this.dirLight = dirLight;
         dirLight.position.set(150, 300, 150); // Classic isometric key light position
         dirLight.castShadow = true;
 
@@ -119,12 +125,48 @@ export class StackRender implements IRenderPipeline {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         const aspect = width / height;
-        const d = 150;
+
+        // SPECIFICATION: Base (100x100x100) width = 80% Screen Width
+        // Base Projected Width = 100 * sqrt(2) approx 141.42
+        // View Width = Base Width / 0.8
+        // Camera Frustum Width = 2 * d * aspect
+        // d = (100 * sqrt(2)) / (1.6 * aspect)
+        const d = (this.BASE_SIZE * Math.sqrt(2)) / (1.6 * aspect);
+
+        // SPECIFICATION: Base lowest point visible at screen bottom
+        // Lowest point P = (50, -50, 50) relative to (0,0,0) center of base?
+        // Actually base is at (0,0,0) in world, size 100x100x100.
+        // StackPhysics puts base at (0,0,0). So it extends Y: -50 to +50.
+        // Lowest Point in World: Y=-50.
+        // In Isometric View (35.264 deg from XZ plane), the lowest visible point is the front corner?
+        // Camera LookAt (0,0,0) from (300,300,300).
+        // View vector is (-1, -1, -1).
+        // Front corner (50, -50, 50) is indeed the lowest in screen Y space.
+        // Screen Y projection of P relative to center:
+        // ProjY = Dot(P - Center, Up)
+        // We want ProjY = -d (bottom of frustum).
+        // Rearranging formula derived: yOffset = (d * sqrt(6) - 200) / 2
+        // Note: 200 comes from (P_lowest_y_contribution + ...), specifically:
+        // P dot Up_unnormalized = -200.
+        // yOffset shift moves camera UP, pushing world DOWN.
+
+        this.yOffset = (d * Math.sqrt(6) - 200) / 2;
+
         this.camera.left = -d * aspect;
         this.camera.right = d * aspect;
         this.camera.top = d;
         this.camera.bottom = -d;
         this.camera.updateProjectionMatrix();
+
+        // Update Shadow Camera to match new frustum if needed
+        if (this.dirLight) {
+            const shadowD = Math.max(d, 150); // Ensure at least 150 coverage
+            this.dirLight.shadow.camera.left = -shadowD;
+            this.dirLight.shadow.camera.right = shadowD;
+            this.dirLight.shadow.camera.top = shadowD;
+            this.dirLight.shadow.camera.bottom = -shadowD;
+            this.dirLight.shadow.camera.updateProjectionMatrix();
+        }
     }
 
     public render(physics: IPhysicsWorld) {
@@ -303,9 +345,9 @@ export class StackRender implements IRenderPipeline {
         if (topBlock) this.cameraTargetY = topBlock.position.y;
         this.currentCameraY += (this.cameraTargetY - this.currentCameraY) * 0.1;
 
-        const offset = new THREE.Vector3(300, 300 + this.currentCameraY, 300);
+        const offset = new THREE.Vector3(300, 300 + this.currentCameraY + this.yOffset, 300);
         this.camera.position.copy(offset);
-        this.camera.lookAt(0, this.currentCameraY, 0);
+        this.camera.lookAt(0, this.currentCameraY + this.yOffset, 0);
 
         if (this.screenShake > 0) {
             const intensity = this.screenShake * 1.5;
