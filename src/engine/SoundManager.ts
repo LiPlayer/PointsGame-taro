@@ -42,17 +42,90 @@ export class SoundManager {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
 
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        // Small lookahead to ensure synchronization and prevent dropped notes
+        const startTime = this.ctx.currentTime + 0.01;
+        const endTime = startTime + duration;
 
-        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, startTime);
+
+        // Volume Envelope: Start at requested vol, ramp to 0
+        gain.gain.setValueAtTime(vol, startTime);
+        // Linear ramp is safer for very short durations than exponential
+        gain.gain.linearRampToValueAtTime(0.001, endTime);
 
         osc.connect(gain);
         gain.connect(this.ctx.destination);
 
-        osc.start();
-        osc.stop(this.ctx.currentTime + duration);
+        osc.start(startTime);
+        osc.stop(endTime);
+    }
+
+    /**
+     * Plays a burst of white noise (useful for impacts/grit)
+     */
+    public playNoise(duration: number = 0.1, vol: number = 0.1, filterFreq: number = 2000) {
+        if (!this.ctx) return;
+
+        const bufferSize = this.ctx.sampleRate * duration;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        const startTime = this.ctx.currentTime + 0.01;
+        const endTime = startTime + duration;
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(filterFreq, startTime);
+
+        gain.gain.setValueAtTime(vol, startTime);
+        gain.gain.linearRampToValueAtTime(0.001, endTime);
+
+        source.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        source.start(startTime);
+        source.stop(endTime);
+    }
+
+    /**
+     * Plays a percussive impact with a pitch envelope (sweep)
+     */
+    public playImpact(startFreq: number, endFreq: number, duration: number = 0.1, vol: number = 0.1) {
+        if (!this.ctx) return;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        // Small lookahead
+        const startTime = this.ctx.currentTime + 0.01;
+        const endTime = startTime + duration;
+
+        osc.type = 'sine'; // Sine is best for clean thumps
+
+        // Pitch Envelope: Sweep frequency down exponentially
+        osc.frequency.setValueAtTime(startFreq, startTime);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(0.01, endFreq), endTime);
+
+        // Volume Envelope: Sharp attack, linear decay
+        gain.gain.setValueAtTime(vol, startTime);
+        gain.gain.linearRampToValueAtTime(0.001, endTime);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(startTime);
+        osc.stop(endTime);
     }
 }
 

@@ -52,7 +52,7 @@ export class StackPhysics implements IPhysicsWorld {
     private readonly BLOCK_HEIGHT = 0.1;
     private readonly BASE_HEIGHT = 1.0;
     private readonly PERFECT_TOLERANCE = 0.03;
-    private readonly MOVE_SPEED_BASE = 0.025;
+    private readonly MOVE_SPEED_BASE = 0.02;
 
     private moveAxis: MoveAxis = MoveAxis.X;
     private moveDirection: number = 1; // 1 or -1

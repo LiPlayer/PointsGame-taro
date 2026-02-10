@@ -100,7 +100,7 @@ const StackGame = () => {
 
         if (result.gameOver) {
             console.log('[StackGame] Game Over detected. Score:', physics.score);
-            StackAudio.playGameOver();
+            // Removed audio: StackAudio.playGameOver(); StackAudio.playFall();
 
             // Heavy haptic
             if (process.env.TARO_ENV === 'weapp') {
@@ -121,10 +121,6 @@ const StackGame = () => {
             }
 
             setGameOver(true);
-            // Auto-exit removed per user request: "Click to exit" only.
-            // exitTimerRef.current = setTimeout(() => {
-            //     Taro.redirectTo({ url: `/pages/result-earn/index?score=${physics.score}&id=stack` });
-            // }, 4500); // 4.5s total overview time
         } else if (result.perfect) {
             console.log('[StackGame] Perfect placement! Combo:', physics.combo);
             StackAudio.playPerfect(physics.combo);
@@ -137,9 +133,8 @@ const StackGame = () => {
                 Taro.vibrateShort({ type: 'light' });
             }
         } else {
-            // Ordinary placement gets a "Tick" sound + Slice sound
+            // Ordinary placement gets ONLY a "Tick" sound (Clean, no Slice/Fall)
             StackAudio.playTick();
-            StackAudio.playSlice();
         }
     }, [bestScore, gameOver]);
 

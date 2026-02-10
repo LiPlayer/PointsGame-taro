@@ -1,22 +1,28 @@
 import { SoundManager } from '../../../../engine/SoundManager';
 
 export class StackAudio {
-    // Pentatonic scale starting from C5
-    private static COMBO_FREQUENCIES = [
+    // Pentatonic scale starting from C5 (C-D-E-G-A)
+    private static PENTATONIC_BASE = [
         523.25, // C5
         587.33, // D5
         659.25, // E5
         783.99, // G5
-        880.00, // A5
-        1046.50 // C6
+        880.00  // A5
     ];
 
     /**
-     * Plays a short "Tick" for every block placement
+     * Plays an aesthetic "Thock" sound (Pitch envelope + Micro-transient)
      */
     public static playTick() {
-        // Crisp, short wood-block like sound
-        SoundManager.getInstance().playTone(200, 'triangle', 0.04, 0.05);
+        // Body: Pitch sweep (220Hz -> 50Hz) for physical "Thock"
+        // Balanced volume to 0.3
+        SoundManager.getInstance().playImpact(220, 50, 0.08, 0.3);
+
+        // Transient: Micro-click (High-pass noise) for definition
+        SoundManager.getInstance().playNoise(0.01, 0.1, 8000);
+
+        // Character: Subtle wood/stone tone
+        SoundManager.getInstance().playTone(300, 'triangle', 0.04, 0.1);
     }
 
     /**
@@ -24,46 +30,25 @@ export class StackAudio {
      * @param combo Current combo count
      */
     public static playPerfect(combo: number) {
-        const noteIndex = (combo - 1) % this.COMBO_FREQUENCIES.length;
-        const freq = this.COMBO_FREQUENCIES[noteIndex];
+        // Pentatonic scale has 5 notes. C6 is octave up of C5.
+        const noteIndex = (combo - 1) % this.PENTATONIC_BASE.length;
+        const octave = Math.floor((combo - 1) / this.PENTATONIC_BASE.length);
 
-        // "叮" sound: Sine wave with fast decay
-        SoundManager.getInstance().playTone(freq, 'sine', 0.12, 0.15);
+        // Cap octave at 2 (C7 range) to keep it pleasant
+        const cappedOctave = Math.min(octave, 2);
+        const freq = this.PENTATONIC_BASE[noteIndex] * Math.pow(2, cappedOctave);
+
+        // Balanced base volume to 0.3
+        SoundManager.getInstance().playTone(freq, 'sine', 0.6, 0.3);
 
         // Add chord overlay for 5+ combo to emphasize reward
         if (combo >= 5) {
             setTimeout(() => {
-                // Add a perfect fifth (freq * 1.5)
-                SoundManager.getInstance().playTone(freq * 1.5, 'sine', 0.15, 0.15);
-                // Add octave (freq * 2)
-                SoundManager.getInstance().playTone(freq * 2.0, 'sine', 0.15, 0.15);
+                // Add a perfect fifth (freq * 1.5) with gentle decay
+                SoundManager.getInstance().playTone(freq * 1.5, 'sine', 0.4, 0.15);
+                // Add octave (freq * 2) with gentle decay
+                SoundManager.getInstance().playTone(freq * 2.0, 'sine', 0.4, 0.15);
             }, 30);
         }
-    }
-
-    /**
-     * Plays a short snip sound for sliced blocks
-     */
-    public static playSlice() {
-        // Short "Snip" - higher than tick, drier
-        SoundManager.getInstance().playTone(300, 'triangle', 0.06, 0.08);
-    }
-
-    /**
-     * Plays a low, somber tone for game over
-     */
-    public static playGameOver() {
-        // Deep Thud
-        SoundManager.getInstance().playTone(100, 'sawtooth', 0.3, 0.1);
-        setTimeout(() => {
-            SoundManager.getInstance().playTone(70, 'sawtooth', 0.4, 0.1);
-        }, 120);
-    }
-
-    /**
-     * Heavy impact for falling debris
-     */
-    public static playFall() {
-        SoundManager.getInstance().playTone(80, 'triangle', 0.1, 0.15);
     }
 }
