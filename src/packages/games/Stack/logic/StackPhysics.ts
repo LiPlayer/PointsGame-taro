@@ -59,7 +59,7 @@ export class StackPhysics implements IPhysicsWorld {
     private currentSpeed: number = 0.01;
 
     public startHue: number = 0;
-    private readonly HUE_SHIFT_PER_BLOCK = 5.0; // Aligned with latest spec
+    private readonly HUE_SHIFT_PER_BLOCK = 12.0; // Aligned with latest spec (delta=12)
     private readonly SATURATION_BLOCK = 0.9;
     private readonly LIGHTNESS_TOP = 0.65;
 
@@ -214,8 +214,8 @@ export class StackPhysics implements IPhysicsWorld {
         const moveAmount = this.currentSpeed * (safeDt / 16.66);
         // console.log('[StackPhysics] Update: dt=', dt, 'move=', moveAmount, 'pos=', this.currentBlock.position); // Debug
 
-        // range fixed to 1.5 * INITIAL_SIZE as per spec
-        const range = this.INITIAL_SIZE * 1.5;
+        // range fixed to 1.2 * INITIAL_SIZE as per spec
+        const range = this.INITIAL_SIZE * 1.2;
 
         if (this.moveAxis === MoveAxis.X) {
             this.currentBlock.position.x += moveAmount * this.moveDirection;

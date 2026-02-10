@@ -12,8 +12,8 @@ export class StackMaterials {
             // Use Phong for better specular highlights (plastic look)
             const material = new THREE.MeshPhongMaterial({
                 color: color,
-                shininess: 30, // Moderate shine for edge definition
-                specular: 0x444444, // Dark grey specular
+                shininess: 45, // Increased shine for better edge definition
+                specular: 0x666666, // Brighter specular
                 flatShading: true // Essential for the low-poly look
             });
 

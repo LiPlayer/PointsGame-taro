@@ -60,19 +60,23 @@ export class StackRender implements IRenderPipeline {
 
         this.createParticles();
         this.setupLights();
+
+        // Debug: XYZ Axes
+        const axesHelper = new THREE.AxesHelper(5);
+        this.scene.add(axesHelper);
     }
 
     private setupLights() {
-        // Hemisphere Light: Sky color (white) vs Ground color (slightly dark) -> natural gradient on sides
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+        // Hemisphere Light: Increased intensity to 0.7 to brighten top faces
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x888888, 0.8);
         hemiLight.position.set(0, 5, 0);
         this.scene.add(hemiLight);
 
         // Directional Light: Sharp shadows and distinct face shading
-        // Positioned to barely light the top face, but strongly light the side faces
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        // Positioned asymmetrically to create distinct brightness levels for different faces
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.4);
         this.dirLight = dirLight;
-        dirLight.position.set(1.5, 3.0, 1.5); // Classic isometric key light position
+        dirLight.position.set(3.0, 3.0, -3.0); // Classic isometric key light position
         dirLight.castShadow = true;
 
         // Shadow map tuning for sharp shadows
