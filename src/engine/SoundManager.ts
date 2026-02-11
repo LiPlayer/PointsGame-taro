@@ -10,17 +10,26 @@ export class SoundManager {
 
     private constructor() {
         try {
-            // @ts-ignore
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (AudioContext) {
-                this.ctx = new AudioContext();
+            if (process.env.TARO_ENV === 'weapp') {
+                console.log('[SoundManager] initializing WeApp WebAudioContext');
+                this.ctx = Taro.createWebAudioContext();
+            } else {
+                // @ts-ignore
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    this.ctx = new AudioContext();
+                }
+            }
+
+            if (this.ctx) {
                 this.gainNode = this.ctx.createGain();
                 this.gainNode.connect(this.ctx.destination);
+                console.log('[SoundManager] Context created, state:', this.ctx.state);
             } else {
-                console.warn('Web Audio API not supported');
+                console.warn('[SoundManager] Web Audio API not supported in this environment');
             }
         } catch (e) {
-            console.error('Audio init failed', e);
+            console.error('[SoundManager] initialization failed:', e);
         }
     }
 
@@ -33,7 +42,9 @@ export class SoundManager {
 
     public async unlock() {
         if (this.ctx && this.ctx.state === 'suspended') {
+            console.log('[SoundManager] Resuming suspended context...');
             await this.ctx.resume();
+            console.log('[SoundManager] Context state after resume:', this.ctx.state);
         }
     }
 

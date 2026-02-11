@@ -103,6 +103,7 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
 - **实例管理**：
     - **音频文件**：统一使用 `Taro.createInnerAudioContext`。
     - **程序化音频**：允许使用 `Taro.createWebAudioContext` (若支持) 生成简单波形音效 (Oscillator)，以减少对外部素材的依赖。
+    - ⚠️ **兼容性坑**：微信小程序主逻辑环境下不存在 `window.AudioContext`。音频引擎初始化必须优先判断环境并使用 `Taro.createWebAudioContext()` 作为替代。
 - **交互诱导**：H5 环境下，浏览器禁止自动播放。必须在用户首次点击（如“开始”按钮）的事件回调中执行一次 `audio.play()` (即使是播放静音片段) 以解锁音频上下文。
 
 ### 4.4 游戏引擎规范 (Game Engine Spec)
@@ -118,6 +119,8 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
 2. **内存预分配 (Pool Logic)**：所有 2D Sprite 或 3D Object 必须在预加载阶段创建，运行时严禁频繁 `new` 或销毁对象。
 3. **分辨率隔离**：必须遵循 `maxDPR` 策略。默认优先保证画质（使用原生 DPR），但在高负载情况下允许通过 `GameLoop` 构造函数手动限制。
 4. **资源池化**：Texture 和 Geometry 必须全局共享，避免重复解析导致的内存溢出。
+5. ⚠️ **计时器坑 (Crucial)**：部分微信环境下全局不存在 `performance` 对象。引擎计时必须使用 `getNow()` 抽象，优先尝试 `performance.now()`，若失败则降级至 `Date.now()`。
+6. ⚠️ **销毁期坑 (Disposal)**：在 Weapp 页面卸载（Unmount）瞬间，Canvas 适配器或 window 模拟对象可能先于渲染器被置空。执行 `renderer.dispose()` 时必须包裹 `try-catch` 并添加引用检查，防止 `cancelAnimationFrame of null` 导致的系统崩溃。
 
 
 #### C. 通用游戏核心架构 (Core Engine Architecture)
