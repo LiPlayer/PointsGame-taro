@@ -1,13 +1,17 @@
 import { SoundManager } from '../../../../engine/SoundManager';
 
 export class StackAudio {
-    // Pentatonic scale starting from C5 (C-D-E-G-A)
-    private static PENTATONIC_BASE = [
+    // Diatonic Major Scale (C5 to C6) - 8 Notes
+    // C, D, E, F, G, A, B, C
+    private static MINOR_SCALE = [
         523.25, // C5
         587.33, // D5
         659.25, // E5
+        698.46, // F5
         783.99, // G5
-        880.00  // A5
+        880.00, // A5
+        987.77, // B5
+        1046.50 // C6
     ];
 
     /**
@@ -41,24 +45,30 @@ export class StackAudio {
     }
 
     /**
-     * Plays a rising pentatonic tone for consecutive perfect stacks
+     * Plays a rising diatonic tone for consecutive perfect stacks
      * @param combo Current combo count
      */
     public static playPerfect(combo: number) {
-        // Pentatonic scale has 5 notes. C6 is octave up of C5.
-        const noteIndex = (combo - 1) % this.PENTATONIC_BASE.length;
-        const octave = Math.floor((combo - 1) / this.PENTATONIC_BASE.length);
+        // Diatonic scale has 8 notes.
+        // We want to loop every 8 combos.
+        // Combo 1 -> Index 0. Combo 8 -> Index 7.
+        const noteIndex = (combo - 1) % this.MINOR_SCALE.length;
 
-        // Cap octave at 2 (C7 range) to keep it pleasant
-        const cappedOctave = Math.min(octave, 2);
-        const freq = this.PENTATONIC_BASE[noteIndex] * Math.pow(2, cappedOctave);
+        // Octave shift every 8 combos? 
+        // User requested: "Max 8 combo sound". 
+        // Let's ascend octaves but cap it.
+        const octave = Math.floor((combo - 1) / this.MINOR_SCALE.length);
+
+        // Cap octave at 1 (C6-C7 range) to prevent ear-piercing highs
+        const cappedOctave = Math.min(octave, 1);
+        const freq = this.MINOR_SCALE[noteIndex] * Math.pow(2, cappedOctave);
 
         // "叮" sound: Sine wave with long resonance for musicality
         // Balanced base volume to 0.15 per user request
         SoundManager.getInstance().playTone(freq, 'sine', 0.6, 0.15);
 
-        // Add chord overlay for 5+ combo to emphasize reward
-        if (combo >= 5) {
+        // Add chord overlay for 8+ combo to emphasize reward (High C completion)
+        if (combo % 8 === 0) {
             setTimeout(() => {
                 // Add a perfect fifth (freq * 1.5) with gentle decay
                 SoundManager.getInstance().playTone(freq * 1.5, 'sine', 0.4, 0.09);

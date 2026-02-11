@@ -322,9 +322,27 @@ export class StackPhysics implements IPhysicsWorld {
         }
         this.score += increment;
 
-        // Step-Function Speed Curve: Every 10 blocks, +20% speed. Cap at score 80. Max 2.5x.
-        const speedIncrements = Math.floor(Math.min(this.score, 80) / 10);
-        this.currentSpeed = this.MOVE_SPEED_BASE * (1 + speedIncrements * 0.2);
+        // Speed Logic Update (Target: 8-Combo Cycle)
+        // 1. Perfect Hit: Speed remains stable (except at scale peak).
+        // 2. Non-Perfect: Speed increases slightly (+1%).
+        // 3. Scale Peak (Every 8 Perfects): Speed increases more (+3%).
+        // 4. Cap at 2.5x Base Speed.
+
+        const MAX_SPEED = this.MOVE_SPEED_BASE * 2.5;
+
+        if (isPerfect) {
+            // Check for Scale Peak (Every 8th combo: 8, 16, 24...)
+            if (this.combo % 8 === 0) {
+                this.currentSpeed *= 1.03; // +3% Boost
+            }
+            // Else: Stable speed (no change)
+        } else {
+            // Non-perfect: Slight penalty
+            this.currentSpeed *= 1.01; // +1% Boost
+        }
+
+        // Apply Cap
+        this.currentSpeed = Math.min(this.currentSpeed, MAX_SPEED);
 
         this.spawnNextBlock();
 
