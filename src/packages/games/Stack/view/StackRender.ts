@@ -602,6 +602,14 @@ export class StackRender implements IRenderPipeline {
         if (this.fgParticles) this.scene.remove(this.fgParticles);
         this.sharedGeometry.dispose();
         StackMaterials.clear();
-        this.renderer?.dispose();
+
+        try {
+            if (this.renderer) {
+                this.renderer.dispose();
+                this.renderer = null;
+            }
+        } catch (e) {
+            console.warn('[StackRender] renderer disposal failed:', e);
+        }
     }
 }

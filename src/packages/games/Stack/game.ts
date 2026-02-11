@@ -56,10 +56,15 @@ export class ThreeGameLoop extends GameLoop {
     }
 
     public destroy() {
+        if (this.isDestroyed) return;
         super.destroy();
         if (this.platform) {
-            this.platform.dispose();
-            PLATFORM.dispose();
+            try {
+                this.platform.dispose();
+                PLATFORM.dispose();
+            } catch (e) {
+                console.warn('[ThreeGameLoop] platform disposal failed:', e);
+            }
         }
     }
 }

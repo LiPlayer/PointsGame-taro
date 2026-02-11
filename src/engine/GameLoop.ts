@@ -12,6 +12,7 @@ export class GameLoop {
     protected physics: IPhysicsWorld
     protected renderer: IRenderPipeline
     protected isRunning: boolean = false
+    protected isDestroyed: boolean = false
     protected lastTime: number = 0
     protected accumulator: number = 0
     protected readonly params: { width: number; height: number; dpr: number; canvas: any }
@@ -49,13 +50,20 @@ export class GameLoop {
     public get height() { return this.params.height }
     public get physicsWorld() { return this.physics }
 
+    private getNow(): number {
+        if (typeof performance !== 'undefined' && performance.now) {
+            return performance.now();
+        }
+        return Date.now();
+    }
+
     public start(platform?: any) {
-        if (this.isRunning) return
+        if (this.isRunning || this.isDestroyed) return
 
         this.physics.init(this.params.width, this.params.height)
         this.renderer.init(this.params.canvas, this.params.width, this.params.height, this.params.dpr, platform)
         this.isRunning = true
-        this.lastTime = performance.now()
+        this.lastTime = this.getNow()
 
         requestAnimationFrame(this.loop.bind(this))
     }
@@ -65,6 +73,8 @@ export class GameLoop {
     }
 
     public destroy() {
+        if (this.isDestroyed) return
+        this.isDestroyed = true
         this.stop()
         this.physics.destroy()
         this.renderer.destroy()
@@ -97,14 +107,15 @@ export class GameLoop {
         // Render current state
         this.renderer.render(this.physics)
 
-        if (!this.hasRenderedFirstFrame) {
-            this.hasRenderedFirstFrame = true
-            if (this.onFirstFrameRendered) {
-                this.onFirstFrameRendered()
+        if (this.isRunning) {
+            if (!this.hasRenderedFirstFrame) {
+                this.hasRenderedFirstFrame = true
+                if (this.onFirstFrameRendered) {
+                    this.onFirstFrameRendered()
+                }
             }
+            requestAnimationFrame(this.loop.bind(this))
         }
-
-        requestAnimationFrame(this.loop.bind(this))
     }
 
     /** Override this for custom per-frame logic (e.g., input handling) */
