@@ -596,7 +596,13 @@ export class StackRender implements IRenderPipeline {
                 this.renderer = null;
             }
         } catch (e) {
-            console.warn('[StackRender] renderer disposal failed:', e);
+            // Log only unexpected disposal errors
+            const err = e as any;
+            const msg = String(err?.message || err || "").toLowerCase();
+            const isHarmless = msg.includes('null') || msg.includes('undefined') || msg.includes('cancelanimationframe');
+            if (!isHarmless) {
+                console.error('[StackRender] renderer disposal failed:', e);
+            }
         }
     }
 }

@@ -201,6 +201,14 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
     -   ✅ **Touch First**: 游戏内的点击交互**必须且只能**绑定 `onTouchStart` (或 `PointerEvent` 的 `pointerdown`)。
     -   ❌ **严禁 Click**: 严禁使用 `onClick` 处理游戏逻辑（会有 300ms 延迟，且在 Emulation 模式下会造成双重触发）。
     -   ❌ **无视 Mouse**: 严禁绑定 `onMouseDown`，除非你明确知道自己在做什么（Chrome Emulation 会在 touch 后模拟 mouse 事件，导致由“松开”引发的误触）。
+205: 
+206: 7.  **性能监控规范 (Performance Monitoring Spec - Debug Only)**
+207:     为确保开发过程中能够实时掌握性能状况，所有游戏集成必须支持 FPS 显示机制：
+208:     
+209:     -   ✅ **引擎集成**: `GameLoop` 必须维护 `fps` 属性，实时计算平滑帧率。
+210:     -   ✅ **UI 集成**: 游戏容器或主页面必须在开发环境下渲染 `src/engine/DebugOverlay` 组件。
+211:     -   ✅ **节流策略**: 为避免监控工具本身干扰性能，`DebugOverlay` 必须采取节流读取策略（推荐 **1000ms/次**），严禁随帧更新 React State。
+212:     -   ✅ **环境隔离**: 监控逻辑必须包裹在 `if (process.env.NODE_ENV === 'development')` 中，确保 Release 包完全不含此类代码。
 
 
 ### 4.5 分包与云端资源 (Subpackage & Cloud Assets)

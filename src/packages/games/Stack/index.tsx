@@ -6,6 +6,7 @@ import { SoundManager } from '../../../engine/SoundManager';
 import { StackPhysics } from './logic/StackPhysics';
 import { StackAudio } from './view/StackAudio';
 import { GameState } from './logic/StackPhysics';
+import { DebugOverlay } from '../../../engine/DebugOverlay';
 
 const StackGame = () => {
     const loopRef = useRef<ThreeGameLoop | null>(null);
@@ -227,6 +228,7 @@ const StackGame = () => {
                 </View>
             )}
 
+            <DebugOverlay loop={loopRef.current} />
         </View>
     );
 };

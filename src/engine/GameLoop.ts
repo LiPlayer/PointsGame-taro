@@ -15,11 +15,17 @@ export class GameLoop {
     protected isDestroyed: boolean = false
     protected lastTime: number = 0
     protected accumulator: number = 0
+    protected platform: any = null
     protected readonly params: { width: number; height: number; dpr: number; canvas: any }
 
     // Callback for when the first frame is rendered
     public onFirstFrameRendered?: () => void
     protected hasRenderedFirstFrame: boolean = false
+
+    // FPS Tracking
+    protected frameCount: number = 0
+    protected lastFpsUpdate: number = 0
+    protected currentFps: number = 0
 
     constructor(
         physics: IPhysicsWorld,
@@ -49,6 +55,7 @@ export class GameLoop {
     public get width() { return this.params.width }
     public get height() { return this.params.height }
     public get physicsWorld() { return this.physics }
+    public get fps() { return this.currentFps }
 
     private getNow(): number {
         if (typeof performance !== 'undefined' && performance.now) {
@@ -60,6 +67,7 @@ export class GameLoop {
     public start(platform?: any) {
         if (this.isRunning || this.isDestroyed) return
 
+        this.platform = platform
         this.physics.init(this.params.width, this.params.height)
         this.renderer.init(this.params.canvas, this.params.width, this.params.height, this.params.dpr, platform)
         this.isRunning = true
@@ -78,6 +86,31 @@ export class GameLoop {
         this.stop()
         this.physics.destroy()
         this.renderer.destroy()
+
+        if (this.platform) {
+            try {
+                // Compliance: Spec - Disposal Safety (Wraps platform disposal in try-catch)
+                if (typeof this.platform.dispose === 'function') {
+                    this.platform.dispose();
+                }
+            } catch (e) {
+                // Compliance: Spec - Disposal Safety (Silently ignore harmless unmount errors, log real ones)
+                if (!this.isHarmlessDisposalError(e)) {
+                    console.error(`[${this.constructor.name}] platform disposal failed:`, e);
+                }
+            }
+        }
+    }
+
+    /** Helper to identify known safe-to-ignore errors during game disposal in WeApp/H5 unmount */
+    protected isHarmlessDisposalError(e: any): boolean {
+        const msg = String(e?.message || e || "").toLowerCase();
+        return (
+            msg.includes('null') ||
+            msg.includes('undefined') ||
+            msg.includes('cancelanimationframe') ||
+            msg.includes('getcontext')
+        );
     }
 
     public resize(width: number, height: number) {
@@ -91,6 +124,14 @@ export class GameLoop {
 
         let deltaTime = time - this.lastTime
         this.lastTime = time
+
+        // FPS Calculation
+        this.frameCount++
+        if (time - this.lastFpsUpdate >= 1000) {
+            this.currentFps = Math.round((this.frameCount * 1000) / (time - this.lastFpsUpdate))
+            this.frameCount = 0
+            this.lastFpsUpdate = time
+        }
 
         // Variable Timestep: No Accumulator Logic
         // We use the safeDelta calculated below for physics updates

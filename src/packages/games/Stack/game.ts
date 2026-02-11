@@ -5,7 +5,6 @@ import { PLATFORM } from 'three-platformize';
 import { WechatPlatform } from 'three-platformize/src/WechatPlatform';
 
 export class ThreeGameLoop extends GameLoop {
-    private platform: any;
 
     constructor(canvas: any, width: number, height: number) {
         // Create Physics and Render instances
@@ -56,12 +55,14 @@ export class ThreeGameLoop extends GameLoop {
     public destroy() {
         if (this.isDestroyed) return;
         super.destroy();
-        if (this.platform) {
-            try {
-                this.platform.dispose();
-                PLATFORM.dispose();
-            } catch (e) {
-                console.warn('[ThreeGameLoop] platform disposal failed:', e);
+        // PLATFORM.dispose() is Three.js specific, keeping it here.
+        // Base class handles this.platform.dispose()
+        try {
+            PLATFORM.dispose();
+        } catch (e) {
+            // Log only unexpected PLATFORM disposal errors
+            if (!this.isHarmlessDisposalError(e)) {
+                console.error('[ThreeGameLoop] PLATFORM disposal failed:', e);
             }
         }
     }
