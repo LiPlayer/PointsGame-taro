@@ -147,7 +147,7 @@ export class StackRender implements IRenderPipeline {
     public init(canvas: any, width: number, height: number, dpr: number, platform?: any) {
         this.container = canvas;
         this.platform = platform;
-        this.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+        this.renderer = new THREE.WebGL1Renderer({ canvas: canvas, antialias: true, alpha: true });
         this.renderer.setPixelRatio(dpr);
 
         // In MiniPrograms, setSize updates style if third param is true.
