@@ -134,7 +134,6 @@ export class StackPhysics implements IPhysicsWorld {
     }
 
     private spawnNextBlock() {
-        console.log('[StackPhysics] Spawning block at height:', this.stack.length);
         const top = this.stack[this.stack.length - 1];
         this.moveAxis = this.moveAxis === MoveAxis.X ? MoveAxis.Z : MoveAxis.X;
 
@@ -212,7 +211,6 @@ export class StackPhysics implements IPhysicsWorld {
         // Clamp dt to avoid massive jumps during lag spikes (max 3 frames approx)
         const safeDt = Math.min(dt, 50);
         const moveAmount = this.currentSpeed * (safeDt / 16.66);
-        // console.log('[StackPhysics] Update: dt=', dt, 'move=', moveAmount, 'pos=', this.currentBlock.position); // Debug
 
         // range fixed to 1.2 * INITIAL_SIZE as per spec
         const range = this.INITIAL_SIZE * 1.2;
@@ -221,7 +219,6 @@ export class StackPhysics implements IPhysicsWorld {
             this.currentBlock.position.x += moveAmount * this.moveDirection;
             const px = this.currentBlock.position.x;
             if ((px > range && this.moveDirection > 0) || (px < -range && this.moveDirection < 0)) {
-                // console.log('[StackPhysics] Flip X. Range:', range, 'Pos:', px);
                 this.moveDirection *= -1;
                 // Clamp position to edge to prevent perpetual out-of-bounds flipping
                 this.currentBlock.position.x = range * (px > 0 ? 1 : -1);
@@ -230,7 +227,6 @@ export class StackPhysics implements IPhysicsWorld {
             this.currentBlock.position.z += moveAmount * this.moveDirection;
             const pz = this.currentBlock.position.z;
             if ((pz > range && this.moveDirection > 0) || (pz < -range && this.moveDirection < 0)) {
-                // console.log('[StackPhysics] Flip Z. Range:', range, 'Pos:', pz);
                 this.moveDirection *= -1;
                 // Clamp position to edge to prevent perpetual out-of-bounds flipping
                 this.currentBlock.position.z = range * (pz > 0 ? 1 : -1);
@@ -256,7 +252,6 @@ export class StackPhysics implements IPhysicsWorld {
         const overlap = top.size[sizeAxis] - Math.abs(delta);
 
         if (overlap <= 0) {
-            console.log('[StackPhysics] Game Over: Overlap', overlap, 'Delta', delta, 'Size', top.size[sizeAxis]);
             this.state = GameState.GAMEOVER;
 
             // Current block falls as debris

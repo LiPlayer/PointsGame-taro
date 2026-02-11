@@ -51,7 +51,6 @@ const StackGame = () => {
         }
 
         const setup = (canvas: any, width: number, height: number) => {
-            console.log('[StackGame] Setting up ThreeGameLoop on canvas');
             const loop = new ThreeGameLoop(canvas, width, height);
             loopRef.current = loop;
             loop.start();
@@ -60,12 +59,10 @@ const StackGame = () => {
         if (process.env.TARO_ENV === 'h5') {
             const canvasEl = document.getElementById('stack-canvas') as HTMLCanvasElement;
             if (canvasEl) {
-                console.log('[StackGame] H5 Canvas detected');
                 const rect = canvasEl.getBoundingClientRect();
                 setup(canvasEl, rect.width, rect.height);
             }
         } else {
-            console.log('[StackGame] WeApp Canvas selecting...');
             Taro.createSelectorQuery()
                 .select('#stack-canvas')
                 .fields({ node: true, size: true })
@@ -84,7 +81,6 @@ const StackGame = () => {
         if (!loopRef.current) return;
 
         if (gameOver) {
-            console.log('[StackGame] Manual Skip triggered');
             if (exitTimerRef.current) {
                 clearTimeout(exitTimerRef.current);
             }
@@ -102,7 +98,6 @@ const StackGame = () => {
         setGameState(physics.state);
 
         if (result.gameOver) {
-            console.log('[StackGame] Game Over detected. Score:', physics.score);
             // Removed audio: StackAudio.playGameOver(); StackAudio.playFall();
 
             // Heavy haptic
@@ -125,7 +120,6 @@ const StackGame = () => {
 
             setGameOver(true);
         } else if (result.perfect) {
-            console.log('[StackGame] Perfect placement! Combo:', physics.combo);
             StackAudio.playPerfect(physics.combo);
 
             // Trigger Perfect Ripple VFX via game loop
@@ -214,9 +208,6 @@ const StackGame = () => {
             >
                 <View className="relative w-full flex flex-col items-center">
                     {/* Title: Position absolute to prevent layout shift of score */}
-                    {score === 0 && gameState === GameState.IDLE && (
-                        <Text className="absolute bottom-full mb-6 text-white text-7xl font-black opacity-10 leading-none tracking-widest whitespace-nowrap">极致层叠</Text>
-                    )}
                     <View className="flex flex-col items-center">
                         <Text
                             className={`text-white font-thin tracking-tighter transition-all duration-[1500ms] ${showFinalScore ? 'text-[12rem]' : 'text-9xl'}`}

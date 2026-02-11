@@ -24,7 +24,6 @@ export class ThreeGameLoop extends GameLoop {
 
         // Initialize Three.js WeApp Adapter
         if (process.env.TARO_ENV === 'weapp') {
-            console.log('[ThreeGameLoop] initializing WechatPlatform adapter');
             const canvas = this.params.canvas;
             this.platform = new WechatPlatform(canvas);
             PLATFORM.set(this.platform);
@@ -34,7 +33,6 @@ export class ThreeGameLoop extends GameLoop {
     }
 
     public handleTap(): PhysicsResult {
-        console.log('[ThreeGameLoop] Tap handled');
         const physics = this.physics as any as StackPhysics;
         return physics.placeBlock();
     }
