@@ -45,18 +45,44 @@ export class WxCloudLoader implements IAssetLoader {
     }
 
     async loadTexture(path: string): Promise<THREE.Texture> {
-        // Placeholder for Cloud implementation
-        // const res = await Taro.cloud.getTempFileURL({ fileList: [path] });
-        // const url = res.fileList[0].tempFileURL;
-        // return new THREE.TextureLoader().loadAsync(url);
-        throw new Error("WxCloudLoader.loadTexture: Not implemented");
+        try {
+            const res = await Taro.cloud.getTempFileURL({ fileList: [path] });
+            if (res.fileList && res.fileList[0].tempFileURL) {
+                const url = res.fileList[0].tempFileURL;
+                return new Promise((resolve, reject) => {
+                    new THREE.TextureLoader().load(url, resolve, undefined, reject);
+                });
+            } else {
+                throw new Error(`Failed to get temp file URL for ${path}`);
+            }
+        } catch (e) {
+            console.error('[WxCloudLoader] loadTexture failed:', e);
+            throw e;
+        }
     }
 
     async loadModel(path: string): Promise<THREE.Group> {
-        // Placeholder for Cloud implementation
-        throw new Error("WxCloudLoader.loadModel: Not implemented");
+        try {
+            const res = await Taro.cloud.getTempFileURL({ fileList: [path] });
+            if (res.fileList && res.fileList[0].tempFileURL) {
+                const url = res.fileList[0].tempFileURL;
+                return new Promise((resolve, reject) => {
+                    const loader = new GLTFLoader();
+                    loader.load(url, (gltf) => {
+                        resolve(gltf.scene);
+                    }, undefined, reject);
+                });
+            } else {
+                throw new Error(`Failed to get temp file URL for ${path}`);
+            }
+        } catch (e) {
+            console.error('[WxCloudLoader] loadModel failed:', e);
+            throw e;
+        }
     }
 }
 
 // Factory
-export const assetLoader: IAssetLoader = new LocalAssetLoader();
+export const assetLoader: IAssetLoader = Taro.getEnv() === Taro.ENV_TYPE.WEAPP
+    ? WxCloudLoader.getInstance()
+    : new LocalAssetLoader();

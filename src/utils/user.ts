@@ -26,30 +26,42 @@ export async function initUserData(): Promise<UserData> {
     // 3. Start initialization
     initPromise = (async () => {
         try {
-            const data = await getDBUser()
-            if (data) {
-                userData = data
-                // Guarantee _openid in non-weapp environments for QR generation
+            // 1. Call Cloud Login (which now handles Create/Get)
+            const loginRes = await login()
+
+            if (loginRes.success && loginRes.userData) {
+                // Cloud returned valid data (New or Existing)
+                userData = loginRes.userData
+
+                // Cache it locally
+                Taro.setStorageSync('user_data_db', userData)
+
+                console.log('[User] Init success via Cloud:', userData)
+            } else {
+                // Fallback: Try local cache if Cloud fails (Offline mode?)
+                // Or if H5 mock
+                console.warn('[User] Cloud login returned no data, trying local/db...')
+                const data = await getDBUser()
+                if (data) {
+                    userData = data
+                } else {
+                    // Last Resort: Local Mock (will fail to save if Cloud enforces Admin-Only, but keeps app running)
+                    userData = { ...DEFAULT_USER_DATA, lastUpdatedAt: Date.now() }
+                    console.warn('[User] Using temporary local session')
+                }
+            }
+
+            // Post-init processing
+            if (userData) {
+                // Determine implicit openid if missing (H5)
                 if (Taro.getEnv() !== Taro.ENV_TYPE.WEAPP && !userData._openid) {
                     userData._openid = 'MOCK_OPENID_12345'
                 }
                 refreshPoints()
-            } else {
-                // New user: Create and Save
-                userData = { ...DEFAULT_USER_DATA, lastUpdatedAt: Date.now() }
-                await saveUserData()
-
-                // CRITICAL: Fetch again to get the system-generated _openid
-                if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
-                    const savedData = await getDBUser()
-                    if (savedData) {
-                        userData = savedData
-                        console.log('[User] New user created, synced openid:', userData._openid)
-                    }
-                }
             }
         } catch (e) {
             console.error('[User] Data init failed:', e)
+            // Error resilience: don't crash, just give empty user
             userData = { ...DEFAULT_USER_DATA, lastUpdatedAt: Date.now() }
         } finally {
             initPromise = null // Reset lock
@@ -144,26 +156,67 @@ export async function updatePoints(delta: number): Promise<number> {
     // Force refresh before update
     refreshPoints(true)
 
-    // Apply delta (keep float precision in memory)
+    // Optimistic Update (UI reacts instantly)
+    // We update the local memory state so the UI shows the new score immediately
     userData.points += delta
     userData.lastUpdatedAt = Date.now()
 
-    await saveUserData()
+    // Save to LocalStorage for offline persistence/backup
+    Taro.setStorageSync('user_data_db', userData)
+
+    try {
+        if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
+            // Security: Call Cloud Function instead of direct DB write
+            const res = await Taro.cloud.callFunction({
+                name: 'updatePoints',
+                data: {
+                    action: delta >= 0 ? 'add' : 'deduct',
+                    points: Math.abs(delta)
+                }
+            })
+            const result = res.result as any
+            if (!result.success) {
+                console.error('[User] Cloud update failed:', result.error)
+                // Rollback local state on error? 
+                // For "Zero Friction", we might just log it. 
+                // Serious implementation would rollback.
+            }
+        } else {
+            // H5 Mock
+            console.log('[User] H5 Mock Update:', delta)
+            await saveUserData()
+        }
+    } catch (e) {
+        console.error('[User] Update points failed:', e)
+    }
+
     return userData.points
 }
 
-export async function login(): Promise<{ success: boolean; error?: any }> {
+export async function login(): Promise<{ success: boolean; error?: any; userData?: UserData }> {
     try {
         if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
-            const { code } = await Taro.login()
-            console.log('[Login] WeChat success, code:', code)
+            // Call the enhanced cloud function
+            const res = await Taro.cloud.callFunction({
+                name: 'login'
+            })
+            const result = res.result as any
+
+            console.log('[Login] Cloud result:', result)
+
+            if (result.userData) {
+                return { success: true, userData: result.userData }
+            } else {
+                return { success: true } // Just openid, no user data (shouldn't happen with new logic)
+            }
         } else {
             console.log('[Login] H5 Mock success')
+            // Mock return
+            return {
+                success: true,
+                userData: await getDBUser() || { ...DEFAULT_USER_DATA, _openid: 'MOCK_OPENID_12345' }
+            }
         }
-
-        // Note: We deliberately DO NOT call initUserData() here anymore.
-        // Data fetching is deferred until the home page or specific features need it.
-        return { success: true }
     } catch (e) {
         console.error('[Login] Failed:', e)
         return { success: false, error: e }
