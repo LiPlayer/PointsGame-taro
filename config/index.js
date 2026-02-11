@@ -66,6 +66,19 @@ export default defineConfig(async (merge, { command, mode }) => {
                 appType: 'taro'
               }]
             }
+          },
+          optimization: {
+            splitChunks: {
+              cacheGroups: {
+                gameEngine: {
+                  name: 'vendors', // Force into main package vendors
+                  test: /[\\/]node_modules[\\/](three|three-platformize|cannon-es|pixi\.js|pixi-miniprogram|@pixi|matter-js)[\\/]/,
+                  priority: 100, // High priority to override default split
+                  chunks: 'all',
+                  enforce: true
+                }
+              }
+            }
           }
         })
       },
