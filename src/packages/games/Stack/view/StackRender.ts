@@ -560,39 +560,34 @@ export class StackRender implements IRenderPipeline {
     }
 
     private createGradientTexture(): THREE.Texture {
-        let canvas: any;
-        if (this.platform && this.platform.createCanvas) {
-            canvas = this.platform.createCanvas();
-        } else if (typeof document !== 'undefined') {
-            canvas = document.createElement('canvas');
-        } else {
-            // Fallback for extreme environments
-            return new THREE.Texture();
+        // Using DataTexture instead of Canvas to avoid getContext('2d') issues in MiniPrograms
+        const width = 1;
+        const height = 512;
+        const size = width * height;
+        const data = new Uint8Array(4 * size);
+
+        for (let i = 0; i < height; i++) {
+            const stride = i * 4;
+            const v = i / (height - 1); // 0 (bottom) to 1 (top)
+
+            // V=0 (bottom of mesh) -> Transparent (Black/0)
+            // V=0.5 (middle) -> Opaque (White/255)
+            // V=1.0 (top) -> Opaque (White/255)
+            let val = 0;
+            if (v >= 0.5) {
+                val = 255;
+            } else {
+                val = Math.floor((v / 0.5) * 255);
+            }
+
+            data[stride] = val;     // R (used by alphaMap)
+            data[stride + 1] = val; // G
+            data[stride + 2] = val; // B
+            data[stride + 3] = 255; // A
         }
 
-        canvas.width = 2;
-        canvas.height = 512;
-        const context = canvas.getContext('2d');
-        if (context) {
-            const gradient = context.createLinearGradient(0, 0, 0, 512);
-
-            // Three.js alphaMap uses the Red channel (Luminance) for opacity.
-            // Texture flipY is true by default. 
-            // Canvas Top (0) -> Maps to V=1 (Top of Mesh).
-            // Canvas Bottom (512) -> Maps to V=0 (Bottom of Mesh).
-
-            // We want Top of Mesh (V=1) to be Opaque (White).
-            // We want Bottom of Mesh (V=0) to be Transparent (Black).
-
-            gradient.addColorStop(0, '#FFFFFF'); // Top of Canvas -> Top of Mesh (V=1) -> Opaque
-            gradient.addColorStop(0.5, '#FFFFFF'); // Solid top half
-            gradient.addColorStop(1, '#000000'); // Bottom of Canvas -> Bottom of Mesh (V=0) -> Transparent
-
-            context.fillStyle = gradient;
-            context.fillRect(0, 0, 2, 512);
-        }
-
-        const texture = new THREE.CanvasTexture(canvas);
+        const texture = new THREE.DataTexture(data, width, height, THREE.RGBAFormat);
+        texture.needsUpdate = true;
         return texture;
     }
 
