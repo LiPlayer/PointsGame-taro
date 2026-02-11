@@ -116,7 +116,7 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
 #### B. 跨端性能准则 (Performance & Compatibility)
 1. **单向数据通信**：Taro UI 通过 `Ref` 或 `window` 单向调用引擎 API；引擎严禁通过 `setState` 驱动游戏逻辑（仅限在游戏结束等低频时点回调 React）。
 2. **内存预分配 (Pool Logic)**：所有 2D Sprite 或 3D Object 必须在预加载阶段创建，运行时严禁频繁 `new` 或销毁对象。
-3. **分辨率隔离**：必须遵循 `maxDPR` 限制。3D 游戏在微信小程序中强制限制 `resolution <= 1.2` 以保散热稳定。
+3. **分辨率隔离**：必须遵循 `maxDPR` 策略。默认优先保证画质（使用原生 DPR），但在高负载情况下允许通过 `GameLoop` 构造函数手动限制。
 4. **资源池化**：Texture 和 Geometry 必须全局共享，避免重复解析导致的内存溢出。
 
 
@@ -158,8 +158,10 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
 
     // src/engine/IRenderPipeline.ts
     interface IRenderPipeline {
-      init(canvas: any, width: number, height: number, dpr: number): void
-      render(physics: IPhysicsWorld): void // 直接渲染
+      /** 初始化渲染器 */
+      init(canvas: any, width: number, height: number, dpr: number, platform?: any): void
+      /** 渲染一帧 */
+      render(physics: IPhysicsWorld): void
       destroy(): void
     }
     ```
@@ -168,16 +170,16 @@ Earn 不是玩法，只是一次结果分流器。决定本次交互是“直接
     ```typescript
     // src/engine/GameLoop.ts
     class MyGameLoop extends GameLoop {
-      constructor(pixi, canvas, w, h) {
-        // 默认满画质：
-        super(new MyPhysics(), new MyRenderer(pixi), canvas, w, h)
-        
-        // 或者手动限制 DPR (例如限制为 2.0)：
-        // super(new MyPhysics(), new MyRenderer(pixi), canvas, w, h, { maxDPR: 2.0 })
+      private platform: any;
+
+      constructor(canvas, w, h, options?: { maxDPR?: number }) {
+        // 默认满画质，或者通过 options 限制 DPR：
+        super(new MyPhysics(), new MyRenderer(), canvas, w, h, options)
       }
-      
-      protected onUpdate(dt: number) { 
-        // 可选：每帧逻辑 update
+
+      public start() {
+        // ... 平台初始化逻辑 ...
+        super.start(this.platform)
       }
     }
     ```

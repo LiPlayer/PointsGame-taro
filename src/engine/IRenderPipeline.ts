@@ -8,7 +8,7 @@ import { IPhysicsWorld } from './IPhysicsWorld'
  */
 export interface IRenderPipeline {
     /** 初始化渲染器 */
-    init(canvas: any, width: number, height: number, dpr: number): void
+    init(canvas: any, width: number, height: number, dpr: number, platform?: any): void
 
     /** 渲染一帧 */
     render(physics: IPhysicsWorld): void

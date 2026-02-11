@@ -30,8 +30,7 @@ export class ThreeGameLoop extends GameLoop {
             PLATFORM.set(this.platform);
         }
 
-        console.log('[ThreeGameLoop] Game started');
-        super.start();
+        super.start(this.platform);
     }
 
     public handleTap(): PhysicsResult {

@@ -21,6 +21,7 @@ export class StackRender implements IRenderPipeline {
     private camera: THREE.OrthographicCamera;
     private renderer: THREE.WebGLRenderer | null = null;
     private container: any;
+    private platform: any;
 
     private blockMeshes: THREE.Mesh[] = [];
     private currentBlockMesh: THREE.Mesh | null = null;
@@ -143,11 +144,15 @@ export class StackRender implements IRenderPipeline {
         this.scene.add(this.fgParticles);
     }
 
-    public init(canvas: any, width: number, height: number, dpr: number) {
+    public init(canvas: any, width: number, height: number, dpr: number, platform?: any) {
         this.container = canvas;
+        this.platform = platform;
         this.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
-        this.renderer.setPixelRatio(Math.min(dpr, 1.2));
-        this.renderer.setSize(width, height);
+        this.renderer.setPixelRatio(dpr);
+
+        // In MiniPrograms, setSize updates style if third param is true.
+        // We set it to false to avoid unexpected layout shifts / style errors.
+        this.renderer.setSize(width, height, false);
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -555,7 +560,16 @@ export class StackRender implements IRenderPipeline {
     }
 
     private createGradientTexture(): THREE.Texture {
-        const canvas = document.createElement('canvas');
+        let canvas: any;
+        if (this.platform && this.platform.createCanvas) {
+            canvas = this.platform.createCanvas();
+        } else if (typeof document !== 'undefined') {
+            canvas = document.createElement('canvas');
+        } else {
+            // Fallback for extreme environments
+            return new THREE.Texture();
+        }
+
         canvas.width = 2;
         canvas.height = 512;
         const context = canvas.getContext('2d');

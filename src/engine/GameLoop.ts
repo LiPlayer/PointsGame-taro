@@ -49,11 +49,11 @@ export class GameLoop {
     public get height() { return this.params.height }
     public get physicsWorld() { return this.physics }
 
-    public start() {
+    public start(platform?: any) {
         if (this.isRunning) return
 
         this.physics.init(this.params.width, this.params.height)
-        this.renderer.init(this.params.canvas, this.params.width, this.params.height, this.params.dpr)
+        this.renderer.init(this.params.canvas, this.params.width, this.params.height, this.params.dpr, platform)
         this.isRunning = true
         this.lastTime = performance.now()
 
