@@ -35,12 +35,9 @@ export async function initUserData(): Promise<UserData> {
 
                 // Cache it locally
                 Taro.setStorageSync('user_data_db', userData)
-
-                console.log('[User] Init success via Cloud:', userData)
             } else {
                 // Fallback: Try local cache if Cloud fails (Offline mode?)
                 // Or if H5 mock
-                console.warn('[User] Cloud login returned no data, trying local/db...')
                 const data = await getDBUser()
                 if (data) {
                     userData = data
@@ -57,7 +54,7 @@ export async function initUserData(): Promise<UserData> {
                 if (Taro.getEnv() !== Taro.ENV_TYPE.WEAPP && !userData._openid) {
                     userData._openid = 'MOCK_OPENID_12345'
                 }
-                refreshPoints()
+                await syncDecayToDB()
             }
         } catch (e) {
             console.error('[User] Data init failed:', e)
@@ -117,44 +114,41 @@ export async function saveUserData(): Promise<void> {
     }
 }
 
-export function refreshPoints(forceSave: boolean = false): number {
+/**
+ * Calculate the current points for display (extrapolation)
+ * Does NOT update the underlying userData state.
+ */
+export function getDecayedPoints(): number {
     if (!userData) return 0
+    if (isEvaporationPaused) return userData.points
 
-    // If paused, return current points without decay
-    if (isEvaporationPaused) {
-        return userData.points
-    }
+    return calculateCurrentPoints(userData.points, userData.lastUpdatedAt)
+}
 
-    const currentPoints = calculateCurrentPoints(userData.points, userData.lastUpdatedAt)
+/**
+ * Commits the current decayed points to memory and database.
+ * Should be called sparingly (e.g. app launch, home entry, before interaction).
+ */
+export async function syncDecayToDB(): Promise<void> {
+    if (!userData) return
 
-    if (currentPoints !== userData.points) {
-        userData.points = currentPoints
-        // Don't update lastUpdatedAt on every decay tick to preserve precision? 
-        // Actually economy model needs lastUpdatedAt to stay fixed until an Interaction happens?
-        // Wait, calculateCurrentPoints uses (now - lastUpdatedAt). 
-        // If we update lastUpdatedAt every tick, deltaH is small.
-        // Standard implementation: 
-        // - Either we DON'T update lastUpdatedAt (just calc view), 
-        // - OR we update points and update lastUpdatedAt. 
-        // The economy model P_real(t) assumes P_last is fixed at t_0. 
-        // If we update continuously: P(t+dt) from P(t). 
-        // Continuous decay.
-        // Let's stick to updating both.
+    const decayedPoints = getDecayedPoints()
 
+    // Update if changed (integer part or meaningful difference)
+    if (Math.abs(decayedPoints - userData.points) > 0.01) {
+        userData.points = decayedPoints
         userData.lastUpdatedAt = Date.now()
-        if (forceSave) {
-            saveUserData()
-        }
+        await saveUserData()
+        console.log('[User] Decay synced to DB. New base points:', Math.round(userData.points))
     }
-    return userData.points
 }
 
 export async function updatePoints(delta: number): Promise<number> {
     if (!userData) await initUserData()
     if (!userData) return 0 // Should not happen after init
 
-    // Force refresh before update
-    refreshPoints(true)
+    // Commit any pending decay before applying delta
+    await syncDecayToDB()
 
     // Optimistic Update (UI reacts instantly)
     // We update the local memory state so the UI shows the new score immediately
@@ -201,8 +195,6 @@ export async function login(): Promise<{ success: boolean; error?: any; userData
                 name: 'login'
             })
             const result = res.result as any
-
-            console.log('[Login] Cloud result:', result)
 
             if (result.userData) {
                 return { success: true, userData: result.userData }

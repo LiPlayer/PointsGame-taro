@@ -11,13 +11,13 @@ exports.main = async (event, context) => {
 
     try {
         // 查询用户积分
-        const res = await db.collection('users').where({ openid }).get();
+        const res = await db.collection('users').where({ _openid: openid }).get();
 
         if (res.data.length === 0) {
             // 新用户，创建记录
             await db.collection('users').add({
                 data: {
-                    openid,
+                    _openid: openid,
                     points: 0,
                     collection: [],
                     lastUpdatedAt: db.serverDate(),

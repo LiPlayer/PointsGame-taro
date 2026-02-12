@@ -36,9 +36,6 @@ export async function getDBUser(): Promise<UserData | null> {
         try {
             const db = Taro.cloud.database()
             const { data } = await db.collection(COLLECTION_NAME)
-                .where({
-                    _openid: '{openid}' // Explicitly query current user's data
-                })
                 .limit(1)
                 .get()
 
