@@ -129,17 +129,20 @@ const StackGame = () => {
     const handleTap = useCallback(() => {
         if (!loopRef.current) return;
 
+        const physics = (loopRef.current as any).physics as StackPhysics;
+
         if (gameOver) {
             if (exitTimerRef.current) {
                 clearTimeout(exitTimerRef.current);
             }
-            const physics = (loopRef.current as any).physics as StackPhysics;
             Taro.redirectTo({ url: `/pages/result-earn/index?score=${physics.score}&id=stack` });
             return;
         }
 
+        // Prevent multiple game-over triggers during the 1s hold
+        if (physics.state === GameState.GAMEOVER) return;
+
         const result = loopRef.current.handleTap();
-        const physics = (loopRef.current as any).physics as StackPhysics;
 
         setScore(physics.score);
         setCombo(physics.combo);
@@ -147,27 +150,30 @@ const StackGame = () => {
         setGameState(physics.state);
 
         if (result.gameOver) {
-            // Removed audio: StackAudio.playGameOver(); StackAudio.playFall();
-
-            // Heavy haptic
+            // Heavy haptic immediately
             if (process.env.TARO_ENV === 'weapp') {
                 Taro.vibrateLong();
             }
 
-            // Camera Overview Zoom
-            const towerHeight = physics.stack.length * 0.1;
-            loopRef.current.stackRenderer.zoomToOverview(towerHeight);
+            // Hold camera for 1 second before zoom and score
+            setTimeout(() => {
+                if (!loopRef.current) return;
 
-            // Delay Final Score sliding to center
-            setTimeout(() => setShowFinalScore(true), 600);
+                // Camera Overview Zoom
+                const towerHeight = physics.stack.length * 0.1;
+                loopRef.current.stackRenderer.zoomToOverview(towerHeight);
 
-            // Update Best Score
-            if (physics.score > bestScore) {
-                setBestScore(physics.score);
-                Taro.setStorage({ key: 'stack_best_score', data: physics.score.toString() });
-            }
+                // Delay Final Score sliding to center (start after zoom begins)
+                setTimeout(() => setShowFinalScore(true), 600);
 
-            setGameOver(true);
+                // Update Best Score
+                if (physics.score > bestScore) {
+                    setBestScore(physics.score);
+                    Taro.setStorage({ key: 'stack_best_score', data: physics.score.toString() });
+                }
+
+                setGameOver(true);
+            }, 1000);
         } else if (result.perfect) {
             StackAudio.playPerfect(physics.combo);
 

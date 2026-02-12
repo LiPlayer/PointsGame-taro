@@ -46,6 +46,10 @@ export class StackRender implements IRenderPipeline {
     private currentD: number = 1.5;
     private targetD: number = 1.5;
     private isGameOverMode: boolean = false;
+    private gameOverAnimStartTime: number = 0;
+    private readonly ZOOM_DURATION: number = 1.0; // Seconds to complete zoom
+    private startD: number = 1.5;
+    private startCameraY: number = 0;
     private aspect: number = 1.0;
     private dirLight: THREE.DirectionalLight | null = null;
     private readonly BASE_SIZE: number = 1.0;
@@ -405,8 +409,19 @@ export class StackRender implements IRenderPipeline {
         this.currentCameraY += (this.cameraTargetY - this.currentCameraY) * 0.1;
 
         if (this.isGameOverMode) {
-            // Smoothly interpolate frustum size
-            this.currentD += (this.targetD - this.currentD) * 0.04;
+            // Non-linear Animation: Cubic Ease-Out
+            const now = Date.now();
+            const elapsed = (now - this.gameOverAnimStartTime) / 1000;
+            const t = Math.min(1.0, elapsed / this.ZOOM_DURATION);
+
+            // Cubic Ease-out Formula: 1 - (1 - t)^3
+            const easedT = 1 - Math.pow(1 - t, 3);
+
+            // Interpolate frustum size (D)
+            this.currentD = this.startD + (this.targetD - this.startD) * easedT;
+
+            // Interpolate camera position (Y)
+            this.currentCameraY = this.startCameraY + (this.cameraTargetY - this.startCameraY) * easedT;
 
             // Dynamically update camera projection
             this.camera.left = -this.currentD * this.aspect;
@@ -416,10 +431,9 @@ export class StackRender implements IRenderPipeline {
             this.camera.updateProjectionMatrix();
 
             // Re-calculate yOffset to keep tower base at screen bottom
-            // Strategy: yOffset is derived from the constraint that the base bottom (at y=-3.0 in world)
-            // projects to the screen bottom (-d). 
-            // So we update yOffset based on current interpolated D.
             this.yOffset = (this.currentD * Math.sqrt(6) - 3.0) / 2;
+        } else {
+            this.currentCameraY += (this.cameraTargetY - this.currentCameraY) * 0.1;
         }
 
         const offset = new THREE.Vector3(3, 3 + this.currentCameraY + this.yOffset, 3);
@@ -439,7 +453,11 @@ export class StackRender implements IRenderPipeline {
      * @param towerHeight The current height of the tower in meters.
      */
     public zoomToOverview(towerHeight: number) {
+        // Initialize Animation State
         this.isGameOverMode = true;
+        this.gameOverAnimStartTime = Date.now();
+        this.startD = this.currentD;
+        this.startCameraY = this.currentCameraY;
 
         // Calculate required D to fit the whole tower.
         // Tower spans from Y=0 to Y=towerHeight.
