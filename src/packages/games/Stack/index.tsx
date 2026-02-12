@@ -11,6 +11,7 @@ import { DebugOverlay } from '../../../engine/DebugOverlay';
 const StackGame = () => {
     const loopRef = useRef<ThreeGameLoop | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const [isSceneReady, setIsSceneReady] = useState(false);
     const [ready, setReady] = useState(false);
     const [score, setScore] = useState(0);
     const [combo, setCombo] = useState(0);
@@ -53,6 +54,9 @@ const StackGame = () => {
 
         const setup = (canvas: any, width: number, height: number) => {
             const loop = new ThreeGameLoop(canvas, width, height);
+            loop.onFirstFrameRendered = () => {
+                setIsSceneReady(true);
+            };
             loopRef.current = loop;
             loop.start();
         };
@@ -222,9 +226,28 @@ const StackGame = () => {
                 <View className="absolute inset-0 bg-white/10 backdrop-blur-[2px] pointer-events-none" />
             )}
 
+            {/* Loading Indicator with Water Wave Effect */}
+            {!gameOver && !isSceneReady && (
+                <View className="absolute inset-0 flex flex-col items-center justify-center bg-transparent pointer-events-none transition-opacity duration-700 ease-out z-10">
+                    <View className="relative w-48 h-48 flex items-center justify-center">
+                        {/* Recursive Ripple Layers */}
+                        <View className="absolute inset-0 border-2 border-white/20 rounded-full animate-[ping_3s_linear_infinite]" />
+                        <View className="absolute inset-0 border-2 border-white/30 rounded-full animate-[ping_3s_linear_infinite_1s]" />
+                        <View className="absolute inset-0 border-2 border-white/10 rounded-full animate-[ping_3s_linear_infinite_2s]" />
+
+                        {/* Loading Text */}
+                        <Text className="text-white/80 text-sm font-bold tracking-[0.3em] uppercase animate-pulse">
+                            Loading...
+                        </Text>
+                    </View>
+                </View>
+            )}
+
             {!gameOver && gameState === GameState.IDLE && (
-                <View className="absolute bottom-32 w-full text-center pointer-events-none animate-pulse">
-                    <Text className="text-white text-xl font-bold tracking-[0.2em] shadow-sm">点击开始</Text>
+                <View
+                    className={`absolute bottom-32 w-full text-center pointer-events-none transition-all duration-700 ease-out ${isSceneReady ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+                >
+                    <Text className="text-white text-xl font-bold tracking-[0.2em] animate-pulse">点击开始</Text>
                 </View>
             )}
 
