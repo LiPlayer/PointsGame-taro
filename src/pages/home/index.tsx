@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, FC } from 'react'
 
 import BtnPrimary from '../../components/BtnPrimary'
 import PointsCard from '../../components/PointsCard'
-import { getUserData, initUserData, refreshPoints, startPointsListener } from '../../utils/user'
+import { getUserData, initUserData, getDecayedPoints, syncDecayToDB, startPointsListener } from '../../utils/user'
 import { getWeappContentPaddingTopPx, isWeapp } from '../../utils/weappLayout'
 
 const SVG_THUNDER_WHITE =
@@ -31,7 +31,7 @@ const Home: FC = () => {
         []
     )
 
-    const syncUser = async () => {
+    const updateDisplayState = async () => {
         const existing = getUserData()
         const data = existing || (await initUserData())
         if (!data) {
@@ -39,37 +39,29 @@ const Home: FC = () => {
             return
         }
 
-        const currentPoints = refreshPoints(false)
+        const currentPoints = getDecayedPoints()
 
         // Handle consume param for animation (from Share reLaunch)
         const params = Taro.getCurrentInstance().router?.params
         const consumeAmount = params?.consume ? parseInt(params.consume) : 0
 
-        // Only update UI if integer part changes or if first load (points=0)
-        // Check against current state 'points'
-        if (Math.floor(currentPoints) !== Math.floor(points)) {
-            if (consumeAmount > 0 && points === 0) {
-                // Initialize with 'pre-transfer' points to trigger drop animation
-                setPoints(currentPoints + consumeAmount)
-                setTimeout(() => {
-                    setPoints(currentPoints)
-                }, 300)
-            } else {
-                setPoints(currentPoints)
+        setPoints(prevPoints => {
+            if (Math.floor(currentPoints) !== Math.floor(prevPoints)) {
+                return currentPoints
             }
-        }
+            return prevPoints
+        })
 
         setDailyPlayCount(data.dailyPlayCount || 0)
         setIsReady(true)
     }
 
     useEffect(() => {
-        syncUser()
-        const timer = setInterval(syncUser, 1000)
+        updateDisplayState()
+        const timer = setInterval(updateDisplayState, 1000)
 
         // Start Real-time Listener (WeChat only)
         const unsubscribe = startPointsListener((newPoints) => {
-            console.log('[Home] Real-time points update:', newPoints)
             setPoints(newPoints)
         })
 
@@ -80,7 +72,8 @@ const Home: FC = () => {
     }, [])
 
     useDidShow(() => {
-        syncUser()
+        syncDecayToDB() // Explicitly commit decay when appearing
+        updateDisplayState()
         setIsActive(true)
     })
 

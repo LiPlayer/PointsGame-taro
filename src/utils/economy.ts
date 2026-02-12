@@ -12,17 +12,29 @@ const DAYS_TO_CAP = 7
 const G_DAILY = (8 * P_MAX) / (7 * DAYS_TO_CAP)
 const LAMBDA = G_DAILY / (24 * Math.pow(P_MAX, 3))
 
-/**
- * Calculate evaporated points
- * @param lastPoints - Points at last update
- * @param lastUpdatedAt - Timestamp (ms) of last update
- * @returns Current points
- */
-export function calculateCurrentPoints(lastPoints: number, lastUpdatedAt: number): number {
-    if (!lastPoints || !lastUpdatedAt) return lastPoints || 0
+export function calculateCurrentPoints(lastPoints: number, lastUpdatedAt: any): number {
+    if (!lastPoints) return 0
+    if (!lastUpdatedAt) return lastPoints
+
+    // Normalize lastUpdatedAt to timestamp
+    let lastTime = 0
+    if (typeof lastUpdatedAt === 'number') {
+        lastTime = lastUpdatedAt
+    } else if (lastUpdatedAt instanceof Date) {
+        lastTime = lastUpdatedAt.getTime()
+    } else if (typeof lastUpdatedAt === 'string') {
+        lastTime = new Date(lastUpdatedAt).getTime()
+    } else if (lastUpdatedAt && typeof lastUpdatedAt === 'object' && lastUpdatedAt.$date) {
+        // Handle MongoDB/CloudDB Date format if it comes as { $date: ... }
+        lastTime = new Date(lastUpdatedAt.$date).getTime()
+    }
+
+    if (!lastTime || isNaN(lastTime)) {
+        return lastPoints
+    }
 
     const now = Date.now()
-    const deltaHours = (now - lastUpdatedAt) / (1000 * 60 * 60)
+    const deltaHours = (now - lastTime) / (1000 * 60 * 60)
 
     if (deltaHours <= 0) return lastPoints
 

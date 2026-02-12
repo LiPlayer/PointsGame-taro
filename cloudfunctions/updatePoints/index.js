@@ -121,7 +121,7 @@ exports.main = async (event, context) => {
                 const newPointsDeduct = Math.floor(user.points - points);
                 if (newPointsDeduct < 0) return { error: 'Insufficient points' };
 
-                await db.collection('users').where({ openid }).update({
+                await db.collection('users').where({ _openid: openid }).update({
                     data: {
                         points: newPointsDeduct,
                         lastUpdatedAt: db.serverDate()
