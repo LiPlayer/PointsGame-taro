@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, FC } from 'react'
 
 import BtnPrimary from '../../components/BtnPrimary'
 import PointsCard from '../../components/PointsCard'
-import { getUserData, initUserData, getDecayedPoints, syncDecayToDB, startPointsListener } from '../../utils/user'
+import { getUserData, initUserData, getDecayedPoints, startPointsListener } from '../../utils/user'
 import { getWeappContentPaddingTopPx, isWeapp } from '../../utils/weappLayout'
 
 const SVG_THUNDER_WHITE =
@@ -72,7 +72,6 @@ const Home: FC = () => {
     }, [])
 
     useDidShow(() => {
-        syncDecayToDB() // Explicitly commit decay when appearing
         updateDisplayState()
         setIsActive(true)
     })

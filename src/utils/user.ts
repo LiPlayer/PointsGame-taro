@@ -54,7 +54,6 @@ export async function initUserData(): Promise<UserData> {
                 if (Taro.getEnv() !== Taro.ENV_TYPE.WEAPP && !userData._openid) {
                     userData._openid = 'MOCK_OPENID_12345'
                 }
-                await syncDecayToDB()
             }
         } catch (e) {
             console.error('[User] Data init failed:', e)
@@ -125,30 +124,14 @@ export function getDecayedPoints(): number {
     return calculateCurrentPoints(userData.points, userData.lastUpdatedAt)
 }
 
-/**
- * Commits the current decayed points to memory and database.
- * Should be called sparingly (e.g. app launch, home entry, before interaction).
- */
-export async function syncDecayToDB(): Promise<void> {
-    if (!userData) return
-
-    const decayedPoints = getDecayedPoints()
-
-    // Update if changed (integer part or meaningful difference)
-    if (Math.abs(decayedPoints - userData.points) > 0.01) {
-        userData.points = decayedPoints
-        userData.lastUpdatedAt = Date.now()
-        await saveUserData()
-        console.log('[User] Decay synced to DB. New base points:', Math.round(userData.points))
-    }
-}
 
 export async function updatePoints(delta: number): Promise<number> {
     if (!userData) await initUserData()
     if (!userData) return 0 // Should not happen after init
 
-    // Commit any pending decay before applying delta
-    await syncDecayToDB()
+    // Calculate current points before applying delta
+    const currentBase = getDecayedPoints()
+    userData.points = currentBase
 
     // Optimistic Update (UI reacts instantly)
     // We update the local memory state so the UI shows the new score immediately
