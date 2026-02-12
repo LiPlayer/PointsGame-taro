@@ -143,7 +143,7 @@ export async function updatePoints(delta: number): Promise<number> {
 
     try {
         if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
-            // Security: Call Cloud Function instead of direct DB write
+            console.log(`[User] Syncing points to cloud: ${delta >= 0 ? '+' : ''}${delta}`)
             const res = await Taro.cloud.callFunction({
                 name: 'updatePoints',
                 data: {
