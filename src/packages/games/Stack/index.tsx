@@ -1,12 +1,34 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { View, Canvas, Text } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useDidShow, useDidHide } from '@tarojs/taro';
 import { ThreeGameLoop } from './game';
 import { SoundManager } from '../../../engine/SoundManager';
 import { StackPhysics } from './logic/StackPhysics';
 import { StackAudio } from './view/StackAudio';
 import { GameState } from './logic/StackPhysics';
 import { DebugOverlay } from '../../../engine/DebugOverlay';
+
+// Combined Component for Loading and Start Hint
+const LoadingStartHint = ({ isSceneReady, visible }: { isSceneReady: boolean, visible: boolean }) => {
+    if (!visible) return null;
+
+    return (
+        <View
+            className={`absolute bottom-32 w-full flex flex-col items-center justify-center pointer-events-none transition-all duration-700 ease-out`}
+        >
+            <View className="relative flex items-center justify-center">
+                {/* Text Content with In-place Content Switch */}
+                <View className="relative z-10 flex flex-col items-center">
+                    <Text
+                        className={`text-white text-xl font-bold tracking-[0.2em] transition-all duration-500 whitespace-nowrap animate-pulse ${isSceneReady ? 'scale-100 opacity-100' : 'scale-95 opacity-80'}`}
+                    >
+                        {isSceneReady ? '点击开始' : '正在加载'}
+                    </Text>
+                </View>
+            </View>
+        </View>
+    );
+};
 
 const StackGame = () => {
     const loopRef = useRef<ThreeGameLoop | null>(null);
@@ -21,21 +43,43 @@ const StackGame = () => {
     const [showFinalScore, setShowFinalScore] = useState(false);
     const [bestScore, setBestScore] = useState(0);
     const [time, setTime] = useState(0);
+    const isPausedRef = useRef(false);
     const exitTimerRef = useRef<any>(null);
 
     // Background Breathing Cycle (60s)
     useEffect(() => {
         let startTime = Date.now();
         let frameId: number;
+        let lastTime = startTime;
 
         const update = () => {
-            setTime((Date.now() - startTime) / 1000);
+            if (!isPausedRef.current) {
+                const now = Date.now();
+                // We add delta instead of setting absolute to allow "freezing" time
+                setTime(prev => prev + (now - lastTime) / 1000);
+            }
+            lastTime = Date.now();
             frameId = requestAnimationFrame(update);
         };
 
         frameId = requestAnimationFrame(update);
         return () => cancelAnimationFrame(frameId);
     }, []);
+
+    // Lifecycle Management
+    useDidShow(() => {
+        console.log('[StackGame] onShow');
+        isPausedRef.current = false;
+        loopRef.current?.resume();
+        SoundManager.getInstance().resume();
+    });
+
+    useDidHide(() => {
+        console.log('[StackGame] onHide');
+        isPausedRef.current = true;
+        loopRef.current?.pause();
+        SoundManager.getInstance().suspend();
+    });
 
     // Load Best Score on mount
     useEffect(() => {
@@ -226,30 +270,10 @@ const StackGame = () => {
                 <View className="absolute inset-0 bg-white/10 backdrop-blur-[2px] pointer-events-none" />
             )}
 
-            {/* Loading Indicator with Water Wave Effect */}
-            {!gameOver && !isSceneReady && (
-                <View className="absolute inset-0 flex flex-col items-center justify-center bg-transparent pointer-events-none transition-opacity duration-700 ease-out z-10">
-                    <View className="relative w-48 h-48 flex items-center justify-center">
-                        {/* Recursive Ripple Layers */}
-                        <View className="absolute inset-0 border-2 border-white/20 rounded-full animate-[ping_3s_linear_infinite]" />
-                        <View className="absolute inset-0 border-2 border-white/30 rounded-full animate-[ping_3s_linear_infinite_1s]" />
-                        <View className="absolute inset-0 border-2 border-white/10 rounded-full animate-[ping_3s_linear_infinite_2s]" />
-
-                        {/* Loading Text */}
-                        <Text className="text-white/80 text-sm font-bold tracking-[0.3em] uppercase animate-pulse">
-                            Loading...
-                        </Text>
-                    </View>
-                </View>
-            )}
-
-            {!gameOver && gameState === GameState.IDLE && (
-                <View
-                    className={`absolute bottom-32 w-full text-center pointer-events-none transition-all duration-700 ease-out ${isSceneReady ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-                >
-                    <Text className="text-white text-xl font-bold tracking-[0.2em] animate-pulse">点击开始</Text>
-                </View>
-            )}
+            <LoadingStartHint
+                isSceneReady={isSceneReady}
+                visible={!gameOver && gameState === GameState.IDLE}
+            />
 
             <DebugOverlay loop={loopRef.current} />
         </View>

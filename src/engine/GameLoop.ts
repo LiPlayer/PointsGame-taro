@@ -12,6 +12,7 @@ export class GameLoop {
     protected physics: IPhysicsWorld
     protected renderer: IRenderPipeline
     protected isRunning: boolean = false
+    protected isPaused: boolean = false
     protected isDestroyed: boolean = false
     protected lastTime: number = 0
     protected accumulator: number = 0
@@ -80,6 +81,20 @@ export class GameLoop {
         this.isRunning = false
     }
 
+    public pause() {
+        if (!this.isRunning || this.isPaused) return
+        this.isPaused = true
+        console.log(`[${this.constructor.name}] Paused`);
+    }
+
+    public resume() {
+        if (!this.isRunning || !this.isPaused) return
+        this.isPaused = false
+        this.lastTime = this.getNow() // Reset lastTime to current to prevent large dt on first frame after resume
+        console.log(`[${this.constructor.name}] Resumed`);
+        requestAnimationFrame(this.loop.bind(this))
+    }
+
     public destroy() {
         if (this.isDestroyed) return
         this.isDestroyed = true
@@ -120,7 +135,7 @@ export class GameLoop {
     }
 
     protected loop(time: number) {
-        if (!this.isRunning) return
+        if (!this.isRunning || this.isPaused) return
 
         let deltaTime = time - this.lastTime
         this.lastTime = time

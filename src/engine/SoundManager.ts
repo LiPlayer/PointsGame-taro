@@ -42,9 +42,25 @@ export class SoundManager {
 
     public async unlock() {
         if (this.ctx && this.ctx.state === 'suspended') {
-            console.log('[SoundManager] Resuming suspended context...');
+            console.log('[SoundManager] Resuming suspended context (unlock)...');
             await this.ctx.resume();
             console.log('[SoundManager] Context state after resume:', this.ctx.state);
+        }
+    }
+
+    public async suspend() {
+        if (this.ctx && this.ctx.state === 'running') {
+            console.log('[SoundManager] Suspending context...');
+            await this.ctx.suspend();
+            console.log('[SoundManager] Context suspended');
+        }
+    }
+
+    public async resume() {
+        if (this.ctx && this.ctx.state === 'suspended') {
+            console.log('[SoundManager] Resuming context...');
+            await this.ctx.resume();
+            console.log('[SoundManager] Context resumed');
         }
     }
 
