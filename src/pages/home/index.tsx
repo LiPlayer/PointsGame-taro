@@ -136,9 +136,26 @@ const Home: FC = () => {
                     {/* DEBUG ONLY */}
                     <View
                         className="w-full py-2 bg-slate-100 rounded-xl flex items-center justify-center active:bg-slate-200"
-                        onClick={() => Taro.navigateTo({ url: '/packages/games/Stack/index' })}
+                        onClick={() => {
+                            const games = [
+                                { name: 'Stack (堆叠)', path: '/packages/games/Stack/index' },
+                                { name: 'KnifeHit (神厨飞刀)', path: '/packages/games/KnifeHit/index' }
+                            ]
+                            Taro.showActionSheet({
+                                itemList: games.map(g => g.name),
+                                success: (res) => {
+                                    const selected = games[res.tapIndex]
+                                    if (selected) {
+                                        Taro.navigateTo({ url: selected.path })
+                                    }
+                                },
+                                fail: () => {
+                                    // Handle cancel quietly
+                                }
+                            })
+                        }}
                     >
-                        <Text className="text-[10px] font-bold text-slate-400">DEBUG: PLAY STACK</Text>
+                        <Text className="text-[10px] font-bold text-slate-400">DEBUG: 调试游戏入口</Text>
                     </View>
                 </View>
 

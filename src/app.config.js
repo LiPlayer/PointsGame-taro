@@ -17,7 +17,8 @@ export default defineAppConfig({
     {
       root: 'packages/games',
       pages: [
-        'Stack/index'
+        'Stack/index',
+        'KnifeHit/index'
       ]
     }
   ],
