@@ -1,0 +1,23 @@
+<svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360" width="360" height="360">
+	<defs>
+		<linearGradient id="g1" x2="1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(360,360,-360,360,0,0)">
+			<stop offset="0" stop-color="#e11d48"/>
+			<stop offset="1" stop-color="#f59e0b"/>
+		</linearGradient>
+	</defs>
+	<style>
+		.s0 { fill: url(#g1) } 
+		.s1 { opacity: .2;fill: none;stroke: #ffffff;stroke-width: 8 } 
+		.s2 { fill: #ffffff } 
+		.s3 { fill: none;stroke: #ffffff;stroke-linecap: round;stroke-width: 10 } 
+	</style>
+	<path fill-rule="evenodd" class="s0" d="m180 360c-99.54 0-180-80.46-180-180 0-99.54 80.46-180 180-180 99.54 0 180 80.46 180 180 0 99.54-80.46 180-180 180z"/>
+	<path fill-rule="evenodd" class="s1" d="m180 330c-82.95 0-150-67.05-150-150 0-82.95 67.05-150 150-150 82.95 0 150 67.05 150 150 0 82.95-67.05 150-150 150z"/>
+	<path fill-rule="evenodd" class="s2" d="m136 114c6.63 0 12 5.37 12 12v128c0 6.63-5.37 12-12 12-6.63 0-12-5.37-12-12v-128c0-6.63 5.37-12 12-12z"/>
+	<path fill-rule="evenodd" class="s2" d="m224 114c6.63 0 12 5.37 12 12v128c0 6.63-5.37 12-12 12-6.63 0-12-5.37-12-12v-128c0-6.63 5.37-12 12-12z"/>
+	<path class="s3" d="m136 74v30m-15-15h30"/>
+	<path fill-rule="evenodd" class="s2" d="m206 97c-4.42 0-8-3.58-8-8 0-4.42 3.58-8 8-8 4.42 0 8 3.58 8 8 0 4.42-3.58 8-8 8z"/>
+	<path fill-rule="evenodd" class="s2" d="m221 82c-4.42 0-8-3.58-8-8 0-4.42 3.58-8 8-8 4.42 0 8 3.58 8 8 0 4.42-3.58 8-8 8z"/>
+	<path fill-rule="evenodd" class="s2" d="m236 97c-4.42 0-8-3.58-8-8 0-4.42 3.58-8 8-8 4.42 0 8 3.58 8 8 0 4.42-3.58 8-8 8z"/>
+	<path fill-rule="evenodd" class="s2" d="m221 112c-4.42 0-8-3.58-8-8 0-4.42 3.58-8 8-8 4.42 0 8 3.58 8 8 0 4.42-3.58 8-8 8z"/>
+</svg>
