@@ -1,0 +1,40 @@
+{
+    "miniprogramRoot": "dist/",
+    "projectname": "points-game-merchant",
+    "description": "商户端",
+    "appid": "touristappid",
+    "setting": {
+        "urlCheck": false,
+        "es6": true,
+        "enhance": true,
+        "postcss": true,
+        "preloadBackgroundData": false,
+        "minified": true,
+        "newFeature": false,
+        "coverView": true,
+        "nodeModules": true,
+        "autoAudits": false,
+        "showShadowRootInWxmlPanel": true,
+        "scopeDataCheck": false,
+        "runSiteCheck": false,
+        "uploadWithSourceMap": true,
+        "compileHotRebuild": false,
+        "lazyCodeLoading": "requiredComponents",
+        "useMultiFrameRuntime": true,
+        "useApiHook": true,
+        "useApiHostProcess": true,
+        "babelSetting": {
+            "ignore": [],
+            "disablePlugins": [],
+            "outputPath": ""
+        },
+        "enableConditionCheck": false,
+        "useStaticResourceControl": true,
+        "useCompilerPlugins": [
+            "sass"
+        ]
+    },
+    "compileType": "miniprogram",
+    "libVersion": "3.3.4",
+    "condition": {}
+}
