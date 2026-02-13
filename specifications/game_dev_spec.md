@@ -115,5 +115,5 @@
 
 当前已实现且符合规范的游戏列表：
 
-- **[Stack (堆叠)](../src/packages/games/Stack/index.tsx)**：3D 轴侧视角堆叠游戏，包含程序化音频与动态背景。
+- **[Stack (极致层叠)](../src/packages/games/Stack/index.tsx)**：3D 轴侧视角堆叠游戏，包含程序化音频与动态背景。
 - **[KnifeHit (神厨飞刀)](../src/packages/games/KnifeHit/index.tsx)**：程序化动作旋转游戏，强调破坏反馈与打击感。
